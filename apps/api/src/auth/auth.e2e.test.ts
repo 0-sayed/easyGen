@@ -106,6 +106,18 @@ describe("Auth API", () => {
 
   it("rejects invalid credentials and missing bearer tokens", async () => {
     const server = getServer(app);
+    const payload = {
+      email: "wrong-password@example.com",
+      name: "Wrong Password User",
+      password: "Password1!",
+    };
+
+    await request(server).post("/auth/signup").send(payload).expect(201);
+
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: "WrongPassword1!" })
+      .expect(401);
 
     await request(server)
       .post("/auth/signin")
