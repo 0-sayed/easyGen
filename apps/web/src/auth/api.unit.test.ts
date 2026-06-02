@@ -83,6 +83,14 @@ describe("auth api", () => {
       "email must be a valid email password is required"
     );
   });
+
+  it("uses the fallback error when validation error arrays are empty", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ message: [] }, 400));
+
+    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
+      "Something went wrong. Please try again."
+    );
+  });
 });
 
 function jsonResponse(body: unknown, status = 200): Response {

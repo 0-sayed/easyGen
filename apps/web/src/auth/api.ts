@@ -61,6 +61,7 @@ async function readErrorMessage(response: Response): Promise<string> {
     }
     if (
       Array.isArray(body.message) &&
+      body.message.length > 0 &&
       body.message.every((message) => typeof message === "string")
     ) {
       return body.message.join(" ");
