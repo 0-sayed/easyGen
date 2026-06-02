@@ -1,13 +1,26 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+
 import "./index.css";
+import { AuthProvider } from "./auth/AuthProvider";
+import { RequireAuth } from "./auth/RequireAuth";
+import { ApplicationPage } from "./pages/ApplicationPage";
+import { SigninPage } from "./pages/SigninPage";
+import { SignupPage } from "./pages/SignupPage";
 
 export function App() {
   return (
-    <main className="app-shell">
-      <section className="app-panel" aria-labelledby="app-title">
-        <p className="app-kicker">easyGen</p>
-        <h1 id="app-title">Authentication module</h1>
-        <p>Bootstrap shell ready. Signup, signin, and protected app flows start in T002/T003.</p>
-      </section>
-    </main>
+    <AuthProvider>
+      <main className="grid min-h-screen place-items-center bg-page p-4 sm:p-6">
+        <Routes>
+          <Route path="/" element={<Navigate to="/signin" replace />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signin" element={<SigninPage />} />
+          <Route element={<RequireAuth />}>
+            <Route path="/app" element={<ApplicationPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/signin" replace />} />
+        </Routes>
+      </main>
+    </AuthProvider>
   );
 }
