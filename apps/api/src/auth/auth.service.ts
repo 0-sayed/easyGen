@@ -14,6 +14,9 @@ interface AuthResponse {
   user: PublicUser;
 }
 
+const DUMMY_PASSWORD_HASH =
+  "$argon2id$v=19$m=65536,t=3,p=4$YW55c2FsdHNhbHQ$R29vZEJ5ZSBXb3JsZCBHb29kQnllIFdvcmxk";
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -40,14 +43,10 @@ export class AuthService {
 
   async signin(dto: SigninDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(dto.email);
+    const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+    const passwordMatches = await verify(passwordHash, dto.password);
 
-    if (user === null) {
-      throw new UnauthorizedException("Invalid email or password.");
-    }
-
-    const passwordMatches = await verify(user.passwordHash, dto.password);
-
-    if (!passwordMatches) {
+    if (user === null || !passwordMatches) {
       throw new UnauthorizedException("Invalid email or password.");
     }
 

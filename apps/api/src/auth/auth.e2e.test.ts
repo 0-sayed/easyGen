@@ -1,4 +1,5 @@
 import type { INestApplication } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
 import request from "supertest";
@@ -73,6 +74,15 @@ describe("Auth API", () => {
     expect(meResponse.body).toEqual({
       user: signinResponse.body.user,
     });
+
+    const lowercaseBearerResponse = await request(server)
+      .get("/auth/me")
+      .set("Authorization", `bearer   ${accessToken}`)
+      .expect(200);
+
+    expect(lowercaseBearerResponse.body).toEqual({
+      user: signinResponse.body.user,
+    });
   });
 
   it("rejects invalid signup input", async () => {
@@ -119,6 +129,16 @@ describe("Auth API", () => {
       .set("Authorization", `Bearer ${accessToken} extra`)
       .expect(401);
   });
+
+  it("rejects valid tokens with malformed subject values", async () => {
+    const server = getServer(app);
+    const accessToken = await getJwtService(app).signAsync({
+      email: "malformed-subject@example.com",
+      sub: "not-an-object-id",
+    });
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(401);
+  });
 });
 
 function getServer(app: INestApplication | undefined): App {
@@ -142,6 +162,14 @@ function getAccessToken(response: Response): string {
   }
 
   return body.accessToken;
+}
+
+function getJwtService(app: INestApplication | undefined): JwtService {
+  if (app === undefined) {
+    throw new Error("Nest app was not initialized.");
+  }
+
+  return app.get(JwtService);
 }
 
 function restoreJwtSecret(value: string | undefined): void {

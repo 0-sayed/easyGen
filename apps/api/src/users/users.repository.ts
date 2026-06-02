@@ -48,6 +48,10 @@ export class UsersRepository {
   }
 
   async findPublicById(id: string): Promise<PublicUser | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
     const user = await this.userModel.findById(id).exec();
 
     if (user === null) {
@@ -64,4 +68,8 @@ export class UsersRepository {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function isObjectIdString(value: string): boolean {
+  return /^[0-9a-fA-F]{24}$/.test(value);
 }
