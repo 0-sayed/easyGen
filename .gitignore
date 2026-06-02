@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+secrets/
 
 # Dependencies
 node_modules/

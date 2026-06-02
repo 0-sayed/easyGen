@@ -1,0 +1,49 @@
+{
+  "name": "easygen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "prepare": "node scripts/install-git-hooks.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "lint": "eslint .",
+    "test": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run test",
+    "test:unit": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run test:unit",
+    "test:integration": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run test:integration",
+    "test:e2e": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run test:e2e",
+    "coverage": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run coverage",
+    "type-check": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run type-check",
+    "build": "pnpm --recursive --if-present --filter './apps/*' --filter './packages/*' run build",
+    "migrate:create": "migrate-mongo create -f migrate-mongo-config.cjs",
+    "migrate:down": "migrate-mongo down -f migrate-mongo-config.cjs",
+    "migrate:status": "migrate-mongo status -f migrate-mongo-config.cjs",
+    "migrate:up": "migrate-mongo up -f migrate-mongo-config.cjs",
+    "knip": "knip",
+    "hooks:install": "lefthook install",
+    "audit": "pnpm audit --audit-level high",
+    "validate": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test && pnpm knip && pnpm audit && pnpm build"
+  },
+  "engines": {
+    "node": "22.14.0",
+    "pnpm": "10.26.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.8",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.4.1",
+    "knip": "^6.15.0",
+    "lefthook": "^2.1.9",
+    "migrate-mongo": "^14.0.7",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.1",
+    "vitest": "^4.1.8"
+  }
+}
