@@ -112,11 +112,12 @@ export function SignupPage() {
           </p>
         </div>
 
-        {submitError ? (
-          <p className={`${authStyles.error} ${authStyles.messageSlot}`} aria-live="polite">
-            {submitError}
-          </p>
-        ) : null}
+        <p
+          className={`${submitError ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
+          aria-live="polite"
+        >
+          {submitError ?? ""}
+        </p>
 
         <button className={authStyles.button} type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Creating..." : "Create account"}

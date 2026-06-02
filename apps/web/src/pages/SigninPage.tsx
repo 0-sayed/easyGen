@@ -130,5 +130,9 @@ function getRedirectPath(state: unknown): string {
     return "/app";
   }
 
-  return typeof from.pathname === "string" ? from.pathname : "/app";
+  return typeof from.pathname === "string" &&
+    from.pathname.startsWith("/") &&
+    !from.pathname.startsWith("//")
+    ? from.pathname
+    : "/app";
 }

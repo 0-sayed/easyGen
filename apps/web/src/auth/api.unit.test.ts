@@ -73,6 +73,16 @@ describe("auth api", () => {
       "Invalid email or password."
     );
   });
+
+  it("throws readable validation error arrays from API responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({ message: ["email must be a valid email", "password is required"] }, 400)
+    );
+
+    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
+      "email must be a valid email password is required"
+    );
+  });
 });
 
 function jsonResponse(body: unknown, status = 200): Response {

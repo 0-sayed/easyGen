@@ -63,6 +63,39 @@ describe("AuthProvider", () => {
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
     expect(screen.getByText("Person Name")).toBeInTheDocument();
   });
+
+  it("does not let a stale bootstrap request replace a new signin session", async () => {
+    const staleUser = { id: "user-old", email: "old@example.com", name: "Old Session" };
+    const newUser = { id: "user-new", email: "new@example.com", name: "New Session" };
+    let resolveBootstrap!: (value: typeof staleUser) => void;
+    const bootstrap = new Promise<typeof staleUser>((resolve) => {
+      resolveBootstrap = resolve;
+    });
+
+    setAccessToken("old-token");
+    vi.spyOn(api, "getCurrentUser").mockReturnValueOnce(bootstrap);
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "new-token", user: newUser });
+
+    render(
+      <AuthProvider>
+        <SigninButton />
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
+    });
+
+    resolveBootstrap(staleUser);
+
+    await waitFor(() => {
+      expect(screen.getByText("ready")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("auth-user")).toHaveTextContent("New Session");
+  });
 });
 
 function Probe() {
@@ -87,5 +120,16 @@ function SigninButton() {
     >
       Sign in
     </button>
+  );
+}
+
+function AuthStateProbe() {
+  const { isLoading, user } = useAuth();
+
+  return (
+    <>
+      <p>{isLoading ? "loading" : "ready"}</p>
+      <p data-testid="auth-user">{user?.name ?? "guest"}</p>
+    </>
   );
 }

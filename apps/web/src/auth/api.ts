@@ -53,7 +53,19 @@ async function readErrorMessage(response: Response): Promise<string> {
 
   try {
     const body: unknown = await response.json();
-    return isObject(body) && typeof body.message === "string" ? body.message : fallback;
+    if (!isObject(body)) {
+      return fallback;
+    }
+    if (typeof body.message === "string") {
+      return body.message;
+    }
+    if (
+      Array.isArray(body.message) &&
+      body.message.every((message) => typeof message === "string")
+    ) {
+      return body.message.join(" ");
+    }
+    return fallback;
   } catch {
     return fallback;
   }

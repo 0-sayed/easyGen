@@ -56,6 +56,27 @@ describe("SignupPage", () => {
       password: "Password1!",
     });
   });
+
+  it("keeps the submit error slot mounted before signup fails", async () => {
+    vi.spyOn(api, "signup").mockRejectedValueOnce(new Error("Email is already registered."));
+    const { container } = renderAuthRoutes(
+      <Route path="/signup" element={<SignupPage />} />,
+      "/signup"
+    );
+    const submitMessageSlot = container.querySelector('form > p[aria-live="polite"]');
+
+    expect(submitMessageSlot).toBeInTheDocument();
+    expect(submitMessageSlot).toHaveTextContent("");
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Name"), "Person Name");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    await waitFor(() => {
+      expect(submitMessageSlot).toHaveTextContent("Email is already registered.");
+    });
+  });
 });
 
 describe("SigninPage", () => {
@@ -81,6 +102,30 @@ describe("SigninPage", () => {
         <Route path="/app" element={<p>Welcome to the application.</p>} />
       </>,
       "/signin"
+    );
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Welcome to the application.")).toBeInTheDocument();
+    });
+  });
+
+  it("falls back to the app page for protocol-relative redirect paths", async () => {
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "token-123", user });
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/signin", state: { from: { pathname: "//evil.test" } } }]}
+      >
+        <AuthProvider>
+          <Routes>
+            <Route path="/signin" element={<SigninPage />} />
+            <Route path="/app" element={<p>Welcome to the application.</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
     );
 
     await userEvent.type(screen.getByLabelText("Email"), "person@example.com");

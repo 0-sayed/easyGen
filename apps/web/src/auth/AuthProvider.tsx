@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
 
   useEffect(() => {
+    let active = true;
     const accessToken = getAccessToken();
 
     if (accessToken === null) {
@@ -32,14 +33,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     void getCurrentUser(accessToken)
-      .then(setUser)
+      .then((currentUser) => {
+        if (active && getAccessToken() === accessToken) {
+          setUser(currentUser);
+        }
+      })
       .catch(() => {
-        clearAccessToken();
-        setUser(null);
+        if (active && getAccessToken() === accessToken) {
+          clearAccessToken();
+          setUser(null);
+        }
       })
       .finally(() => {
-        setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(
