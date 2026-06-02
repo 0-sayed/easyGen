@@ -59,10 +59,30 @@ describe("App", () => {
       .options("/auth/signup")
       .set("Origin", "http://127.0.0.1:5173")
       .set("Access-Control-Request-Method", "POST")
-      .set("Access-Control-Request-Headers", "content-type")
+      .set("Access-Control-Request-Headers", "authorization, content-type")
       .expect(204);
 
     expect(response.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:5173");
+    expect(response.headers["access-control-allow-methods"]).toContain("POST");
+    expect(response.headers["access-control-allow-headers"]).toContain("Authorization");
+    expect(response.headers["access-control-allow-headers"]).toContain("Content-Type");
+  });
+
+  it("allows frontend auth preflight requests from localhost", async () => {
+    if (app === undefined) {
+      throw new Error("Nest app was not initialized.");
+    }
+
+    const response = await request(app.getHttpServer())
+      .options("/auth/signin")
+      .set("Origin", "http://localhost:5173")
+      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Headers", "authorization, content-type")
+      .expect(204);
+
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(response.headers["access-control-allow-methods"]).toContain("POST");
+    expect(response.headers["access-control-allow-headers"]).toContain("Authorization");
     expect(response.headers["access-control-allow-headers"]).toContain("Content-Type");
   });
 });
