@@ -5,9 +5,21 @@ import { defineConfig, loadEnv } from "vite";
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const DEFAULT_WEB_PORT = 5173;
 
+function parseWebPort(value: string | undefined): number {
+  const candidate = value?.trim();
+
+  if (candidate === undefined || !/^\d+$/.test(candidate)) {
+    return DEFAULT_WEB_PORT;
+  }
+
+  const parsedPort = Number.parseInt(candidate, 10);
+
+  return parsedPort > 0 && parsedPort <= 65_535 ? parsedPort : DEFAULT_WEB_PORT;
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, repoRoot, "");
-  const webPort = Number.parseInt(env.WEB_PORT ?? `${DEFAULT_WEB_PORT}`, 10);
+  const webPort = parseWebPort(env.WEB_PORT);
 
   return {
     envDir: repoRoot,

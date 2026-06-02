@@ -28,6 +28,20 @@ describe("createCorrelationId", () => {
     expect(headers.get("x-correlation-id")).toBe("trace-12345678");
   });
 
+  it("reuses one valid correlation ID from a single-value array header", () => {
+    const request = {
+      headers: {
+        "x-correlation-id": ["trace-12345678"],
+      },
+    };
+    const { headers, response } = createResponse();
+
+    const correlationId = createCorrelationId(request, response);
+
+    expect(correlationId).toBe("trace-12345678");
+    expect(headers.get("x-correlation-id")).toBe("trace-12345678");
+  });
+
   it("replaces malformed inbound correlation IDs", () => {
     const request = {
       headers: {

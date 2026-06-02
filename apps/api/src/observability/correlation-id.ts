@@ -14,6 +14,14 @@ interface CorrelationResponse {
 }
 
 function normalizeCorrelationId(value: IncomingHttpHeaders[string]): string | undefined {
+  if (Array.isArray(value)) {
+    if (value.length !== 1) {
+      return undefined;
+    }
+
+    return normalizeCorrelationId(value[0]);
+  }
+
   if (typeof value !== "string") {
     return undefined;
   }

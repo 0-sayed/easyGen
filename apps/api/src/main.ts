@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { Logger } from "nestjs-pino";
 
 import { AppModule } from "./app.module";
+import { resolvePort } from "./config/port";
 
 const DEFAULT_PORT = 3000;
 
@@ -26,7 +27,7 @@ async function bootstrap(): Promise<void> {
   });
 
   const configuredPort = process.env.PORT;
-  const port = configuredPort === undefined ? DEFAULT_PORT : Number.parseInt(configuredPort, 10);
+  const port = resolvePort(configuredPort, DEFAULT_PORT, "PORT");
 
   await app.listen(port);
 }
