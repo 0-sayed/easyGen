@@ -58,19 +58,19 @@ These steps do not need business context.
 
 > Everything downstream inherits these settings. Changing tsconfig paths later is a codebase-wide rewrite.
 
-- [ ] `.nvmrc` or `.node-version` (pin exact version)
-- [ ] `package.json` with `engines` field (enforce Node + package manager version)
-- [ ] `pnpm-workspace.yaml` (if monorepo)
-- [ ] `tsconfig.json` (`strict: true` — enables 8 flags including `strictNullChecks`, `strictFunctionTypes`, `useUnknownInCatchVariables`; critical for agentic development where 94% of LLM-generated compilation errors are type-check failures, path aliases)
+- [x] `.nvmrc` or `.node-version` (pin exact version)
+- [x] `package.json` with `engines` field (enforce Node + package manager version)
+- [x] `pnpm-workspace.yaml` (if monorepo)
+- [x] `tsconfig.json` (`strict: true` — enables 8 flags including `strictNullChecks`, `strictFunctionTypes`, `useUnknownInCatchVariables`; critical for agentic development where 94% of LLM-generated compilation errors are type-check failures, path aliases)
   - **Beyond strict** — 5 additional flags with high value and low friction: `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `isolatedModules`
   - **Skip** `noPropertyAccessFromIndexSignature` — creates `process.env['X']` bracket-notation noise across the codebase with zero bug-catching benefit. `noUncheckedIndexedAccess` already covers the safety case.
-- [ ] `tsconfig.build.json` (exclude tests, dev files)
+- [x] `tsconfig.build.json` (exclude tests, dev files)
 
 ---
 
 ### Step 3 — Workspace Tooling
 
-- [ ] Initialize package/workspace tooling for the chosen project shape. For monorepos, start with pnpm workspaces; add Turborepo or Nx only when app/lib graph, caching, or affected builds are needed.
+- [x] Initialize package/workspace tooling for the chosen project shape. For monorepos, start with pnpm workspaces; add Turborepo or Nx only when app/lib graph, caching, or affected builds are needed.
   - Small monorepo (< ~10 packages, one team): pnpm workspaces only
   - Product monorepo (multiple apps + shared packages, one team): pnpm workspaces + Turborepo
   - Org/platform scale (50+ packages, multiple teams, generators, governance): Nx
@@ -82,30 +82,30 @@ These steps do not need business context.
 
 > Every file written from this point forward is auto-formatted and linted. Zero formatting noise in PRs.
 
-- [ ] ESLint (flat config, TS-aware)
+- [x] ESLint (flat config, TS-aware)
   - Use `strictTypeChecked` + `stylisticTypeChecked` (not just `recommendedTypeChecked`) — the 80/20 for TypeScript linting.
   - `no-explicit-any: error` — blocks `any` from CI.
   - `no-unsafe-type-assertion: warn` (not error) — surfaces unsafe casts in editor + PR review without forcing `eslint-disable` comments or `as unknown as` double-casts at framework boundaries. At error level it generates ~80% noise for ~10% extra safety.
   - Add `**/*.config.ts` to ignores — config files are execution roots, not library code.
   - **Test file overrides** — relax `@typescript-eslint/no-unsafe-*` rules for every configured test suffix, such as `*.spec.ts`, `*.test.ts`, `*.integration-spec.ts`, and `*.e2e-spec.ts`. Mock objects are inherently `any`-typed; enforcing type safety on test doubles adds boilerplate with no safety gain. Configure via ESLint `files` override, not per-file disable comments.
-- [ ] Prettier (`.prettierrc` + `.prettierignore`)
-- [ ] Knip (dead code / unused deps detection)
+- [x] Prettier (`.prettierrc` + `.prettierignore`)
+- [x] Knip (dead code / unused deps detection)
 
 ---
 
 ### Step 5 — Automated CI Setup
 
-- [ ] GitHub Actions workflow (`ci.yml`): format → lint → type-check → build
-- [ ] PR validation workflow (`pr-check.yml`): conventional commit title enforcement, dependency review, merge conflict detection
-- [ ] Auto-assign PR author workflow (`auto-assign-pr.yml`): assigns the PR to its author on open. If the workflow writes PR metadata, use the correct GitHub event and permissions for that write path, and do not check out or execute untrusted PR code.
-- [ ] CI permissions: least-privilege (`contents: read` by default; add only the write permissions a workflow actually needs)
-- [ ] Dependabot for GitHub Actions (`.github/dependabot.yml` — `github-actions` ecosystem; professional default is weekly, individual side-project choice is monthly to reduce noise). If the project should also receive package dependency PRs, add the package ecosystem explicitly with the same noise policy.
+- [x] GitHub Actions workflow (`ci.yml`): format → lint → type-check → build
+- [x] PR validation workflow (`pr-check.yml`): conventional commit title enforcement, dependency review, merge conflict detection
+- [x] Auto-assign PR author workflow (`auto-assign-pr.yml`): assigns the PR to its author on open. If the workflow writes PR metadata, use the correct GitHub event and permissions for that write path, and do not check out or execute untrusted PR code.
+- [x] CI permissions: least-privilege (`contents: read` by default; add only the write permissions a workflow actually needs)
+- [x] Dependabot for GitHub Actions (`.github/dependabot.yml` — `github-actions` ecosystem; professional default is weekly, individual side-project choice is monthly to reduce noise). If the project should also receive package dependency PRs, add the package ecosystem explicitly with the same noise policy.
 
 ---
 
 ### Step 6 — Manual GitHub Repository Settings
 
-- [ ] Branch protection on `main` — GitHub UI → Settings → Branches → `main`:
+- [x] Branch protection on `main` — GitHub UI → Settings → Branches → `main`:
   - Rule name: `Protect main`
   - Add target → Include default branch
   - Restrict deletions
@@ -113,7 +113,7 @@ These steps do not need business context.
   - Require conversation resolution before merging
   - Require status checks to pass for the checks that exist now: `Format`, `Lint`, `Type Check`, `Build`
   - Block force pushes
-- [ ] Auto-delete head branches — GitHub UI → Settings → General → Pull Requests → check "Automatically delete head branches"
+- [x] Auto-delete head branches — GitHub UI → Settings → General → Pull Requests → check "Automatically delete head branches"
 
 ## Phase 2 — Project Shape Foundation
 
@@ -123,31 +123,31 @@ These steps depend on the planning folder created in Step 1. They may create app
 
 > Read the planning folder, identify the initial project boundaries, then create them. The goal is a runnable project shape, not working product behavior.
 
-- [ ] Confirm the planning folder names the initial apps/services/libs/modules.
-- [ ] Confirm the backing services needed locally: database, queue/broker, cache, object storage, etc.
-- [ ] Confirm the public entrypoints: REST, GraphQL, CLI, worker, scheduler, or dashboard.
-- [ ] Confirm what is intentionally out of scope for bootstrap.
-- [ ] Confirm the first real feature task starts in `tasks.md`, not in this bootstrap checklist.
-- [ ] Generate the initial apps/services defined by the planning folder.
-- [ ] Generate shared libs/modules defined by the planning folder.
-- [ ] Initialize framework-specific app tooling only for the apps/services approved by the planning folder.
-- [ ] Add bootstrap entrypoints and empty module shells.
-- [ ] Add health endpoint only if the selected framework/app shape needs it for local verification.
-- [ ] For HTTP entrypoints, install and configure OpenAPI/Swagger.
-- [ ] Expose API docs at `/docs` and OpenAPI JSON at `/docs-json`.
-- [ ] Document bootstrap-level endpoints only; do not design feature DTOs or business API contracts here.
-- [ ] Do not implement auth flows, job handlers, database tables, queues, product logic, or feature behavior.
+- [x] Confirm the planning folder names the initial apps/services/libs/modules.
+- [x] Confirm the backing services needed locally: database, queue/broker, cache, object storage, etc.
+- [x] Confirm the public entrypoints: REST, GraphQL, CLI, worker, scheduler, or dashboard.
+- [x] Confirm what is intentionally out of scope for bootstrap.
+- [x] Confirm the first real feature task starts in `tasks.md`, not in this bootstrap checklist.
+- [x] Generate the initial apps/services defined by the planning folder.
+- [x] Generate shared libs/modules defined by the planning folder.
+- [x] Initialize framework-specific app tooling only for the apps/services approved by the planning folder.
+- [x] Add bootstrap entrypoints and empty module shells.
+- [x] Add health endpoint only if the selected framework/app shape needs it for local verification.
+- [x] For HTTP entrypoints, install and configure OpenAPI/Swagger.
+- [x] Expose API docs at `/docs` and OpenAPI JSON at `/docs-json`.
+- [x] Document bootstrap-level endpoints only; do not design feature DTOs or business API contracts here.
+- [x] Do not implement auth flows, job handlers, database tables, queues, product logic, or feature behavior.
 
 ---
 
 ### Step 8 — Local Development Infrastructure
 
-- [ ] `docker-compose.yml` (database, cache, queue — whatever backing services you need)
-- [ ] `.env.example` (documented, every variable explained with comments)
-- [ ] Database connection module + migration setup (Drizzle, etc.)
-- [ ] Keep environment defaults consistent across `.env.example`, Docker Compose defaults, app config fallbacks, migration config, tests, and CI dummy env. A clean clone should work without hidden local `.env` values.
-- [ ] Backing-service clients/pools must handle idle/runtime errors, log failures, and close cleanly during shutdown.
-- [ ] **Worktree isolation** — parallel branches need isolated infrastructure. Without this, worktrees share one database and collide on ports.
+- [x] `docker-compose.yml` (database, cache, queue — whatever backing services you need)
+- [x] `.env.example` (documented, every variable explained with comments)
+- [x] Database connection module + migration setup (Drizzle, etc.)
+- [x] Keep environment defaults consistent across `.env.example`, Docker Compose defaults, app config fallbacks, migration config, tests, and CI dummy env. A clean clone should work without hidden local `.env` values.
+- [x] Backing-service clients/pools must handle idle/runtime errors, log failures, and close cleanly during shutdown.
+- [x] **Worktree isolation** — parallel branches need isolated infrastructure. Without this, worktrees share one database and collide on ports.
   - Install [`worktree-compose`](https://www.worktree-compose.com/) globally (`npm i -g worktree-compose`). Usage: `wtc list` to see worktrees + ports, `wtc start <index>` to spin up isolated infra, `wtc stop <index>` to tear down.
   - Do **not** set hardcoded `container_name` values in Compose files. Let Docker Compose namespace containers per project/worktree.
   - Parameterize **all** host ports in `docker-compose.yml` with env var defaults. No hardcoded host ports.
@@ -156,6 +156,7 @@ These steps depend on the planning folder created in Step 1. They may create app
   - Bind local-only infrastructure ports to `127.0.0.1` unless another machine must reach them (e.g. `127.0.0.1:${POSTGRES_PORT:-15432}:5432`).
   - Make `.env.example` connection URLs match the default host ports exactly.
   - Add `.wtcrc.json` with `envOverrides` to rewrite connection strings (`DATABASE_URL`, `REDIS_URL`, etc.) using allocated ports — `wtc` offsets the port variables but can't parse URLs automatically.
+  - Keep `wtc` URL overrides port-derived only. Do not hardcode usernames, passwords, tokens, or credential-bearing URLs in `.wtcrc.json`, `.env.example`, Docker Compose, app config fallbacks, migration config, tests, or CI dummy env. For simple local Mongo tasks, prefer a no-auth local URI such as `mongodb://127.0.0.1:${MONGODB_PORT}/app?directConnection=true`.
   - Treat `wtc` setup as part of the bootstrap, not an optional afterthought: commit the required support files up front (`.wtcrc.json`, compatible `docker-compose*.yml`, and any generated/synced paths your app needs).
   - Make sure Docker build contexts, Dockerfiles, and mounted paths still work from a git worktree checkout after `wtc` syncs files from the source worktree.
   - Full-stack isolation: frontend dev ports, backend dev ports, proxy targets, callback URLs, and internal service URLs must resolve per worktree too. Infra isolation alone is not enough if local app processes still collide on shared localhost ports.
@@ -165,10 +166,10 @@ These steps depend on the planning folder created in Step 1. They may create app
 
 ### Step 9 — Observability Foundation
 
-- [ ] Structured logging library (Pino — JSON format)
-- [ ] Request correlation IDs (trace a request across logs). Normalize and validate inbound correlation headers; replace empty, malformed, or multi-value inputs instead of blindly trusting them.
-- [ ] Health check endpoint (`/health`)
-- [ ] Graceful shutdown handling
+- [x] Structured logging library (Pino — JSON format)
+- [x] Request correlation IDs (trace a request across logs). Normalize and validate inbound correlation headers; replace empty, malformed, or multi-value inputs instead of blindly trusting them.
+- [x] Health check endpoint (`/health`)
+- [x] Graceful shutdown handling
 
 ---
 
@@ -176,33 +177,33 @@ These steps depend on the planning folder created in Step 1. They may create app
 
 > Agent note: before implementing this step, check the current official docs for Vitest, Nest testing, Supertest, and Testcontainers. Use them to create the local exemplary unit, integration, and e2e patterns.
 
-- [ ] Vitest config for unit, integration, and e2e tests
-- [ ] Supertest for HTTP API e2e tests where applicable
-- [ ] Testcontainers foundation for integration tests with real backing services
-- [ ] One exemplary unit test for pure service/handler logic
-- [ ] One exemplary integration test against a real backing service
-- [ ] One exemplary e2e test against a booted Nest app
-- [ ] Coverage via `@vitest/coverage-v8` (start at 50%, increase over time)
-- [ ] Project-level build targets pass for generated apps/libs, not only the root TypeScript build.
-- [ ] `pnpm validate` script = format + lint + type-check + test + knip + audit + build
+- [x] Vitest config for unit, integration, and e2e tests
+- [x] Supertest for HTTP API e2e tests where applicable
+- [x] Testcontainers foundation for integration tests with real backing services
+- [x] One exemplary unit test for pure service/handler logic
+- [x] One exemplary integration test against a real backing service
+- [x] One exemplary e2e test against a booted Nest app
+- [x] Coverage via `@vitest/coverage-v8` (start at 50%, increase over time)
+- [x] Project-level build targets pass for generated apps/libs, not only the root TypeScript build.
+- [x] `pnpm validate` script = format + lint + type-check + test + knip + audit + build
 
 ---
 
 ### Step 11 — Developer Experience
 
-- [ ] `AGENTS.md` — Codex agent instructions for this repo. Check current official Codex guidance for instruction-file conventions, then inspect this repo's scripts, app/lib layout, Docker services, env files, tests, and bootstrap decisions. Include how to run dev, validation commands, test conventions, banned behaviors, architecture map, service ownership, env/service gotchas, and common workflows. Keep it concise and less than 200 lines.
-- [ ] `CLAUDE.md` — create this file containing only `@AGENTS.md`. Claude Code's `@` import syntax loads the referenced file as the actual instructions content. This makes `AGENTS.md` the single source of truth: Claude Code reads it via the import, while every other coding agent (Codex, Cursor, Copilot, Gemini CLI, Windsurf) reads it directly. One file to maintain, all tools stay in sync automatically.
-- [ ] Verify every command documented in `AGENTS.md` exists in the Makefile, package scripts, or the repo's chosen task runner.
-- [ ] `Makefile` or task runner — expose core developer workflows, not every package script. Add memorable commands a developer actually uses, such as `make setup`, `make infra`, `make dev`, `make web`, `make check`, and `make validate`. Only include commands that are wired to real repo behavior.
+- [x] `AGENTS.md` — Codex agent instructions for this repo. Check current official Codex guidance for instruction-file conventions, then inspect this repo's scripts, app/lib layout, Docker services, env files, tests, and bootstrap decisions. Include how to run dev, validation commands, test conventions, banned behaviors, architecture map, service ownership, env/service gotchas, and common workflows. Keep it concise and less than 200 lines.
+- [x] `CLAUDE.md` — create this file containing only `@AGENTS.md`. Claude Code's `@` import syntax loads the referenced file as the actual instructions content. This makes `AGENTS.md` the single source of truth: Claude Code reads it via the import, while every other coding agent (Codex, Cursor, Copilot, Gemini CLI, Windsurf) reads it directly. One file to maintain, all tools stay in sync automatically.
+- [x] Verify every command documented in `AGENTS.md` exists in the Makefile, package scripts, or the repo's chosen task runner.
+- [x] `Makefile` or task runner — expose core developer workflows, not every package script. Add memorable commands a developer actually uses, such as `make setup`, `make infra`, `make dev`, `make web`, `make check`, and `make validate`. Only include commands that are wired to real repo behavior.
 
 ---
 
 ### Step 12 — Security Baseline
 
-- [ ] **`.gitignore` audit:** Verify `.env`, `*.pem`, `*.key`, `*.p12`, `secrets/` are excluded. Run `git status` on a clean checkout — nothing sensitive should appear.
-- [ ] **Environment variable hygiene:** `.env.example` documents every variable with comments, uses obviously fake placeholders (`changeme`, `your-db-password`, empty string), and contains no real credentials. CI workflow files must use dummy values only and must not print secrets.
-- [ ] **Dependency license policy:** Deny GPL-3.0 and AGPL-3.0 via `actions/dependency-review-action` in `pr-check.yml`. Keep vulnerability auditing in the full CI pipeline step, not here.
-- [ ] **Pre-commit secret scanning:** Blocks secrets from entering git history.
+- [x] **`.gitignore` audit:** Verify `.env`, `*.pem`, `*.key`, `*.p12`, `secrets/` are excluded. Run `git status` on a clean checkout — nothing sensitive should appear.
+- [x] **Environment variable hygiene:** `.env.example` documents every variable with comments, uses obviously fake placeholders (`changeme`, `your-db-password`, empty string), and contains no real credentials. CI workflow files must use dummy values only and must not print secrets.
+- [x] **Dependency license policy:** Deny GPL-3.0 and AGPL-3.0 via `actions/dependency-review-action` in `pr-check.yml`. Keep vulnerability auditing in the full CI pipeline step, not here.
+- [x] **Pre-commit secret scanning:** Blocks secrets from entering git history.
   - Install [gitleaks](https://github.com/gitleaks/gitleaks/releases) on each dev machine (one-time).
   - Add `lefthook` to the repo (`pnpm add -Dw lefthook`) with a `pre-commit` job running `gitleaks protect --staged --redact`.
   - Wire hook installation through `package.json` so every dev gets the hook on `pnpm install`, while preserving any existing global hook policy.
@@ -211,19 +212,19 @@ These steps depend on the planning folder created in Step 1. They may create app
 
 ### Step 13 — Full CI Pipeline
 
-- [ ] Add test job to CI workflow for the test layers that exist locally (unit, integration, e2e, or the repo's single `test` script)
-- [ ] Add format job to CI workflow (`pnpm format`) before lint/typecheck so save-on-format drift cannot bypass CI.
-- [ ] Run integration/e2e tests with the required CI backing services for this project (for example: database, cache, queue, broker, object storage)
-- [ ] Add CI caching where useful (package manager store, build-tool cache, lint cache if enabled, TypeScript incremental cache if enabled)
-- [ ] Concurrency groups (cancel stale runs on same branch)
-- [ ] Timeout limits per job (prevent runaway builds)
-- [ ] `pnpm audit` in CI (own job — `Security Audit` — runs parallel to lint/typecheck/test)
+- [x] Add test job to CI workflow for the test layers that exist locally (unit, integration, e2e, or the repo's single `test` script)
+- [x] Add format job to CI workflow (`pnpm format`) before lint/typecheck so save-on-format drift cannot bypass CI.
+- [x] Run integration/e2e tests with the required CI backing services for this project (for example: database, cache, queue, broker, object storage)
+- [x] Add CI caching where useful (package manager store, build-tool cache, lint cache if enabled, TypeScript incremental cache if enabled)
+- [x] Concurrency groups (cancel stale runs on same branch)
+- [x] Timeout limits per job (prevent runaway builds)
+- [x] `pnpm audit` in CI (own job — `Security Audit` — runs parallel to lint/typecheck/test)
 
 ---
 
 ### Step 13.1 — Branch Protection Update
 
-- [ ] Add `Test` to required branch protection: GitHub repo → Settings → Branches → `Protect main` → Require status checks → Add checks → `Test` → Save changes.
+- [x] Add `Test` to required branch protection: GitHub repo → Settings → Branches → `Protect main` → Require status checks → Add checks → `Test` → Save changes.
 
 ---
 
@@ -231,9 +232,9 @@ These steps depend on the planning folder created in Step 1. They may create app
 
 > Agents generate files with stale dependency versions (LLM training cutoff) and hallucinated GitHub Actions SHAs. This step fixes both, then validates everything in one pass.
 
-- [ ] `pnpm update -r --latest` (update all workspace package.json to latest versions)
-- [ ] `pnpm install` (regenerate lockfile after version bumps)
-- [ ] Pin GitHub Actions to SHA — **never write SHAs by hand; AI models hallucinate them.** Use [pinact](https://github.com/suzuki-shunsuke/pinact) to resolve and verify:
+- [x] `pnpm update -r --latest` (update all workspace package.json to latest versions)
+- [x] `pnpm install` (regenerate lockfile after version bumps)
+- [x] Pin GitHub Actions to SHA — **never write SHAs by hand; AI models hallucinate them.** Use [pinact](https://github.com/suzuki-shunsuke/pinact) to resolve and verify:
       validate
 
   ```bash
@@ -255,8 +256,8 @@ These steps depend on the planning folder created in Step 1. They may create app
 
   > `GITHUB_TOKEN` is required — without it pinact hits GitHub's unauthenticated rate limit and times out.
 
-- [ ] `pnpm validate` (format + lint + typecheck + test + knip + audit + build — confirm nothing broke)
-- [ ] Update `README.md` — flesh out the placeholder from Step 1: accurate setup steps, final project structure, environment variables, and any gotchas discovered during development.
+- [x] `pnpm validate` (format + lint + typecheck + test + knip + audit + build — confirm nothing broke)
+- [x] Update `README.md` — flesh out the placeholder from Step 1: accurate setup steps, final project structure, environment variables, and any gotchas discovered during development.
 
 ---
 
@@ -264,23 +265,25 @@ These steps depend on the planning folder created in Step 1. They may create app
 
 > Final runtime check before opening the bootstrap PR. This proves the project can actually start, not only compile.
 
-- [ ] Start local services using the project's documented command.
-- [ ] Confirm required services are healthy or ready.
-- [ ] Run migrations if migration files exist or the app requires them to boot.
-- [ ] Run the full local validation command.
-- [ ] Start each app/process/worker needed for the bootstrap.
-- [ ] Check documented health/docs endpoints for HTTP apps.
-- [ ] Exercise one minimal runtime path per entrypoint, without testing feature behavior.
-- [ ] Stop local services.
-- [ ] Confirm no stale containers, ports, or background processes remain.
+- [x] Start local services using the project's documented command.
+- [x] Confirm required services are healthy or ready.
+- [x] Run migrations if migration files exist or the app requires them to boot.
+- [x] Run the full local validation command.
+- [x] Start each app/process/worker needed for the bootstrap.
+- [x] Check documented health/docs endpoints for HTTP apps.
+- [x] Exercise one minimal runtime path per entrypoint, without testing feature behavior.
+- [x] Stop local services.
+- [x] Confirm no stale containers, ports, or background processes remain.
 
 ---
 
 ### Step 16 — Codex Review
 
-- [ ] Run Codex `/review` on the bootstrap changes.
-- [ ] Fix valid findings or document why they are intentionally not changed.
-- [ ] Rerun focused verification for any fixes made after review.
+- [x] Human manually prompts Codex with:
+
+```text
+/review on the bootstrap changes. Fix valid findings, then validate.
+```
 
 ---
 
