@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { argon2id, hash, verify } from "argon2";
 
@@ -20,8 +20,8 @@ const DUMMY_PASSWORD_HASH =
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly usersService: UsersService
+    @Inject(JwtService) private readonly jwtService: JwtService,
+    @Inject(UsersService) private readonly usersService: UsersService
   ) {}
 
   async signup(dto: SignupDto): Promise<AuthResponse> {
