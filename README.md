@@ -44,14 +44,16 @@ planning/       Business and technical planning context
 
 Copy `.env.example` to `.env`.
 
-| Variable       | Purpose                                     | Default                                                   |
-| -------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `PORT`         | API HTTP port                               | `3000`                                                    |
-| `LOG_LEVEL`    | Pino/Nest logger level                      | `info`                                                    |
-| `WEB_PORT`     | Vite dev server port                        | `5173`                                                    |
-| `VITE_API_URL` | API URL used by the frontend                | `http://127.0.0.1:3000`                                   |
-| `MONGODB_PORT` | MongoDB host port                           | `27018`                                                   |
-| `MONGODB_URI`  | API and migration MongoDB connection string | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
+| Variable         | Purpose                                     | Default                                                   |
+| ---------------- | ------------------------------------------- | --------------------------------------------------------- |
+| `PORT`           | API HTTP port                               | `3000`                                                    |
+| `LOG_LEVEL`      | Pino/Nest logger level                      | `info`                                                    |
+| `WEB_PORT`       | Vite dev server port                        | `5173`                                                    |
+| `VITE_API_URL`   | API URL used by the frontend                | `http://127.0.0.1:3000`                                   |
+| `MONGODB_PORT`   | MongoDB host port                           | `27018`                                                   |
+| `MONGODB_URI`    | API and migration MongoDB connection string | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
+| `JWT_SECRET`     | JWT signing secret required by the API      | empty; set in local `.env`                                |
+| `JWT_EXPIRES_IN` | JWT access token lifetime                   | `15m`                                                     |
 
 ## Local Services
 
@@ -62,6 +64,9 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 ## API Endpoints
 
 - `GET /health`
+- `POST /auth/signup`
+- `POST /auth/signin`
+- `GET /auth/me` - requires a bearer token
 - `GET /docs`
 - `GET /docs-json`
 
