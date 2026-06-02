@@ -1,0 +1,6 @@
+{
+  "envOverrides": {
+    "MONGODB_URI": "mongodb://127.0.0.1:${MONGODB_PORT}/easygen?directConnection=true",
+    "VITE_API_URL": "http://127.0.0.1:${PORT}"
+  }
+}

@@ -2,4 +2,71 @@
 
 Full-stack authentication test task for a React/Vite frontend and NestJS/MongoDB backend.
 
+## Setup
+
+Use Node `22.14.0` and pnpm `10.26.2`.
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm infra:up
+pnpm migrate:up
+pnpm validate
+```
+
+Run the API and web app together:
+
+```bash
+pnpm --parallel --stream --filter @easygen/api --filter @easygen/web run dev
+```
+
+Or use the Makefile shortcuts:
+
+```bash
+make setup
+make infra
+make dev
+make validate
+```
+
+## Project Structure
+
+```text
+apps/
+  api/          NestJS API, Swagger docs, MongoDB module, tests
+  web/          React + Vite app shell
+migrations/     migrate-mongo migration files
+packages/       Shared workspace packages
+planning/       Business and technical planning context
+```
+
+## Environment
+
+Copy `.env.example` to `.env`.
+
+| Variable       | Purpose                                     | Default                                                   |
+| -------------- | ------------------------------------------- | --------------------------------------------------------- |
+| `PORT`         | API HTTP port                               | `3000`                                                    |
+| `LOG_LEVEL`    | Pino/Nest logger level                      | `info`                                                    |
+| `WEB_PORT`     | Vite dev server port                        | `5173`                                                    |
+| `VITE_API_URL` | API URL used by the frontend                | `http://127.0.0.1:3000`                                   |
+| `MONGODB_PORT` | MongoDB host port                           | `27018`                                                   |
+| `MONGODB_URI`  | API and migration MongoDB connection string | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
+
+## Local Services
+
+`docker-compose.yml` starts MongoDB 8.0 on `127.0.0.1:${MONGODB_PORT:-27018}`. The Compose file avoids fixed container names so worktree-specific stacks can be isolated.
+
+For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.json`; keep migrations, app URLs, and browser QA pointed at the current worktree's `.env`.
+
+## API Endpoints
+
+- `GET /health`
+- `GET /docs`
+- `GET /docs-json`
+
+## Validation
+
+`pnpm validate` runs format check, lint, type-check, tests, Knip, dependency audit, and build.
+
 License: MIT
