@@ -16,3 +16,4 @@ A:
 - `docs/local-development.md` felt unnecessary for a small project, so I instructed the agent to delete it and keep setup docs in the README.
 - The bootstrap file had a Step 16 issue: Codex review should be a manual human prompt, not something the agent marks as automatically done, so I instructed the agent to refactor that wording.
 - I noticed that some required CI checks stayed pending on GitHub, so I asked the agent to investigate it. The issue was a mismatch between the required check names and the workflow job names, then I instructed the agent to fix it.
+- I also noticed CI was running twice on the PR because the bootstrap branch was listed under `push`, so I asked the agent to remove that and keep PR validation on `pull_request`.

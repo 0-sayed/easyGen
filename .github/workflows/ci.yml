@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - chore/project-bootstrap
   pull_request:
 
 concurrency:
