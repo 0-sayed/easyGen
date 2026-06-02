@@ -2,7 +2,19 @@ import type { INestApplication } from "@nestjs/common";
 import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
+import { resolvePort } from "./config/port";
+
+const DEFAULT_WEB_PORT = 5173;
+
 export function configureApp(app: INestApplication): void {
+  const webPort = resolvePort(process.env.WEB_PORT, DEFAULT_WEB_PORT, "WEB_PORT");
+
+  app.enableCors({
+    allowedHeaders: ["Authorization", "Content-Type"],
+    methods: ["GET", "POST"],
+    origin: [`http://127.0.0.1:${String(webPort)}`, `http://localhost:${String(webPort)}`],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       forbidNonWhitelisted: true,

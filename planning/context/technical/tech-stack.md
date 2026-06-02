@@ -4,23 +4,23 @@ Based on `planning/context/business/task.md`, this project is a small full-stack
 
 ## Selected Stack
 
-| Area                 | Technology                                     |
-| -------------------- | ---------------------------------------------- |
-| Frontend             | React, Vite, TypeScript                        |
-| Routing              | React Router                                   |
-| Forms                | React Hook Form                                |
-| Frontend validation  | Zod                                            |
-| Backend              | NestJS, TypeScript                             |
-| Database             | MongoDB                                        |
-| Database integration | Mongoose / `@nestjs/mongoose`                  |
-| Backend validation   | `class-validator`, `class-transformer`         |
-| Authentication       | JWT-based auth                                 |
-| Password hashing     | Argon2id                                       |
-| Testing              | Jest, Supertest, Vitest, React Testing Library |
-| Optional E2E         | Playwright                                     |
-| Package manager      | pnpm                                           |
-| Node version         | Node.js 22 LTS                                 |
-| Local infrastructure | Docker Compose for MongoDB                     |
+| Area                 | Technology                               |
+| -------------------- | ---------------------------------------- |
+| Frontend             | React, Vite, TypeScript                  |
+| Routing              | React Router                             |
+| Forms                | React Hook Form                          |
+| Frontend validation  | Zod                                      |
+| Backend              | NestJS, TypeScript                       |
+| Database             | MongoDB                                  |
+| Database integration | Mongoose / `@nestjs/mongoose`            |
+| Backend validation   | `class-validator`, `class-transformer`   |
+| Authentication       | JWT-based auth                           |
+| Password hashing     | Argon2id                                 |
+| Testing              | Vitest, Supertest, React Testing Library |
+| Optional E2E         | Playwright                               |
+| Package manager      | pnpm                                     |
+| Node version         | Node.js 22 LTS                           |
+| Local infrastructure | Docker Compose for MongoDB               |
 
 ## Frontend
 
@@ -47,7 +47,7 @@ Passwords should be stored as hashes only, using Argon2id.
 
 ## Testing
 
-Backend testing should use Jest and Supertest for the auth API and protected endpoint.
+Backend testing should use Vitest and Supertest for the auth API and protected endpoint.
 
 Frontend testing should use Vitest and React Testing Library for form validation and route protection.
 

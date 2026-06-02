@@ -17,3 +17,4 @@ A:
 - The bootstrap file had a Step 16 issue: Codex review should be a manual human prompt, not something the agent marks as automatically done, so I instructed the agent to refactor that wording.
 - I noticed that some required CI checks stayed pending on GitHub, so I asked the agent to investigate it. The issue was a mismatch between the required check names and the workflow job names, then I instructed the agent to fix it.
 - I also noticed CI was running twice on the PR because the bootstrap branch was listed under `push`, so I asked the agent to remove that and keep PR validation on `pull_request`.
+- The frontend auth UI was first implemented with plain CSS, but I noticed that using Tailwind would be a better fit for the task and design expectations, so I instructed the agent to migrate the styling to Tailwind.

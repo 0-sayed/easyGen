@@ -70,8 +70,23 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 - `GET /docs`
 - `GET /docs-json`
 
+## Authentication Flow
+
+- `POST /auth/signup` creates a user and returns an access token.
+- `POST /auth/signin` returns an access token for valid credentials.
+- `GET /auth/me` verifies the stored token and powers the protected application page.
+- The React app provides `/signup`, `/signin`, and `/app`.
+
 ## Validation
 
 `pnpm validate` runs format check, lint, type-check, tests, Knip, dependency audit, and build.
+
+Run the browser smoke test when you want full-stack UI confidence:
+
+```bash
+pnpm --filter @easygen/web exec playwright install chromium
+pnpm test:browser
+pnpm infra:down
+```
 
 License: MIT

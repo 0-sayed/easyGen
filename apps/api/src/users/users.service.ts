@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 
 import type { PublicUser, UserWithPasswordHash } from "./user.types";
 import { UsersRepository } from "./users.repository";
@@ -11,7 +11,7 @@ interface CreateUserInput {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(@Inject(UsersRepository) private readonly usersRepository: UsersRepository) {}
 
   create(input: CreateUserInput): Promise<UserWithPasswordHash> {
     return this.usersRepository.create(input);
