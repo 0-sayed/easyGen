@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.vite/
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Agent-local metadata
+.serena/
