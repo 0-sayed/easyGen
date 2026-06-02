@@ -15,7 +15,7 @@
 - `migrations`: migrate-mongo migration files.
 - `planning/context/business/task.md`: product task source.
 - `planning/context/technical/bootstrap.md`: bootstrap checklist source.
-- `docs/local-development.md`: local infra and worktree notes.
+- `README.md`: setup, environment, endpoints, validation, and browser smoke notes.
 
 ## Tooling
 
