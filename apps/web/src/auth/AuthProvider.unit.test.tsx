@@ -60,8 +60,10 @@ describe("AuthProvider", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
-    expect(screen.getByText("Person Name")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+    });
+    expect(await screen.findByText("Person Name")).toBeInTheDocument();
   });
 
   it("does not let a stale bootstrap request replace a new signin session", async () => {
