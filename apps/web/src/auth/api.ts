@@ -1,7 +1,5 @@
+import { API_URL } from "../api/base-url";
 import type { SigninFormValues, SignupFormValues } from "./validation";
-
-const DEFAULT_API_URL = "http://127.0.0.1:3000";
-const API_URL = getApiUrl(import.meta.env);
 
 export interface PublicUser {
   id: string;
@@ -70,11 +68,6 @@ async function readErrorMessage(response: Response): Promise<string> {
   } catch {
     return fallback;
   }
-}
-
-function getApiUrl(env: ImportMetaEnv): string {
-  const apiUrl = env.VITE_API_URL?.trim();
-  return apiUrl === undefined || apiUrl.length === 0 ? DEFAULT_API_URL : apiUrl;
 }
 
 function readAuthResponse(body: unknown): AuthResponse {

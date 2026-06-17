@@ -4,6 +4,7 @@ import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth } from "./auth/RequireAuth";
 import { ApplicationPage } from "./pages/ApplicationPage";
+import { HomePage } from "./pages/HomePage";
 import { SigninPage } from "./pages/SigninPage";
 import { SignupPage } from "./pages/SignupPage";
 
@@ -12,7 +13,7 @@ export function App() {
     <AuthProvider>
       <main className="grid min-h-screen place-items-center bg-page p-4 sm:p-6">
         <Routes>
-          <Route path="/" element={<Navigate to="/signin" replace />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signin" element={<SigninPage />} />
           <Route element={<RequireAuth />}>

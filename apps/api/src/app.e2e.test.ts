@@ -50,6 +50,25 @@ describe("App", () => {
     expect(response.body).toEqual({ status: "ok" });
   });
 
+  it("serves public app info without authentication", async () => {
+    if (app === undefined) {
+      throw new Error("Nest app was not initialized.");
+    }
+
+    const response = await request(app.getHttpServer()).get("/app-info").expect(200);
+
+    expect(response.body).toEqual({
+      name: "easyGen",
+      status: "ok",
+      auth: {
+        signup: true,
+        signin: true,
+      },
+    });
+    expect(Object.keys(response.body).sort()).toEqual(["auth", "name", "status"]);
+    expect(Object.keys(response.body.auth).sort()).toEqual(["signin", "signup"]);
+  });
+
   it("allows frontend auth preflight requests from the configured web origin", async () => {
     if (app === undefined) {
       throw new Error("Nest app was not initialized.");

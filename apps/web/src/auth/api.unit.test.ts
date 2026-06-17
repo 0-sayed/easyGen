@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getCurrentUser, signin, signup } from "./api";
-
 const authResponse = {
   accessToken: "token-123",
   user: {
@@ -14,12 +12,15 @@ const authResponse = {
 describe("auth api", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it("posts signup input to /auth/signup", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(authResponse));
+    const { signup } = await loadAuthApi();
 
     await expect(
       signup({ email: "person@example.com", name: "Person Name", password: "Password1!" })
@@ -40,6 +41,7 @@ describe("auth api", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(authResponse));
+    const { signin } = await loadAuthApi();
 
     await expect(signin({ email: "person@example.com", password: "Password1!" })).resolves.toEqual(
       authResponse
@@ -56,6 +58,7 @@ describe("auth api", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse({ user: authResponse.user }));
+    const { getCurrentUser } = await loadAuthApi();
 
     await expect(getCurrentUser("token-123")).resolves.toEqual(authResponse.user);
 
@@ -68,6 +71,7 @@ describe("auth api", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ message: "Invalid email or password." }, 401)
     );
+    const { signin } = await loadAuthApi();
 
     await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
       "Invalid email or password."
@@ -78,6 +82,7 @@ describe("auth api", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ message: ["email must be a valid email", "password is required"] }, 400)
     );
+    const { signin } = await loadAuthApi();
 
     await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
       "email must be a valid email password is required"
@@ -86,12 +91,19 @@ describe("auth api", () => {
 
   it("uses the fallback error when validation error arrays are empty", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ message: [] }, 400));
+    const { signin } = await loadAuthApi();
 
     await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
       "Something went wrong. Please try again."
     );
   });
 });
+
+async function loadAuthApi(): Promise<typeof import("./api")> {
+  vi.stubEnv("VITE_API_URL", undefined);
+  vi.resetModules();
+  return import("./api");
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

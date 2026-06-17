@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
+import * as appInfoApi from "../app-info/api";
 import { AuthProvider } from "../auth/AuthProvider";
 import * as api from "../auth/api";
 import { SigninPage } from "./SigninPage";
@@ -142,6 +143,49 @@ describe("App routes", () => {
   afterEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+  });
+
+  it("renders the public home screen at / with reachable API status", async () => {
+    vi.spyOn(appInfoApi, "getAppInfo").mockResolvedValueOnce({
+      name: "easyGen",
+      status: "ok",
+      auth: {
+        signup: true,
+        signin: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("heading", { name: "easyGen" })).toBeInTheDocument();
+    expect(screen.getByText("API reachable")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
+      "href",
+      "/signup"
+    );
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
+  });
+
+  it("keeps auth links available when app info is unavailable", async () => {
+    vi.spyOn(appInfoApi, "getAppInfo").mockRejectedValueOnce(new Error("API offline"));
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("API unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "easyGen" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
+      "href",
+      "/signup"
+    );
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
   });
 
   it("redirects unauthenticated users from /app to /signin", async () => {
