@@ -145,6 +145,21 @@ describe("App routes", () => {
     vi.restoreAllMocks();
   });
 
+  it("uses neutral styling while the home screen checks API status", () => {
+    vi.spyOn(appInfoApi, "getAppInfo").mockReturnValueOnce(new Promise(() => undefined));
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    const status = screen.getByText("Checking API...", { selector: "[aria-live='polite']" });
+
+    expect(status).toHaveClass("text-muted");
+    expect(status).not.toHaveClass("text-danger");
+  });
+
   it("renders the public home screen at / with reachable API status", async () => {
     vi.spyOn(appInfoApi, "getAppInfo").mockResolvedValueOnce({
       name: "easyGen",
@@ -163,10 +178,7 @@ describe("App routes", () => {
 
     expect(await screen.findByRole("heading", { name: "easyGen" })).toBeInTheDocument();
     expect(screen.getByText("API reachable")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
-      "href",
-      "/signup"
-    );
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
   });
 
@@ -181,10 +193,7 @@ describe("App routes", () => {
 
     expect(await screen.findByText("API unavailable")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "easyGen" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
-      "href",
-      "/signup"
-    );
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
   });
 

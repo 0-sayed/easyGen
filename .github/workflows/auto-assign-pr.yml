@@ -22,4 +22,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: gh api --method POST "repos/$GH_REPO/issues/$PR_NUMBER/assignees" -f "assignees[]=$PR_AUTHOR"
+        run: |
+          set +e
+          output=$(gh api --method POST "repos/$GH_REPO/issues/$PR_NUMBER/assignees" -f "assignees[]=$PR_AUTHOR" 2>&1)
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+
+          if echo "$output" | grep -q "Resource not accessible by integration"; then
+            echo "::warning::PR author '$PR_AUTHOR' could not be assigned by GITHUB_TOKEN."
+            exit 0
+          fi
+
+          echo "$output"
+          exit "$status"

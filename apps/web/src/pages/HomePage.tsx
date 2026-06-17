@@ -34,7 +34,12 @@ export function HomePage() {
 
   const appName = state.status === "success" ? state.appInfo.name : "easyGen";
   const statusText = state.status === "success" ? "API reachable" : "API unavailable";
-  const statusClass = state.status === "success" ? "text-brand" : "text-danger";
+  const statusClass =
+    state.status === "success"
+      ? "text-brand"
+      : state.status === "loading"
+        ? "text-muted"
+        : "text-danger";
   const helperText =
     state.status === "loading"
       ? "Checking API..."
