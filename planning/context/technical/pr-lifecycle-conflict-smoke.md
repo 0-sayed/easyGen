@@ -1,3 +1,3 @@
 # PR lifecycle conflict smoke
 
-Resolved value: base branch content.
+Resolved value: feature branch content.
