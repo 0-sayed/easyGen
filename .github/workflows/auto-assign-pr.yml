@@ -22,4 +22,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: gh api --method POST "repos/$GH_REPO/issues/$PR_NUMBER/assignees" -f "assignees[]=$PR_AUTHOR"
+        run: |
+          if ! output=$(gh api --method POST "repos/$GH_REPO/issues/$PR_NUMBER/assignees" -f "assignees[]=$PR_AUTHOR" 2>&1); then
+            if [[ "$output" == *"Resource not accessible by integration (HTTP 403)"* ]]; then
+              printf '%s\n' "$output"
+              exit 0
+            fi
+
+            printf '%s\n' "$output" >&2
+            exit 1
+          fi
