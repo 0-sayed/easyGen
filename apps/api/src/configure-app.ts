@@ -28,11 +28,13 @@ export function configureApp(app: INestApplication): void {
     .setDescription("API surface for the authentication task.")
     .setVersion("0.1.0")
     .addBearerAuth()
-    .addTag("health")
-    .addTag("auth")
+    .addTag("health", "Public liveness endpoint.")
+    .addTag("status", "Public build and environment metadata endpoint.")
+    .addTag("auth", "Authentication and current-user endpoints.")
     .build();
 
-  const documentFactory = () => SwaggerModule.createDocument(app, swaggerConfig);
+  const documentFactory = () =>
+    SwaggerModule.createDocument(app, swaggerConfig, { autoTagControllers: false });
   SwaggerModule.setup("docs", app, documentFactory, {
     jsonDocumentUrl: "docs-json",
   });

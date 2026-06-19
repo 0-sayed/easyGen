@@ -13,6 +13,18 @@ const expectedApiVersion =
     ? apiPackage.version
     : "0.0.0";
 
+type OpenApiOperation = {
+  tags?: string[];
+  summary?: string;
+  description?: string;
+  responses?: Record<string, { description?: string }>;
+};
+
+type OpenApiDocument = {
+  tags?: Array<{ name?: string; description?: string }>;
+  paths?: Record<string, { get?: OpenApiOperation }>;
+};
+
 describe("App", () => {
   let app: INestApplication | undefined;
   let container: StartedMongoDBContainer | undefined;
@@ -76,6 +88,39 @@ describe("App", () => {
       version: expectedApiVersion,
       environment: "test",
     });
+  });
+
+  it("documents public health and status endpoints in OpenAPI output", async () => {
+    if (app === undefined) {
+      throw new Error("Nest app was not initialized.");
+    }
+
+    const response = await request(app.getHttpServer()).get("/docs-json").expect(200);
+
+    expect(expectDocumentTag(response.body, "health").description).toBe(
+      "Public liveness endpoint."
+    );
+    expect(expectDocumentTag(response.body, "status").description).toBe(
+      "Public build and environment metadata endpoint."
+    );
+
+    const healthOperation = expectGetOperation(response.body, "/health");
+    const statusOperation = expectGetOperation(response.body, "/status");
+
+    expect(healthOperation.tags).toEqual(["health"]);
+    expect(healthOperation.summary).toBe("Health check");
+    expect(healthOperation.responses?.["200"]?.description).toBe(
+      "API process is accepting requests."
+    );
+
+    expect(statusOperation.tags).toEqual(["status"]);
+    expect(statusOperation.summary).toBe("Public build status");
+    expect(statusOperation.description).toContain("service");
+    expect(statusOperation.description).toContain("version");
+    expect(statusOperation.description).toContain("environment");
+    expect(statusOperation.responses?.["200"]?.description).toBe(
+      "Current public service build metadata."
+    );
   });
 
   it("allows frontend auth preflight requests from the configured web origin", async () => {
@@ -151,4 +196,29 @@ function restoreTestEnv(
   } else {
     process.env.NODE_ENV = nodeEnv;
   }
+}
+
+function expectDocumentTag(
+  document: unknown,
+  name: string
+): { name?: string; description?: string } {
+  const tag = (document as OpenApiDocument).tags?.find((candidate) => candidate.name === name);
+  expect(tag).toBeDefined();
+
+  if (tag === undefined) {
+    throw new Error(`Expected OpenAPI tag ${name}.`);
+  }
+
+  return tag;
+}
+
+function expectGetOperation(document: unknown, path: string): OpenApiOperation {
+  const operation = (document as OpenApiDocument).paths?.[path]?.get;
+  expect(operation).toBeDefined();
+
+  if (operation === undefined) {
+    throw new Error(`Expected OpenAPI GET operation for ${path}.`);
+  }
+
+  return operation;
 }
