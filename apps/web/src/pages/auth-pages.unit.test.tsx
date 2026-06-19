@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { AuthProvider } from "../auth/AuthProvider";
 import * as api from "../auth/api";
+import * as statusApi from "../status/api";
 import { SigninPage } from "./SigninPage";
 import { SignupPage } from "./SignupPage";
 
@@ -145,6 +146,12 @@ describe("App routes", () => {
   });
 
   it("redirects unauthenticated users from /app to /signin", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce({
+      service: "easygen-api",
+      version: "0.1.0",
+      environment: "test",
+    });
+
     render(
       <MemoryRouter initialEntries={["/app"]}>
         <App />
@@ -154,10 +161,14 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Sign in with confidence" })
     ).toBeInTheDocument();
+    expect(await screen.findByText("easygen-api")).toBeInTheDocument();
+    expect(screen.getByText("v0.1.0")).toBeInTheDocument();
+    expect(screen.getByText("test")).toBeInTheDocument();
   });
 
   it("renders the protected welcome page and logs out", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     localStorage.setItem("easygen.accessToken", "token-123");
 
     render(

@@ -4,6 +4,7 @@ import { LoggerModule } from "nestjs-pino";
 
 import { AppController } from "./app.controller";
 import { AuthModule } from "./auth/auth.module";
+import { BuildInfoService } from "./build-info/build-info.service";
 import { DatabaseModule } from "./database/database.module";
 import { createCorrelationId } from "./observability/correlation-id";
 
@@ -30,5 +31,6 @@ import { createCorrelationId } from "./observability/correlation-id";
     AuthModule,
   ],
   controllers: [AppController],
+  providers: [BuildInfoService],
 })
 export class AppModule {}
