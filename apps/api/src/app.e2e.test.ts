@@ -1,15 +1,13 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
-import { createRequire } from "node:module";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import apiPackage from "../package.json";
 import { AppModule } from "./app.module";
 import { configureApp } from "./configure-app";
 
-const requirePackage = createRequire(__filename);
-const apiPackage = requirePackage("../package.json") as { version?: unknown };
 const expectedApiVersion = typeof apiPackage.version === "string" ? apiPackage.version : "0.0.0";
 
 describe("App", () => {

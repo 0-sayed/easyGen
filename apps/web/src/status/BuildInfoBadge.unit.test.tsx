@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as statusApi from "./api";
@@ -31,7 +31,6 @@ describe("BuildInfoBadge", () => {
     await waitFor(() => {
       expect(statusApi.getBuildInfo).toHaveBeenCalled();
     });
-    await act(async () => {});
 
     expect(container).toBeEmptyDOMElement();
   });
