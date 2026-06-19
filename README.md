@@ -63,10 +63,11 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 
 ## API Endpoints
 
-- `GET /health`
+- `GET /health` - liveness check returning `{ "status": "ok" }`.
+- `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
 - `POST /auth/signup`
 - `POST /auth/signin`
-- `GET /auth/me` - requires a bearer token
+- `GET /auth/me` - requires a bearer token.
 - `GET /docs`
 - `GET /docs-json`
 
