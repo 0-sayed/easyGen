@@ -6,20 +6,24 @@ import { RequireAuth } from "./auth/RequireAuth";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SigninPage } from "./pages/SigninPage";
 import { SignupPage } from "./pages/SignupPage";
+import { BuildInfoBadge } from "./status/BuildInfoBadge";
 
 export function App() {
   return (
     <AuthProvider>
       <main className="grid min-h-screen place-items-center bg-page p-4 sm:p-6">
-        <Routes>
-          <Route path="/" element={<Navigate to="/signin" replace />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/signin" element={<SigninPage />} />
-          <Route element={<RequireAuth />}>
-            <Route path="/app" element={<ApplicationPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/signin" replace />} />
-        </Routes>
+        <div className="grid w-full justify-items-center gap-3">
+          <Routes>
+            <Route path="/" element={<Navigate to="/signin" replace />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/signin" element={<SigninPage />} />
+            <Route element={<RequireAuth />}>
+              <Route path="/app" element={<ApplicationPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/signin" replace />} />
+          </Routes>
+          <BuildInfoBadge />
+        </div>
       </main>
     </AuthProvider>
   );
