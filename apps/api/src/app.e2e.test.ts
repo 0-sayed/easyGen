@@ -13,17 +13,22 @@ const expectedApiVersion =
     ? apiPackage.version
     : "0.0.0";
 
-type OpenApiOperation = {
+interface OpenApiOperation {
   tags?: string[];
   summary?: string;
   description?: string;
   responses?: Record<string, { description?: string }>;
-};
+}
 
-type OpenApiDocument = {
-  tags?: Array<{ name?: string; description?: string }>;
+interface OpenApiSchemaObject {
+  properties?: Record<string, { enum?: unknown[] }>;
+}
+
+interface OpenApiDocument {
+  tags?: { name?: string; description?: string }[];
   paths?: Record<string, { get?: OpenApiOperation }>;
-};
+  components?: { schemas?: Record<string, OpenApiSchemaObject> };
+}
 
 describe("App", () => {
   let app: INestApplication | undefined;
@@ -112,6 +117,9 @@ describe("App", () => {
     expect(healthOperation.responses?.["200"]?.description).toBe(
       "API process is accepting requests."
     );
+    expect(response.body.components?.schemas?.HealthResponse?.properties?.status?.enum).toEqual([
+      "ok",
+    ]);
 
     expect(statusOperation.tags).toEqual(["status"]);
     expect(statusOperation.summary).toBe("Public build status");
@@ -120,6 +128,9 @@ describe("App", () => {
     expect(statusOperation.description).toContain("environment");
     expect(statusOperation.responses?.["200"]?.description).toBe(
       "Current public service build metadata."
+    );
+    expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.service?.enum).toEqual(
+      ["easygen-api"]
     );
   });
 

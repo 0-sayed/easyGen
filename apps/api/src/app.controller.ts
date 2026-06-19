@@ -8,6 +8,7 @@ class HealthResponse {
   @ApiProperty({
     description: "Liveness status for the API process.",
     example: "ok",
+    enum: ["ok"],
   })
   status!: "ok";
 }

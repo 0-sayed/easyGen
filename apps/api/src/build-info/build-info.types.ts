@@ -4,6 +4,7 @@ export class BuildInfoResponse {
   @ApiProperty({
     description: "Stable public service identifier for the API.",
     example: "easygen-api",
+    enum: ["easygen-api"],
   })
   service!: "easygen-api";
 
