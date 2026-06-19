@@ -8,7 +8,10 @@ import apiPackage from "../package.json";
 import { AppModule } from "./app.module";
 import { configureApp } from "./configure-app";
 
-const expectedApiVersion = typeof apiPackage.version === "string" ? apiPackage.version : "0.0.0";
+const expectedApiVersion =
+  typeof apiPackage.version === "string" && apiPackage.version.trim().length > 0
+    ? apiPackage.version
+    : "0.0.0";
 
 describe("App", () => {
   let app: INestApplication | undefined;
