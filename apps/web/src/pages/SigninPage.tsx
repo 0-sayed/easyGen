@@ -40,7 +40,7 @@ export function SigninPage() {
     <section className={authStyles.card} aria-labelledby="signin-title">
       <p className={authStyles.kicker}>easyGen</p>
       <h1 id="signin-title" className={authStyles.title}>
-        Sign in
+        Sign in with confidence
       </h1>
       <form
         className={authStyles.form}

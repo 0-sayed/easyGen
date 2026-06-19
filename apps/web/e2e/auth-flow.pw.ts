@@ -15,7 +15,7 @@ test("signs up, logs out, signs in, and opens the protected application page", a
   await expect(page.getByText("Browser User")).toBeVisible();
 
   await page.getByRole("button", { name: "Log out" }).click();
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
 
   await fillInput(page.getByLabel("Email"), email);
   await fillInput(page.getByLabel("Password"), "Password1!");
