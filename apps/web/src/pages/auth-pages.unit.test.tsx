@@ -151,7 +151,9 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
   });
 
   it("renders the protected welcome page and logs out", async () => {
@@ -169,7 +171,9 @@ describe("App routes", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Log out" }));
 
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
 });
