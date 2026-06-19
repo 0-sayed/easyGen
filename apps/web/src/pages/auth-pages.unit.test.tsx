@@ -164,7 +164,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Welcome to the application.")).toBeInTheDocument();
+    expect(await screen.findByText("Welcome to easyGen.")).toBeInTheDocument();
     expect(screen.getByText("Person Name")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Log out" }));

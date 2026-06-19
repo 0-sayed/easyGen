@@ -11,7 +11,7 @@ test("signs up, logs out, signs in, and opens the protected application page", a
   await fillInput(page.getByLabel("Password"), "Password1!");
   await page.getByRole("button", { name: "Create account" }).click();
 
-  await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to easyGen." })).toBeVisible();
   await expect(page.getByText("Browser User")).toBeVisible();
 
   await page.getByRole("button", { name: "Log out" }).click();
@@ -21,7 +21,7 @@ test("signs up, logs out, signs in, and opens the protected application page", a
   await fillInput(page.getByLabel("Password"), "Password1!");
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to easyGen." })).toBeVisible();
   await expect(page.getByText("Browser User")).toBeVisible();
 });
 
