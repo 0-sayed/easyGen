@@ -17,7 +17,7 @@ export function ApplicationPage() {
       <div>
         <p className={authStyles.kicker}>easyGen</p>
         <h1 id="application-title" className={authStyles.title}>
-          Welcome to the application.
+          Welcome to easyGen.
         </h1>
         <p className={authStyles.userName}>{user?.name}</p>
       </div>
