@@ -50,8 +50,9 @@ describe("users email unique index migration", () => {
       ]);
 
     await expect(migration.up(getDb())).rejects.toThrow(
-      "Cannot create unique index email_1: duplicate users.email values exist."
+      /Cannot create unique index email_1: duplicate users\.email values exist\..*Duplicate groups: 1/
     );
+    await expect(migration.up(getDb())).rejects.not.toThrow("duplicate@example.com");
 
     await expect(getDb().collection("users").indexExists("email_1")).resolves.toBe(false);
   });

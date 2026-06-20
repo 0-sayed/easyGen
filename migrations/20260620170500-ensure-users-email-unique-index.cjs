@@ -17,8 +17,10 @@ async function findDuplicateEmails(db) {
     .toArray();
 }
 
-function formatDuplicateEmails(duplicates) {
-  return duplicates.map((duplicate) => `${duplicate._id} (${duplicate.count})`).join(", ");
+function formatDuplicateEmailSummary(duplicates) {
+  const maxDuplicateCount = Math.max(...duplicates.map((duplicate) => duplicate.count));
+
+  return `Duplicate groups: ${duplicates.length}. Max duplicates in one group: ${maxDuplicateCount}.`;
 }
 
 module.exports = {
@@ -27,7 +29,7 @@ module.exports = {
 
     if (duplicateEmails.length > 0) {
       throw new Error(
-        `Cannot create unique index ${EMAIL_INDEX_NAME}: duplicate users.email values exist. Resolve duplicates before rerunning migration. Examples: ${formatDuplicateEmails(duplicateEmails)}`
+        `Cannot create unique index ${EMAIL_INDEX_NAME}: duplicate users.email values exist. Resolve duplicates before rerunning migration. ${formatDuplicateEmailSummary(duplicateEmails)}`
       );
     }
 
