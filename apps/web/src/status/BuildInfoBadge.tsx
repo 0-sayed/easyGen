@@ -36,13 +36,13 @@ export function BuildInfoBadge() {
 
   if (state.status === "failed") {
     return (
-      <aside
+      <div
         className="text-center text-xs font-semibold text-danger"
         role="status"
         aria-label="API status unavailable"
       >
         API status unavailable
-      </aside>
+      </div>
     );
   }
 

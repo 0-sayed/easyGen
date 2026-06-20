@@ -30,5 +30,6 @@ describe("BuildInfoBadge", () => {
 
     const status = await screen.findByRole("status", { name: "API status unavailable" });
     expect(status).toHaveTextContent("API status unavailable");
+    expect(status.tagName).toBe("DIV");
   });
 });
