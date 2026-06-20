@@ -37,8 +37,11 @@ describe("UsersRepository persistence contract", () => {
   });
 
   afterAll(async () => {
-    await moduleRef?.close();
-    await container?.stop();
+    try {
+      await moduleRef?.close();
+    } finally {
+      await container?.stop();
+    }
   });
 
   it("stores normalized email and finds by normalized signin input", async () => {
