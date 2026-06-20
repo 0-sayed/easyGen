@@ -168,7 +168,7 @@ describe("App routes", () => {
   });
 
   it("shows saved-token loading status before opening the app", async () => {
-    let resolveCurrentUser: (currentUser: typeof user) => void;
+    let resolveCurrentUser: ((currentUser: typeof user) => void) | undefined;
     vi.spyOn(api, "getCurrentUser").mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -194,7 +194,10 @@ describe("App routes", () => {
       screen.queryByRole("heading", { name: "Welcome to the application." })
     ).not.toBeInTheDocument();
 
-    resolveCurrentUser!(user);
+    if (resolveCurrentUser === undefined) {
+      throw new Error("Expected getCurrentUser resolver to be initialized.");
+    }
+    resolveCurrentUser(user);
 
     expect(
       await screen.findByRole("heading", { name: "Welcome to the application." })
