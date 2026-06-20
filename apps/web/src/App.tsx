@@ -4,6 +4,7 @@ import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth } from "./auth/RequireAuth";
 import { ApplicationPage } from "./pages/ApplicationPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { SigninPage } from "./pages/SigninPage";
 import { SignupPage } from "./pages/SignupPage";
 import { BuildInfoBadge } from "./status/BuildInfoBadge";
@@ -20,7 +21,7 @@ export function App() {
             <Route element={<RequireAuth />}>
               <Route path="/app" element={<ApplicationPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/signin" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           <BuildInfoBadge />
         </div>
