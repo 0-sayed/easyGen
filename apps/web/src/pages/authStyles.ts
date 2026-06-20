@@ -1,4 +1,5 @@
 export const authStyles = {
+  actions: "grid gap-3 sm:grid-cols-2",
   button:
     "min-h-11 rounded-control bg-brand px-4 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-brand-strong focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25 disabled:cursor-wait disabled:opacity-70",
   card: "w-full max-w-[480px] rounded-card border border-line bg-white p-6 shadow-auth sm:p-8",
@@ -12,6 +13,11 @@ export const authStyles = {
   label: "text-sm font-bold leading-5 text-label",
   messageSlot: "min-h-5",
   messageSlotTall: "min-h-10",
+  primaryLink:
+    "min-h-11 rounded-control bg-brand px-4 py-2.5 text-center text-base font-bold text-white shadow-sm transition hover:bg-brand-strong focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
+  secondaryLink:
+    "min-h-11 rounded-control border border-input bg-white px-4 py-2.5 text-center text-base font-bold text-brand shadow-sm transition hover:border-brand hover:bg-field focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
+  statusText: "text-base leading-relaxed text-muted",
   switchText: "mt-4 text-center text-base leading-relaxed text-muted",
   title: "m-0 text-[1.85rem] font-semibold leading-tight text-ink sm:text-[2.25rem]",
   userName: "mt-3 text-base leading-relaxed text-muted",
