@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 
 import { getBuildInfo, type BuildInfo } from "./api";
 
+type BuildInfoState =
+  | { status: "loading" }
+  | { status: "ready"; buildInfo: BuildInfo }
+  | { status: "failed" };
+
 export function BuildInfoBadge() {
-  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
+  const [state, setState] = useState<BuildInfoState>({ status: "loading" });
 
   useEffect(() => {
     let active = true;
@@ -11,12 +16,12 @@ export function BuildInfoBadge() {
     void getBuildInfo()
       .then((info) => {
         if (active) {
-          setBuildInfo(info);
+          setState({ status: "ready", buildInfo: info });
         }
       })
       .catch(() => {
         if (active) {
-          setBuildInfo(null);
+          setState({ status: "failed" });
         }
       });
 
@@ -25,8 +30,20 @@ export function BuildInfoBadge() {
     };
   }, []);
 
-  if (buildInfo === null) {
+  if (state.status === "loading") {
     return null;
+  }
+
+  if (state.status === "failed") {
+    return (
+      <aside
+        className="text-center text-xs font-semibold text-danger"
+        role="status"
+        aria-label="API status unavailable"
+      >
+        API status unavailable
+      </aside>
+    );
   }
 
   return (
@@ -34,11 +51,11 @@ export function BuildInfoBadge() {
       className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs font-semibold text-muted"
       aria-label="API build information"
     >
-      <span>{buildInfo.service}</span>
+      <span>{state.buildInfo.service}</span>
       <span aria-hidden="true">/</span>
-      <span>v{buildInfo.version}</span>
+      <span>v{state.buildInfo.version}</span>
       <span aria-hidden="true">/</span>
-      <span>{buildInfo.environment}</span>
+      <span>{state.buildInfo.environment}</span>
     </aside>
   );
 }
