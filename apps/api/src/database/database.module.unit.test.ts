@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFallbackMongodbUri } from "./database.module";
+import { buildLocalMongodbUri } from "../config/app-config";
 
-describe("buildFallbackMongodbUri", () => {
+describe("buildLocalMongodbUri", () => {
   it("uses the configured MongoDB port in the fallback local URI", () => {
-    expect(buildFallbackMongodbUri("37018")).toBe(
+    expect(buildLocalMongodbUri("37018")).toBe(
       "mongodb://127.0.0.1:37018/easygen?directConnection=true"
     );
   });

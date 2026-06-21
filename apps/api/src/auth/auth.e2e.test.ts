@@ -2,12 +2,12 @@ import type { INestApplication } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
+import { MongoClient } from "mongodb";
 import request from "supertest";
 import type { Response } from "supertest";
 import type { App } from "supertest/types";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { AppModule } from "../app.module";
 import { configureApp } from "../configure-app";
 import { AuthThrottleService } from "./auth-throttle.service";
 
@@ -51,6 +51,7 @@ describe("Auth API", () => {
   const previousMongoDbUri = process.env.MONGODB_URI;
   const previousAuthThrottleLimit = process.env.AUTH_THROTTLE_LIMIT;
   const previousAuthThrottleWindowMs = process.env.AUTH_THROTTLE_WINDOW_MS;
+  const previousNodeEnv = process.env.NODE_ENV;
 
   beforeAll(async () => {
     container = await new MongoDBContainer("mongo:8.0").start();
@@ -61,6 +62,9 @@ describe("Auth API", () => {
     process.env.MONGODB_URI = `mongodb://${host}:${mappedPort}/easygen_test?directConnection=true`;
     process.env.AUTH_THROTTLE_LIMIT = "2";
     process.env.AUTH_THROTTLE_WINDOW_MS = "60000";
+    process.env.NODE_ENV = "test";
+    await waitForMongo(process.env.MONGODB_URI);
+    const { AppModule } = await import("../app.module");
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -94,6 +98,7 @@ describe("Auth API", () => {
       restoreEnv("MONGODB_URI", previousMongoDbUri);
       restoreEnv("AUTH_THROTTLE_LIMIT", previousAuthThrottleLimit);
       restoreEnv("AUTH_THROTTLE_WINDOW_MS", previousAuthThrottleWindowMs);
+      restoreEnv("NODE_ENV", previousNodeEnv);
     }
 
     if (closeError !== undefined) {
@@ -402,6 +407,17 @@ function expectSchemaPropertyReference(
   const composedReference = "allOf" in property ? property.allOf?.[0]?.$ref : undefined;
 
   expect(directReference ?? composedReference).toBe(expectedReference);
+}
+
+async function waitForMongo(uri: string): Promise<void> {
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+  } finally {
+    await client.close();
+  }
 }
 
 function restoreEnv(name: string, value: string | undefined): void {

@@ -1,8 +1,18 @@
 import { Controller, Get, Inject } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from "@nestjs/swagger";
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiProperty,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+} from "@nestjs/swagger";
 
 import { BuildInfoService } from "./build-info/build-info.service";
 import { BuildInfoResponse } from "./build-info/build-info.types";
+import {
+  DatabaseReadinessService,
+  type DatabaseReadyResponse,
+} from "./database/database-readiness.service";
 
 class HealthResponse {
   @ApiProperty({
@@ -13,9 +23,61 @@ class HealthResponse {
   status!: "ok";
 }
 
+class ReadinessChecksResponse {
+  @ApiProperty({
+    description: "MongoDB connection readiness.",
+    example: "ready",
+    enum: ["ready"],
+  })
+  database!: "ready";
+}
+
+class ReadinessResponse {
+  @ApiProperty({
+    description: "Readiness status for backing services.",
+    example: "ready",
+    enum: ["ready"],
+  })
+  status!: "ready";
+
+  @ApiProperty({ type: ReadinessChecksResponse })
+  checks!: ReadinessChecksResponse;
+}
+
+class ReadinessUnavailableChecksResponse {
+  @ApiProperty({
+    description: "MongoDB connection readiness.",
+    example: "unavailable",
+    enum: ["unavailable"],
+  })
+  database!: "unavailable";
+}
+
+class ReadinessUnavailableResponse {
+  @ApiProperty({
+    description: "Readiness status for backing services.",
+    example: "error",
+    enum: ["error"],
+  })
+  status!: "error";
+
+  @ApiProperty({ type: ReadinessUnavailableChecksResponse })
+  checks!: ReadinessUnavailableChecksResponse;
+
+  @ApiProperty({
+    description: "Human-readable readiness failure reason.",
+    example: "Database connection is not ready.",
+  })
+  message!: string;
+}
+
 @Controller()
 export class AppController {
-  constructor(@Inject(BuildInfoService) private readonly buildInfoService: BuildInfoService) {}
+  constructor(
+    @Inject(BuildInfoService) private readonly buildInfoService: BuildInfoService,
+    @Inject(DatabaseReadinessService)
+    private readonly databaseReadinessService: DatabaseReadinessService
+  ) {}
 
   @Get("health")
   @ApiTags("health")
@@ -44,5 +106,23 @@ export class AppController {
   })
   getStatus(): BuildInfoResponse {
     return this.buildInfoService.getBuildInfo();
+  }
+
+  @Get("ready")
+  @ApiTags("ready")
+  @ApiOperation({
+    summary: "Readiness check",
+    description: "Checks whether required backing services are ready to serve API traffic.",
+  })
+  @ApiOkResponse({
+    description: "Required backing services are ready.",
+    type: ReadinessResponse,
+  })
+  @ApiServiceUnavailableResponse({
+    description: "A required backing service is not ready.",
+    type: ReadinessUnavailableResponse,
+  })
+  getReady(): DatabaseReadyResponse {
+    return this.databaseReadinessService.getReadiness();
   }
 }
