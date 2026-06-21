@@ -2,6 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getCurrentUser, signin, signup } from "./api";
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const expectedApiUrl =
+  configuredApiUrl === undefined || configuredApiUrl.length === 0
+    ? "http://127.0.0.1:3000"
+    : configuredApiUrl;
+
 const authResponse = {
   accessToken: "token-123",
   user: {
@@ -25,7 +31,7 @@ describe("auth api", () => {
       signup({ email: "person@example.com", name: "Person Name", password: "Password1!" })
     ).resolves.toEqual(authResponse);
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/auth/signup", {
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -45,7 +51,7 @@ describe("auth api", () => {
       authResponse
     );
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/auth/signin", {
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/signin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: "person@example.com", password: "Password1!" }),
@@ -59,7 +65,7 @@ describe("auth api", () => {
 
     await expect(getCurrentUser("token-123")).resolves.toEqual(authResponse.user);
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/auth/me", {
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
       headers: { Authorization: "Bearer token-123" },
     });
   });

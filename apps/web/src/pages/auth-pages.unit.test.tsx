@@ -204,6 +204,44 @@ describe("App routes", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears a stale stored token and returns the protected app route to signin", async () => {
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new Error("Invalid authentication token.")
+    );
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("stale-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+  });
+
+  it("restores a valid stored token without a fresh signin", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("token-123");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Person Name")).toBeInTheDocument();
+    expect(api.getCurrentUser).toHaveBeenCalledWith("token-123");
+    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+  });
+
   it("renders the authenticated app heading and logs out clearing localStorage", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
@@ -226,6 +264,55 @@ describe("App routes", () => {
       await screen.findByRole("heading", { name: "Sign in with confidence" })
     ).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+  });
+
+  it("keeps signin usable when the status request fails", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "token-123", user });
+
+    render(
+      <MemoryRouter initialEntries={["/signin"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("status", { name: "API status unavailable" })).toHaveTextContent(
+      "API status unavailable"
+    );
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+  });
+
+  it("keeps signup usable when the status request fails", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(api, "signup").mockResolvedValueOnce({ accessToken: "token-123", user });
+
+    render(
+      <MemoryRouter initialEntries={["/signup"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("status", { name: "API status unavailable" })).toHaveTextContent(
+      "API status unavailable"
+    );
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Name"), "Person Name");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 
   it("renders a public not-found page for unknown routes", async () => {

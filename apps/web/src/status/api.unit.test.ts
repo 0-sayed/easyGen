@@ -2,6 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getBuildInfo } from "./api";
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const expectedApiUrl =
+  configuredApiUrl === undefined || configuredApiUrl.length === 0
+    ? "http://127.0.0.1:3000"
+    : configuredApiUrl;
+
 const buildInfo = {
   service: "easygen-api",
   version: "0.1.0",
@@ -19,7 +25,7 @@ describe("status api", () => {
 
     await expect(getBuildInfo()).resolves.toEqual(buildInfo);
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/status");
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/status`);
   });
 
   it("loads build information from the configured API URL", async () => {

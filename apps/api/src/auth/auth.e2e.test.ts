@@ -10,6 +10,38 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module";
 import { configureApp } from "../configure-app";
 
+interface OpenApiOperation {
+  responses?: Record<string, OpenApiResponseObject>;
+}
+
+interface OpenApiPathItem {
+  get?: OpenApiOperation;
+  post?: OpenApiOperation;
+}
+
+interface OpenApiResponseObject {
+  content?: Record<string, OpenApiMediaTypeObject>;
+}
+
+interface OpenApiMediaTypeObject {
+  schema?: OpenApiSchemaObject | OpenApiReferenceObject;
+}
+
+interface OpenApiReferenceObject {
+  $ref: string;
+}
+
+interface OpenApiSchemaObject {
+  type?: string;
+  allOf?: OpenApiReferenceObject[];
+  properties?: Record<string, OpenApiSchemaObject | OpenApiReferenceObject>;
+}
+
+interface OpenApiDocument {
+  paths?: Record<string, OpenApiPathItem>;
+  components?: { schemas?: Record<string, OpenApiSchemaObject> };
+}
+
 describe("Auth API", () => {
   let app: INestApplication | undefined;
   let container: StartedMongoDBContainer | undefined;
@@ -83,6 +115,31 @@ describe("Auth API", () => {
     expect(lowercaseBearerResponse.body).toEqual({
       user: signinResponse.body.user,
     });
+  });
+
+  it("documents auth response contracts in OpenAPI output", async () => {
+    const response = await request(getServer(app)).get("/docs-json").expect(200);
+    const document = response.body;
+
+    const signupOperation = expectPostOperation(document, "/auth/signup");
+    const signinOperation = expectPostOperation(document, "/auth/signin");
+    const meOperation = expectGetOperation(document, "/auth/me");
+
+    expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
+    expectJsonSchemaReference(signinOperation, "200", "AuthResponse");
+    expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
+
+    const authSchema = expectSchema(document, "AuthResponse");
+    expect(authSchema.properties?.accessToken).toMatchObject({ type: "string" });
+    expectSchemaPropertyReference(authSchema, "user", "PublicUserResponse");
+
+    const currentUserSchema = expectSchema(document, "CurrentUserResponse");
+    expectSchemaPropertyReference(currentUserSchema, "user", "PublicUserResponse");
+
+    const publicUserSchema = expectSchema(document, "PublicUserResponse");
+    expect(publicUserSchema.properties?.id).toMatchObject({ type: "string" });
+    expect(publicUserSchema.properties?.email).toMatchObject({ type: "string" });
+    expect(publicUserSchema.properties?.name).toMatchObject({ type: "string" });
   });
 
   it("rejects invalid signup input", async () => {
@@ -182,6 +239,69 @@ function getJwtService(app: INestApplication | undefined): JwtService {
   }
 
   return app.get(JwtService);
+}
+
+function expectPostOperation(document: unknown, path: string): OpenApiOperation {
+  const operation = (document as OpenApiDocument).paths?.[path]?.post;
+  expect(operation).toBeDefined();
+
+  if (operation === undefined) {
+    throw new Error(`Expected OpenAPI POST operation for ${path}.`);
+  }
+
+  return operation;
+}
+
+function expectGetOperation(document: unknown, path: string): OpenApiOperation {
+  const operation = (document as OpenApiDocument).paths?.[path]?.get;
+  expect(operation).toBeDefined();
+
+  if (operation === undefined) {
+    throw new Error(`Expected OpenAPI GET operation for ${path}.`);
+  }
+
+  return operation;
+}
+
+function expectSchema(document: unknown, schemaName: string): OpenApiSchemaObject {
+  const schema = (document as OpenApiDocument).components?.schemas?.[schemaName];
+  expect(schema).toBeDefined();
+
+  if (schema === undefined) {
+    throw new Error(`Expected OpenAPI schema ${schemaName}.`);
+  }
+
+  return schema;
+}
+
+function expectJsonSchemaReference(
+  operation: OpenApiOperation,
+  statusCode: string,
+  schemaName: string
+): void {
+  const schema = operation.responses?.[statusCode]?.content?.["application/json"]?.schema;
+
+  expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
+}
+
+function expectSchemaPropertyReference(
+  schema: OpenApiSchemaObject,
+  propertyName: string,
+  schemaName: string
+): void {
+  const property = schema.properties?.[propertyName];
+  const expectedReference = `#/components/schemas/${schemaName}`;
+
+  expect(property).toBeDefined();
+
+  if (property === undefined) {
+    throw new Error(`Expected OpenAPI property ${propertyName}.`);
+  }
+
+  const directReference = "$ref" in property ? property.$ref : undefined;
+  const composedReference = "allOf" in property ? property.allOf?.[0]?.$ref : undefined;
+
+  expect(directReference ?? composedReference).toBe(expectedReference);
 }
 
 function restoreJwtSecret(value: string | undefined): void {
