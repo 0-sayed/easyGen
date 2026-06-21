@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { ValidationPipe } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 import { resolvePort } from "./config/port";
@@ -7,7 +8,8 @@ import { resolvePort } from "./config/port";
 const DEFAULT_WEB_PORT = 5173;
 
 export function configureApp(app: INestApplication): void {
-  const webPort = resolvePort(process.env.WEB_PORT, DEFAULT_WEB_PORT, "WEB_PORT");
+  const configService = app.get(ConfigService);
+  const webPort = resolvePort(configService.get<string>("WEB_PORT"), DEFAULT_WEB_PORT, "WEB_PORT");
 
   app.enableCors({
     allowedHeaders: ["Authorization", "Content-Type"],
@@ -29,6 +31,7 @@ export function configureApp(app: INestApplication): void {
     .setVersion("0.1.0")
     .addBearerAuth()
     .addTag("health", "Public liveness endpoint.")
+    .addTag("ready", "Public backing-service readiness endpoint.")
     .addTag("status", "Public build and environment metadata endpoint.")
     .addTag("auth", "Authentication and current-user endpoints.")
     .build();

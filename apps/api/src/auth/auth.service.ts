@@ -12,6 +12,7 @@ import type { JwtPayload } from "./jwt-payload";
 
 const DUMMY_PASSWORD_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$YW55c2FsdHNhbHQ$R29vZEJ5ZSBXb3JsZCBHb29kQnllIFdvcmxk";
+const DUPLICATE_SIGNUP_MESSAGE = "Unable to create account with the provided details.";
 
 @Injectable()
 export class AuthService {
@@ -24,7 +25,7 @@ export class AuthService {
     const existingUser = await this.usersService.findByEmail(dto.email);
 
     if (existingUser !== null) {
-      throw new ConflictException("A user with this email already exists.");
+      throw new ConflictException(DUPLICATE_SIGNUP_MESSAGE);
     }
 
     const passwordHash = await hash(dto.password, { type: argon2id });
@@ -75,7 +76,7 @@ export class AuthService {
       return await this.usersService.create(input);
     } catch (error) {
       if (isDuplicateKeyError(error)) {
-        throw new ConflictException("A user with this email already exists.");
+        throw new ConflictException(DUPLICATE_SIGNUP_MESSAGE);
       }
 
       throw error;

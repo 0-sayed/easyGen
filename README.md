@@ -9,6 +9,7 @@ Use Node `22.14.0` and pnpm `10.26.2`.
 ```bash
 pnpm install
 cp .env.example .env
+# Set JWT_SECRET in .env before starting the API.
 pnpm infra:up
 pnpm migrate:up
 pnpm validate
@@ -44,16 +45,19 @@ planning/       Business and technical planning context
 
 Copy `.env.example` to `.env`.
 
-| Variable         | Purpose                                     | Default                                                   |
-| ---------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `PORT`           | API HTTP port                               | `3000`                                                    |
-| `LOG_LEVEL`      | Pino/Nest logger level                      | `info`                                                    |
-| `WEB_PORT`       | Vite dev server port                        | `5173`                                                    |
-| `VITE_API_URL`   | API URL used by the frontend                | `http://127.0.0.1:3000`                                   |
-| `MONGODB_PORT`   | MongoDB host port                           | `27018`                                                   |
-| `MONGODB_URI`    | API and migration MongoDB connection string | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
-| `JWT_SECRET`     | JWT signing secret required by the API      | empty; set in local `.env`                                |
-| `JWT_EXPIRES_IN` | JWT access token lifetime                   | `15m`                                                     |
+| Variable                    | Purpose                                                                                 | Default                                                   |
+| --------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `PORT`                      | API HTTP port; integer from 1 through 65535                                             | `3000`                                                    |
+| `LOG_LEVEL`                 | Pino/Nest logger level: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent` | `info`                                                    |
+| `WEB_PORT`                  | Vite dev server port; integer from 1 through 65535                                      | `5173`                                                    |
+| `VITE_API_URL`              | API URL used by the frontend                                                            | `http://127.0.0.1:3000`                                   |
+| `MONGODB_PORT`              | MongoDB host port; integer from 1 through 65535                                         | `27018`                                                   |
+| `MONGODB_URI`               | API and migration MongoDB connection string                                             | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
+| `JWT_SECRET`                | JWT signing secret required by the API                                                  | empty; set in local `.env`                                |
+| `JWT_EXPIRES_IN`            | JWT access token lifetime; duration such as `15m`, `1h`, or `7d`                        | `15m`                                                     |
+| `AUTH_THROTTLE_LIMIT`       | Auth attempts allowed per throttle window                                               | `5`                                                       |
+| `AUTH_THROTTLE_MAX_ENTRIES` | Maximum in-memory auth throttle windows per API process                                 | `10000`                                                   |
+| `AUTH_THROTTLE_WINDOW_MS`   | Auth throttle window duration in milliseconds                                           | `60000`                                                   |
 
 ## Local Services
 
@@ -65,13 +69,16 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 
 ## API Endpoints
 
-- `GET /health` - liveness check returning `{ "status": "ok" }`.
+- `GET /health` - liveness check returning `{ "status": "ok" }`; does not check MongoDB.
+- `GET /ready` - readiness check returning MongoDB status; returns `503` when the database is unavailable.
 - `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
 - `POST /auth/signup`
 - `POST /auth/signin`
 - `GET /auth/me` - requires a bearer token.
 - `GET /docs`
 - `GET /docs-json`
+
+Use `/health` for process liveness probes and `/ready` for traffic readiness probes that must confirm MongoDB is connected.
 
 ## Authentication Flow
 
