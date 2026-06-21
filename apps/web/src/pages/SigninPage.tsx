@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+import { isApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { signinSchema, type SigninFormValues } from "../auth/validation";
 import { authStyles } from "./authStyles";
@@ -28,7 +29,7 @@ export function SigninPage() {
       await signin(values);
       void navigate(getRedirectPath(location.state), { replace: true });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Unable to sign in.");
+      setSubmitError(isApiClientError(error) ? error.message : "Unable to sign in.");
     }
   }
 

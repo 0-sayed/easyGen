@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiClientError } from "../api/client";
 import { getCurrentUser, signin, signup } from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
@@ -70,31 +71,48 @@ describe("auth api", () => {
     });
   });
 
-  it("throws a readable API error response", async () => {
+  it("rejects signin unauthorized responses with typed API errors", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ message: "Invalid email or password." }, 401)
     );
 
-    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
-      "Invalid email or password."
-    );
+    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toMatchObject({
+      name: "ApiClientError",
+      category: "unauthorized",
+      message: "Invalid email or password.",
+      status: 401,
+    });
   });
 
-  it("throws readable validation error arrays from API responses", async () => {
+  it("rejects signin validation message arrays with typed API errors", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ message: ["email must be a valid email", "password is required"] }, 400)
     );
 
-    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
-      "email must be a valid email password is required"
-    );
+    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toMatchObject({
+      name: "ApiClientError",
+      category: "validation",
+      message: "email must be a valid email password is required",
+      status: 400,
+    });
   });
 
   it("uses the fallback error when validation error arrays are empty", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ message: [] }, 400));
 
-    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toThrow(
-      "Something went wrong. Please try again."
+    await expect(signin({ email: "person@example.com", password: "wrong" })).rejects.toMatchObject({
+      name: "ApiClientError",
+      category: "validation",
+      message: "Something went wrong. Please try again.",
+      status: 400,
+    });
+  });
+
+  it("rejects malformed auth success responses with a typed unexpected error", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ accessToken: "token-123" }));
+
+    await expect(signin({ email: "person@example.com", password: "Password1!" })).rejects.toEqual(
+      new ApiClientError("Unexpected authentication response.", "unexpected")
     );
   });
 });

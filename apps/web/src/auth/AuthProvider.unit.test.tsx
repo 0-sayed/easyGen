@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiClientError } from "../api/client";
 import { AuthProvider, useAuth } from "./AuthProvider";
 import * as api from "./api";
 import { setAccessToken } from "./session";
@@ -30,10 +31,10 @@ describe("AuthProvider", () => {
     });
   });
 
-  it("clears an invalid stored token", async () => {
+  it("clears invalid stored token after getCurrentUser rejects with unauthorized", async () => {
     setAccessToken("bad-token");
     vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
-      new Error("Invalid authentication token.")
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
     );
 
     render(
@@ -46,6 +47,24 @@ describe("AuthProvider", () => {
       expect(screen.getByText("guest")).toBeInTheDocument();
     });
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+  });
+
+  it("keeps stored token when getCurrentUser rejects with unavailable while rendering guest after loading", async () => {
+    setAccessToken("token-123");
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new ApiClientError("Unable to reach the API. Please try again.", "unavailable")
+    );
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("guest")).toBeInTheDocument();
+    });
+    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 
   it("signs in and stores the access token", async () => {

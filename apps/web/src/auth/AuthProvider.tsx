@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { isApiClientError } from "../api/client";
 import {
   getCurrentUser,
   signin as signinRequest,
@@ -38,8 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(currentUser);
         }
       })
-      .catch(() => {
-        if (active && getAccessToken() === accessToken) {
+      .catch((error: unknown) => {
+        if (
+          active &&
+          getAccessToken() === accessToken &&
+          isApiClientError(error) &&
+          error.category === "unauthorized"
+        ) {
           clearAccessToken();
           setUser(null);
         }

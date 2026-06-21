@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 
+import { isApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { signupSchema, type SignupFormValues } from "../auth/validation";
 import { authStyles } from "./authStyles";
@@ -26,7 +27,7 @@ export function SignupPage() {
       await signup(values);
       void navigate("/app", { replace: true });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Unable to create account.");
+      setSubmitError(isApiClientError(error) ? error.message : "Unable to create account.");
     }
   }
 

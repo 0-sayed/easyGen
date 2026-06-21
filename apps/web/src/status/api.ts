@@ -1,5 +1,4 @@
-const DEFAULT_API_URL = "http://127.0.0.1:3000";
-const API_URL = getApiUrl(import.meta.env);
+import { ApiClientError, apiRequest } from "../api/client";
 
 export interface BuildInfo {
   service: "easygen-api";
@@ -8,18 +7,7 @@ export interface BuildInfo {
 }
 
 export async function getBuildInfo(): Promise<BuildInfo> {
-  const response = await fetch(`${API_URL}/status`);
-
-  if (!response.ok) {
-    throw new Error("Unable to load API status.");
-  }
-
-  return readBuildInfo(await readJson(response));
-}
-
-function getApiUrl(env: ImportMetaEnv): string {
-  const apiUrl = env.VITE_API_URL?.trim();
-  return apiUrl === undefined || apiUrl.length === 0 ? DEFAULT_API_URL : apiUrl;
+  return readBuildInfo(await apiRequest("/status"));
 }
 
 function readBuildInfo(body: unknown): BuildInfo {
@@ -29,7 +17,7 @@ function readBuildInfo(body: unknown): BuildInfo {
     typeof body.version !== "string" ||
     typeof body.environment !== "string"
   ) {
-    throw new Error("Unexpected API status response.");
+    throw new ApiClientError("Unexpected API status response.", "unexpected");
   }
 
   return {
@@ -37,14 +25,6 @@ function readBuildInfo(body: unknown): BuildInfo {
     version: body.version,
     environment: body.environment,
   };
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    throw new Error("Unexpected API status response.");
-  }
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
