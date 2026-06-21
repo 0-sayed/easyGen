@@ -59,4 +59,27 @@ describe("BuildInfoBadge", () => {
     expect(status).toHaveTextContent("API status unavailable");
     expect(status.tagName).toBe("DIV");
   });
+
+  it("retries the status request after a failed provider mount", async () => {
+    const getBuildInfo = vi
+      .spyOn(statusApi, "getBuildInfo")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        service: "easygen-api",
+        version: "0.1.0",
+        environment: "test",
+      });
+
+    const { unmount } = renderWithBuildInfoProvider(<BuildInfoBadge />);
+
+    expect(
+      await screen.findByRole("status", { name: "API status unavailable" })
+    ).toBeInTheDocument();
+
+    unmount();
+    renderWithBuildInfoProvider(<BuildInfoBadge />);
+
+    expect(await screen.findByText("easygen-api")).toBeInTheDocument();
+    expect(getBuildInfo).toHaveBeenCalledTimes(2);
+  });
 });

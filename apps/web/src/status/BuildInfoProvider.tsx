@@ -32,6 +32,7 @@ export function BuildInfoProvider({ children }: BuildInfoProviderProps) {
         if (active) {
           setState({ status: "failed" });
         }
+        sharedBuildInfoRequest = null;
       });
 
     return () => {
