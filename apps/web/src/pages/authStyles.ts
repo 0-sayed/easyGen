@@ -1,5 +1,6 @@
 export const authStyles = {
   actions: "grid gap-3 sm:grid-cols-2",
+  appCard: "w-full max-w-[640px] rounded-card border border-line bg-white p-6 shadow-auth sm:p-8",
   button:
     "min-h-11 rounded-control bg-brand px-4 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-brand-strong focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25 disabled:cursor-wait disabled:opacity-70",
   card: "w-full max-w-[480px] rounded-card border border-line bg-white p-6 shadow-auth sm:p-8",
