@@ -4,8 +4,10 @@ import { JwtModule } from "@nestjs/jwt";
 import type { JwtModuleOptions } from "@nestjs/jwt";
 
 import { UsersModule } from "../users/users.module";
+import { AuthAuditLogger } from "./auth-audit.logger";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { AuthThrottleService } from "./auth-throttle.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 type JwtExpiresIn = NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"];
@@ -37,6 +39,6 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
       },
     }),
   ],
-  providers: [AuthService, JwtAuthGuard],
+  providers: [AuthService, JwtAuthGuard, AuthAuditLogger, AuthThrottleService],
 })
 export class AuthModule {}
