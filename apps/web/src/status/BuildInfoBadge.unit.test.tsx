@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as statusApi from "./api";
@@ -23,15 +23,13 @@ describe("BuildInfoBadge", () => {
     expect(screen.getByText("test")).toBeInTheDocument();
   });
 
-  it("renders nothing when the status request fails", async () => {
+  it("renders a non-blocking unavailable message when the status request fails", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("offline"));
 
-    const { container } = render(<BuildInfoBadge />);
+    render(<BuildInfoBadge />);
 
-    await waitFor(() => {
-      expect(statusApi.getBuildInfo).toHaveBeenCalled();
-    });
-
-    expect(container).toBeEmptyDOMElement();
+    const status = await screen.findByRole("status", { name: "API status unavailable" });
+    expect(status).toHaveTextContent("API status unavailable");
+    expect(status.tagName).toBe("DIV");
   });
 });
