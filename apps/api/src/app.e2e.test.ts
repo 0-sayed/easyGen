@@ -1,11 +1,11 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
+import { MongoClient } from "mongodb";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import apiPackage from "../package.json";
-import { AppModule } from "./app.module";
 import { configureApp } from "./configure-app";
 
 const expectedApiVersion =
@@ -63,6 +63,8 @@ describe("App", () => {
     process.env.LOG_LEVEL = "silent";
     process.env.WEB_PORT = "5173";
     process.env.NODE_ENV = "test";
+    await waitForMongo(process.env.MONGODB_URI);
+    const { AppModule } = await import("./app.module");
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -96,6 +98,21 @@ describe("App", () => {
     expect(response.body).toEqual({ status: "ok" });
   });
 
+  it("serves the readiness endpoint when MongoDB is connected", async () => {
+    if (app === undefined) {
+      throw new Error("Nest app was not initialized.");
+    }
+
+    const response = await request(app.getHttpServer()).get("/ready").expect(200);
+
+    expect(response.body).toEqual({
+      checks: {
+        database: "ready",
+      },
+      status: "ready",
+    });
+  });
+
   it("serves public build information without authentication", async () => {
     if (app === undefined) {
       throw new Error("Nest app was not initialized.");
@@ -110,7 +127,7 @@ describe("App", () => {
     });
   });
 
-  it("documents public health and status endpoints in OpenAPI output", async () => {
+  it("documents public health, readiness, and status endpoints in OpenAPI output", async () => {
     if (app === undefined) {
       throw new Error("Nest app was not initialized.");
     }
@@ -120,11 +137,15 @@ describe("App", () => {
     expect(expectDocumentTag(response.body, "health").description).toBe(
       "Public liveness endpoint."
     );
+    expect(expectDocumentTag(response.body, "ready").description).toBe(
+      "Public backing-service readiness endpoint."
+    );
     expect(expectDocumentTag(response.body, "status").description).toBe(
       "Public build and environment metadata endpoint."
     );
 
     const healthOperation = expectGetOperation(response.body, "/health");
+    const readyOperation = expectGetOperation(response.body, "/ready");
     const statusOperation = expectGetOperation(response.body, "/status");
 
     expect(healthOperation.tags).toEqual(["health"]);
@@ -140,6 +161,27 @@ describe("App", () => {
     expect(response.body.components?.schemas?.HealthResponse?.properties?.status?.enum).toEqual([
       "ok",
     ]);
+
+    expect(readyOperation.tags).toEqual(["ready"]);
+    expect(readyOperation.summary).toBe("Readiness check");
+    expect(readyOperation.responses?.["200"]?.description).toBe(
+      "Required backing services are ready."
+    );
+    expect(readyOperation.responses?.["503"]?.description).toBe(
+      "A required backing service is not ready."
+    );
+    expectJsonSchemaReference(readyOperation, "200", "ReadinessResponse");
+    expectJsonSchemaReference(readyOperation, "503", "ReadinessUnavailableResponse");
+    expect(response.body.components?.schemas?.ReadinessResponse?.properties?.status).toMatchObject({
+      enum: ["ready"],
+      type: "string",
+    });
+    expect(
+      response.body.components?.schemas?.ReadinessUnavailableResponse?.properties?.status
+    ).toMatchObject({
+      enum: ["error"],
+      type: "string",
+    });
 
     expect(statusOperation.tags).toEqual(["status"]);
     expect(statusOperation.summary).toBe("Public build status");
@@ -279,4 +321,15 @@ function expectJsonSchemaReference(
   const schema = operation.responses?.[statusCode]?.content?.["application/json"]?.schema;
 
   expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
+}
+
+async function waitForMongo(uri: string): Promise<void> {
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+  } finally {
+    await client.close();
+  }
 }

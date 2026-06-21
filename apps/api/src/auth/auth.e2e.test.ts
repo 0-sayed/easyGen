@@ -2,12 +2,12 @@ import type { INestApplication } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
+import { MongoClient } from "mongodb";
 import request from "supertest";
 import type { Response } from "supertest";
 import type { App } from "supertest/types";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { AppModule } from "../app.module";
 import { configureApp } from "../configure-app";
 
 interface OpenApiOperation {
@@ -48,6 +48,7 @@ describe("Auth API", () => {
   const previousJwtSecret = process.env.JWT_SECRET;
   const previousLogLevel = process.env.LOG_LEVEL;
   const previousMongoDbUri = process.env.MONGODB_URI;
+  const previousNodeEnv = process.env.NODE_ENV;
 
   beforeAll(async () => {
     container = await new MongoDBContainer("mongo:8.0").start();
@@ -56,6 +57,9 @@ describe("Auth API", () => {
     process.env.JWT_SECRET = "test-secret";
     process.env.LOG_LEVEL = "silent";
     process.env.MONGODB_URI = `mongodb://${host}:${mappedPort}/easygen_test?directConnection=true`;
+    process.env.NODE_ENV = "test";
+    await waitForMongo(process.env.MONGODB_URI);
+    const { AppModule } = await import("../app.module");
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -72,6 +76,7 @@ describe("Auth API", () => {
     restoreJwtSecret(previousJwtSecret);
     restoreLogLevel(previousLogLevel);
     restoreMongoDbUri(previousMongoDbUri);
+    restoreNodeEnv(previousNodeEnv);
   });
 
   it("signs up, signs in, and returns the protected current user", async () => {
@@ -304,6 +309,17 @@ function expectSchemaPropertyReference(
   expect(directReference ?? composedReference).toBe(expectedReference);
 }
 
+async function waitForMongo(uri: string): Promise<void> {
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+  } finally {
+    await client.close();
+  }
+}
+
 function restoreJwtSecret(value: string | undefined): void {
   if (value === undefined) {
     delete process.env.JWT_SECRET;
@@ -325,5 +341,13 @@ function restoreMongoDbUri(value: string | undefined): void {
     delete process.env.MONGODB_URI;
   } else {
     process.env.MONGODB_URI = value;
+  }
+}
+
+function restoreNodeEnv(value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = value;
   }
 }
