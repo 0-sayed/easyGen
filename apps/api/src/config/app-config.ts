@@ -1,3 +1,5 @@
+import { mongo } from "mongoose";
+
 const DEFAULT_JWT_EXPIRES_IN = "15m";
 const DEFAULT_LOG_LEVEL = "info";
 const DEFAULT_MONGODB_HOST = "127.0.0.1";
@@ -116,16 +118,14 @@ function parseLogLevel(value: string): LogLevel {
 }
 
 function parseMongodbUri(value: string): string {
-  let parsed: URL;
-
-  try {
-    parsed = new URL(value);
-  } catch {
-    throw new Error("MONGODB_URI must be a valid MongoDB connection string.");
+  if (!value.startsWith("mongodb://") && !value.startsWith("mongodb+srv://")) {
+    throw new Error("MONGODB_URI must use mongodb:// or mongodb+srv://.");
   }
 
-  if (parsed.protocol !== "mongodb:" && parsed.protocol !== "mongodb+srv:") {
-    throw new Error("MONGODB_URI must use mongodb:// or mongodb+srv://.");
+  try {
+    new mongo.MongoClient(value);
+  } catch {
+    throw new Error("MONGODB_URI must be a valid MongoDB connection string.");
   }
 
   return value;

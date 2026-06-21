@@ -39,6 +39,17 @@ describe("validateAppConfig", () => {
     });
   });
 
+  it("accepts MongoDB replica-set seed-list URIs", () => {
+    const mongodbUri = "mongodb://user:pass@db1:27017,db2:27017/easygen?replicaSet=rs0";
+
+    const config = validateAppConfig({
+      JWT_SECRET: "deployment-secret",
+      MONGODB_URI: mongodbUri,
+    });
+
+    expect(config.MONGODB_URI).toBe(mongodbUri);
+  });
+
   it.each([
     [{}, "JWT_SECRET is required."],
     [{ JWT_SECRET: "   " }, "JWT_SECRET is required."],
