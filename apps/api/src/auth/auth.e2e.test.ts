@@ -48,6 +48,8 @@ describe("Auth API", () => {
   const previousJwtSecret = process.env.JWT_SECRET;
   const previousLogLevel = process.env.LOG_LEVEL;
   const previousMongoDbUri = process.env.MONGODB_URI;
+  const previousAuthThrottleLimit = process.env.AUTH_THROTTLE_LIMIT;
+  const previousAuthThrottleWindowMs = process.env.AUTH_THROTTLE_WINDOW_MS;
 
   beforeAll(async () => {
     container = await new MongoDBContainer("mongo:8.0").start();
@@ -56,6 +58,8 @@ describe("Auth API", () => {
     process.env.JWT_SECRET = "test-secret";
     process.env.LOG_LEVEL = "silent";
     process.env.MONGODB_URI = `mongodb://${host}:${mappedPort}/easygen_test?directConnection=true`;
+    process.env.AUTH_THROTTLE_LIMIT = "2";
+    process.env.AUTH_THROTTLE_WINDOW_MS = "60000";
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -67,11 +71,31 @@ describe("Auth API", () => {
   });
 
   afterAll(async () => {
-    await app?.close();
-    await container?.stop();
-    restoreJwtSecret(previousJwtSecret);
-    restoreLogLevel(previousLogLevel);
-    restoreMongoDbUri(previousMongoDbUri);
+    let closeError: unknown;
+
+    try {
+      await app?.close();
+    } catch (error) {
+      closeError = error;
+    }
+
+    try {
+      await container?.stop();
+    } catch (error) {
+      closeError ??= error;
+    } finally {
+      restoreEnv("JWT_SECRET", previousJwtSecret);
+      restoreEnv("LOG_LEVEL", previousLogLevel);
+      restoreEnv("MONGODB_URI", previousMongoDbUri);
+      restoreEnv("AUTH_THROTTLE_LIMIT", previousAuthThrottleLimit);
+      restoreEnv("AUTH_THROTTLE_WINDOW_MS", previousAuthThrottleWindowMs);
+    }
+
+    if (closeError !== undefined) {
+      throw closeError instanceof Error
+        ? closeError
+        : new Error("Failed to close auth e2e resources.");
+    }
   });
 
   it("signs up, signs in, and returns the protected current user", async () => {
@@ -147,6 +171,65 @@ describe("Auth API", () => {
       .post("/auth/signup")
       .send({ email: "not-email", name: "Al", password: "weak" })
       .expect(400);
+  });
+
+  it("returns a generic message for signin failures", async () => {
+    const server = getServer(app);
+    const payload = {
+      email: "generic-signin-failure@example.com",
+      name: "Generic Signin Failure",
+      password: "Password1!",
+    };
+
+    await request(server).post("/auth/signup").send(payload).expect(201);
+
+    const wrongPasswordResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: "WrongPassword1!" })
+      .expect(401);
+
+    expect(wrongPasswordResponse.body.message).toBe("Invalid email or password.");
+
+    const unknownEmailResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: "unknown-signin-failure@example.com", password: "Password1!" })
+      .expect(401);
+
+    expect(unknownEmailResponse.body.message).toBe("Invalid email or password.");
+  });
+
+  it("throttles repeated signin attempts", async () => {
+    const payload = { email: "throttled@example.com", password: "Password1!" };
+
+    await request(getServer(app)).post("/auth/signin").send(payload).expect(401);
+    await request(getServer(app)).post("/auth/signin").send(payload).expect(401);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/signin")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
+  it("returns a sanitized duplicate signup response", async () => {
+    const server = getServer(app);
+    const payload = {
+      email: "sanitized-duplicate@example.com",
+      name: "Sanitized Duplicate",
+      password: "Password1!",
+    };
+
+    await request(server).post("/auth/signup").send(payload).expect(201);
+
+    const duplicateResponse = await request(server).post("/auth/signup").send(payload).expect(409);
+
+    expect(JSON.stringify(duplicateResponse.body).toLowerCase()).not.toContain("exists");
+    expect(duplicateResponse.body.message).toBe(
+      "Unable to create account with the provided details."
+    );
   });
 
   it("rejects duplicate signup email", async () => {
@@ -304,26 +387,10 @@ function expectSchemaPropertyReference(
   expect(directReference ?? composedReference).toBe(expectedReference);
 }
 
-function restoreJwtSecret(value: string | undefined): void {
+function restoreEnv(name: string, value: string | undefined): void {
   if (value === undefined) {
-    delete process.env.JWT_SECRET;
+    Reflect.deleteProperty(process.env, name);
   } else {
-    process.env.JWT_SECRET = value;
-  }
-}
-
-function restoreLogLevel(value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env.LOG_LEVEL;
-  } else {
-    process.env.LOG_LEVEL = value;
-  }
-}
-
-function restoreMongoDbUri(value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env.MONGODB_URI;
-  } else {
-    process.env.MONGODB_URI = value;
+    process.env[name] = value;
   }
 }
