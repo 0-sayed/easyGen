@@ -59,6 +59,8 @@ Copy `.env.example` to `.env`.
 
 `docker-compose.yml` starts MongoDB 8.0 on `127.0.0.1:${MONGODB_PORT:-27018}`. The Compose file avoids fixed container names so worktree-specific stacks can be isolated.
 
+`pnpm migrate:up` applies database constraints, including the unique `users.email` index used by signup and signin.
+
 For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.json`; keep migrations, app URLs, and browser QA pointed at the current worktree's `.env`.
 
 ## API Endpoints
