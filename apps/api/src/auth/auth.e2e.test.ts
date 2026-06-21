@@ -5,10 +5,11 @@ import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/
 import request from "supertest";
 import type { Response } from "supertest";
 import type { App } from "supertest/types";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { AppModule } from "../app.module";
 import { configureApp } from "../configure-app";
+import { AuthThrottleService } from "./auth-throttle.service";
 
 interface OpenApiOperation {
   responses?: Record<string, OpenApiResponseObject>;
@@ -68,6 +69,10 @@ describe("Auth API", () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
+  });
+
+  beforeEach(() => {
+    readThrottleAttempts(getThrottleService(app)).clear();
   });
 
   afterAll(async () => {
@@ -322,6 +327,18 @@ function getJwtService(app: INestApplication | undefined): JwtService {
   }
 
   return app.get(JwtService);
+}
+
+function getThrottleService(app: INestApplication | undefined): AuthThrottleService {
+  if (app === undefined) {
+    throw new Error("Nest app was not initialized.");
+  }
+
+  return app.get(AuthThrottleService);
+}
+
+function readThrottleAttempts(service: AuthThrottleService): Map<string, unknown> {
+  return (service as unknown as { attempts: Map<string, unknown> }).attempts;
 }
 
 function expectPostOperation(document: unknown, path: string): OpenApiOperation {

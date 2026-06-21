@@ -21,23 +21,31 @@ interface ThrottleWindow {
 export class AuthThrottleService {
   private readonly attempts = new Map<string, ThrottleWindow>();
   private readonly limit: number;
+  private readonly maxEntries: number;
   private readonly windowMs: number;
 
   constructor(@Inject(ConfigService) private readonly configService: ConfigService) {
     this.limit = this.getPositiveInteger("AUTH_THROTTLE_LIMIT", 5);
+    this.maxEntries = Math.max(2, this.getPositiveInteger("AUTH_THROTTLE_MAX_ENTRIES", 10000));
     this.windowMs = this.getPositiveInteger("AUTH_THROTTLE_WINDOW_MS", 60000);
   }
 
   consume(input: AuthThrottleInput): AuthThrottleResult {
     const now = input.now ?? Date.now();
+    const ipResult = this.consumeWindow(this.buildIpKey(input), now);
 
-    this.pruneExpiredWindows(now);
+    if (!ipResult.allowed) {
+      return ipResult;
+    }
 
-    const key = this.buildKey(input);
+    return this.consumeWindow(this.buildEmailIpKey(input), now);
+  }
+
+  private consumeWindow(key: string, now: number): AuthThrottleResult {
     const currentWindow = this.attempts.get(key);
 
     if (currentWindow === undefined || now >= currentWindow.resetAt) {
-      this.attempts.set(key, {
+      this.setWindow(key, {
         count: 1,
         resetAt: now + this.windowMs,
       });
@@ -46,7 +54,11 @@ export class AuthThrottleService {
     }
 
     if (currentWindow.count < this.limit) {
-      currentWindow.count += 1;
+      this.setWindow(key, {
+        count: currentWindow.count + 1,
+        resetAt: currentWindow.resetAt,
+      });
+
       return { allowed: true };
     }
 
@@ -56,12 +68,21 @@ export class AuthThrottleService {
     };
   }
 
-  private buildKey(input: AuthThrottleInput): string {
-    const email = input.email.trim().toLowerCase();
-    const trimmedIp = input.ip?.trim();
-    const ip = trimmedIp === undefined || trimmedIp === "" ? "unknown" : trimmedIp;
+  private buildEmailIpKey(input: AuthThrottleInput): string {
+    return `${input.scope}:email-ip:${this.normalizeEmail(input)}:${this.normalizeIp(input)}`;
+  }
 
-    return `${input.scope}:${email}:${ip}`;
+  private buildIpKey(input: AuthThrottleInput): string {
+    return `${input.scope}:ip:${this.normalizeIp(input)}`;
+  }
+
+  private normalizeEmail(input: AuthThrottleInput): string {
+    return input.email.trim().toLowerCase();
+  }
+
+  private normalizeIp(input: AuthThrottleInput): string {
+    const trimmedIp = input.ip?.trim();
+    return trimmedIp === undefined || trimmedIp === "" ? "unknown" : trimmedIp;
   }
 
   private getPositiveInteger(key: string, defaultValue: number): number {
@@ -71,11 +92,21 @@ export class AuthThrottleService {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : defaultValue;
   }
 
-  private pruneExpiredWindows(now: number): void {
-    for (const [key, window] of this.attempts) {
-      if (now >= window.resetAt) {
-        this.attempts.delete(key);
-      }
+  private setWindow(key: string, window: ThrottleWindow): void {
+    if (this.attempts.has(key)) {
+      this.attempts.delete(key);
     }
+
+    while (this.attempts.size >= this.maxEntries) {
+      const oldestKey = this.attempts.keys().next().value;
+
+      if (oldestKey === undefined) {
+        break;
+      }
+
+      this.attempts.delete(oldestKey);
+    }
+
+    this.attempts.set(key, window);
   }
 }

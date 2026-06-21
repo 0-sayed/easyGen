@@ -44,18 +44,19 @@ planning/       Business and technical planning context
 
 Copy `.env.example` to `.env`.
 
-| Variable                  | Purpose                                       | Default                                                   |
-| ------------------------- | --------------------------------------------- | --------------------------------------------------------- |
-| `PORT`                    | API HTTP port                                 | `3000`                                                    |
-| `LOG_LEVEL`               | Pino/Nest logger level                        | `info`                                                    |
-| `WEB_PORT`                | Vite dev server port                          | `5173`                                                    |
-| `VITE_API_URL`            | API URL used by the frontend                  | `http://127.0.0.1:3000`                                   |
-| `MONGODB_PORT`            | MongoDB host port                             | `27018`                                                   |
-| `MONGODB_URI`             | API and migration MongoDB connection string   | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
-| `JWT_SECRET`              | JWT signing secret required by the API        | empty; set in local `.env`                                |
-| `JWT_EXPIRES_IN`          | JWT access token lifetime                     | `15m`                                                     |
-| `AUTH_THROTTLE_LIMIT`     | Auth attempts allowed per email/IP window     | `5`                                                       |
-| `AUTH_THROTTLE_WINDOW_MS` | Auth throttle window duration in milliseconds | `60000`                                                   |
+| Variable                    | Purpose                                                 | Default                                                   |
+| --------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| `PORT`                      | API HTTP port                                           | `3000`                                                    |
+| `LOG_LEVEL`                 | Pino/Nest logger level                                  | `info`                                                    |
+| `WEB_PORT`                  | Vite dev server port                                    | `5173`                                                    |
+| `VITE_API_URL`              | API URL used by the frontend                            | `http://127.0.0.1:3000`                                   |
+| `MONGODB_PORT`              | MongoDB host port                                       | `27018`                                                   |
+| `MONGODB_URI`               | API and migration MongoDB connection string             | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
+| `JWT_SECRET`                | JWT signing secret required by the API                  | empty; set in local `.env`                                |
+| `JWT_EXPIRES_IN`            | JWT access token lifetime                               | `15m`                                                     |
+| `AUTH_THROTTLE_LIMIT`       | Auth attempts allowed per throttle window               | `5`                                                       |
+| `AUTH_THROTTLE_MAX_ENTRIES` | Maximum in-memory auth throttle windows per API process | `10000`                                                   |
+| `AUTH_THROTTLE_WINDOW_MS`   | Auth throttle window duration in milliseconds           | `60000`                                                   |
 
 ## Local Services
 
