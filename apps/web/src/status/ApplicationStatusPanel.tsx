@@ -1,0 +1,66 @@
+import { useBuildInfo } from "./BuildInfoProvider";
+
+export function ApplicationStatusPanel() {
+  const state = useBuildInfo();
+
+  return (
+    <section
+      className="grid gap-4 rounded-card border border-line bg-field p-4"
+      aria-labelledby="api-status-title"
+    >
+      <div>
+        <p className="mb-2 mt-0 text-xs font-extrabold uppercase tracking-wide text-brand">
+          System status
+        </p>
+        <h2 id="api-status-title" className="m-0 text-xl font-semibold leading-tight text-ink">
+          API connection
+        </h2>
+      </div>
+
+      {state.status === "loading" ? (
+        <p
+          className="m-0 text-sm font-semibold leading-5 text-muted"
+          role="status"
+          aria-label="Checking API connection"
+        >
+          Checking API connection...
+        </p>
+      ) : null}
+
+      {state.status === "failed" ? (
+        <div
+          className="grid gap-1 text-sm leading-5 text-muted"
+          role="status"
+          aria-label="API connection unavailable"
+        >
+          <p className="m-0 font-semibold text-danger">API status unavailable</p>
+          <p className="m-0">Account details remain available.</p>
+        </div>
+      ) : null}
+
+      {state.status === "ready" ? (
+        <div
+          className="grid gap-3 text-sm leading-5 text-muted"
+          role="status"
+          aria-label="API connection"
+        >
+          <p className="m-0 font-semibold text-brand-strong">API connected</p>
+          <dl className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-0.5">
+              <dt className="font-bold text-label">Service</dt>
+              <dd className="m-0">{state.buildInfo.service}</dd>
+            </div>
+            <div className="grid gap-0.5">
+              <dt className="font-bold text-label">Version</dt>
+              <dd className="m-0">v{state.buildInfo.version}</dd>
+            </div>
+            <div className="grid gap-0.5">
+              <dt className="font-bold text-label">Environment</dt>
+              <dd className="m-0">{state.buildInfo.environment}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
+    </section>
+  );
+}

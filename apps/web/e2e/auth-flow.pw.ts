@@ -22,7 +22,12 @@ test.describe("full-stack auth browser matrix", () => {
     await createAccount(page, account);
 
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
     await expect(page.getByText(account.name, { exact: true })).toBeVisible();
+    await expect(page.getByText(account.email, { exact: true })).toBeVisible();
+    await expect(page.getByRole("status", { name: "API connection" })).toContainText(
+      "API connected"
+    );
 
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
@@ -30,7 +35,12 @@ test.describe("full-stack auth browser matrix", () => {
     await fillSignin(page, account.email, PASSWORD);
 
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
     await expect(page.getByText(account.name, { exact: true })).toBeVisible();
+    await expect(page.getByText(account.email, { exact: true })).toBeVisible();
+    await expect(page.getByRole("status", { name: "API connection" })).toContainText(
+      "API connected"
+    );
   });
 
   test("unauthenticated /app redirects to signin", async ({ page }) => {
@@ -52,7 +62,9 @@ test.describe("full-stack auth browser matrix", () => {
     await fillSignupForm(page, account);
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await expect(page.getByText("A user with this email already exists.")).toBeVisible();
+    await expect(
+      page.getByText("Unable to create account with the provided details.")
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Create account" })).toBeVisible();
   });
 

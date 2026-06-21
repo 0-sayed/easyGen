@@ -1,34 +1,7 @@
-import { useEffect, useState } from "react";
-
-import { getBuildInfo, type BuildInfo } from "./api";
-
-type BuildInfoState =
-  | { status: "loading" }
-  | { status: "ready"; buildInfo: BuildInfo }
-  | { status: "failed" };
+import { useBuildInfo } from "./BuildInfoProvider";
 
 export function BuildInfoBadge() {
-  const [state, setState] = useState<BuildInfoState>({ status: "loading" });
-
-  useEffect(() => {
-    let active = true;
-
-    void getBuildInfo()
-      .then((info) => {
-        if (active) {
-          setState({ status: "ready", buildInfo: info });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setState({ status: "failed" });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const state = useBuildInfo();
 
   if (state.status === "loading") {
     return null;

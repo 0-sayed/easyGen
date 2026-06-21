@@ -9,6 +9,7 @@ import { AuthProvider } from "../auth/AuthProvider";
 import * as api from "../auth/api";
 import { setAccessToken } from "../auth/session";
 import * as statusApi from "../status/api";
+import { resetBuildInfoForTests } from "../status/BuildInfoProvider";
 import { SigninPage } from "./SigninPage";
 import { SignupPage } from "./SignupPage";
 
@@ -17,6 +18,7 @@ const user = { id: "user-1", email: "person@example.com", name: "Person Name" };
 describe("SignupPage", () => {
   afterEach(() => {
     localStorage.clear();
+    resetBuildInfoForTests();
     vi.restoreAllMocks();
   });
 
@@ -143,6 +145,7 @@ describe("SigninPage", () => {
 describe("App routes", () => {
   afterEach(() => {
     localStorage.clear();
+    resetBuildInfoForTests();
     vi.restoreAllMocks();
   });
 
@@ -225,6 +228,36 @@ describe("App routes", () => {
 
   it("restores a valid stored token without a fresh signin", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce({
+      service: "easygen-api",
+      version: "0.1.0",
+      environment: "test",
+    });
+    setAccessToken("token-123");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
+    expect(screen.getByText("Person Name")).toBeInTheDocument();
+    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    expect(screen.getByText("user-1")).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "API connection" })).toHaveTextContent(
+      "API connected"
+    );
+    expect(api.getCurrentUser).toHaveBeenCalledWith("token-123");
+    expect(statusApi.getBuildInfo).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+  });
+
+  it("keeps the application usable when the in-page status request fails", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
@@ -237,9 +270,17 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
     expect(screen.getByText("Person Name")).toBeInTheDocument();
-    expect(api.getCurrentUser).toHaveBeenCalledWith("token-123");
-    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    expect(screen.getByText("user-1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("status", { name: "API connection unavailable" })
+    ).toHaveTextContent("API status unavailable");
+    expect(
+      screen.queryByRole("status", { name: "API status unavailable" })
+    ).not.toBeInTheDocument();
   });
 
   it("renders the authenticated app heading and logs out clearing localStorage", async () => {
