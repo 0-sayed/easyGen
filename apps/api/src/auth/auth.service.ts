@@ -5,14 +5,10 @@ import { argon2id, hash, verify } from "argon2";
 import { toPublicUser } from "../users/user.mapper";
 import type { PublicUser, UserWithPasswordHash } from "../users/user.types";
 import { UsersService } from "../users/users.service";
+import type { AuthResponse } from "./dto/auth-response.dto";
 import type { SigninDto } from "./dto/signin.dto";
 import type { SignupDto } from "./dto/signup.dto";
 import type { JwtPayload } from "./jwt-payload";
-
-interface AuthResponse {
-  accessToken: string;
-  user: PublicUser;
-}
 
 const DUMMY_PASSWORD_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$YW55c2FsdHNhbHQ$R29vZEJ5ZSBXb3JsZCBHb29kQnllIFdvcmxk";

@@ -17,11 +17,26 @@ interface OpenApiOperation {
   tags?: string[];
   summary?: string;
   description?: string;
-  responses?: Record<string, { description?: string }>;
+  responses?: Record<string, OpenApiResponseObject>;
+}
+
+interface OpenApiResponseObject {
+  description?: string;
+  content?: Record<string, OpenApiMediaTypeObject>;
+}
+
+interface OpenApiMediaTypeObject {
+  schema?: OpenApiSchemaObject | OpenApiReferenceObject;
+}
+
+interface OpenApiReferenceObject {
+  $ref: string;
 }
 
 interface OpenApiSchemaObject {
-  properties?: Record<string, { enum?: unknown[] }>;
+  type?: string;
+  enum?: unknown[];
+  properties?: Record<string, OpenApiSchemaObject | OpenApiReferenceObject>;
 }
 
 interface OpenApiDocument {
@@ -117,6 +132,11 @@ describe("App", () => {
     expect(healthOperation.responses?.["200"]?.description).toBe(
       "API process is accepting requests."
     );
+    expectJsonSchemaReference(healthOperation, "200", "HealthResponse");
+    expect(response.body.components?.schemas?.HealthResponse?.properties?.status).toMatchObject({
+      enum: ["ok"],
+      type: "string",
+    });
     expect(response.body.components?.schemas?.HealthResponse?.properties?.status?.enum).toEqual([
       "ok",
     ]);
@@ -129,6 +149,23 @@ describe("App", () => {
     expect(statusOperation.responses?.["200"]?.description).toBe(
       "Current public service build metadata."
     );
+    expectJsonSchemaReference(statusOperation, "200", "BuildInfoResponse");
+    expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.service).toMatchObject(
+      {
+        enum: ["easygen-api"],
+        type: "string",
+      }
+    );
+    expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.version).toMatchObject(
+      {
+        type: "string",
+      }
+    );
+    expect(
+      response.body.components?.schemas?.BuildInfoResponse?.properties?.environment
+    ).toMatchObject({
+      type: "string",
+    });
     expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.service?.enum).toEqual(
       ["easygen-api"]
     );
@@ -232,4 +269,14 @@ function expectGetOperation(document: unknown, path: string): OpenApiOperation {
   }
 
   return operation;
+}
+
+function expectJsonSchemaReference(
+  operation: OpenApiOperation,
+  statusCode: string,
+  schemaName: string
+): void {
+  const schema = operation.responses?.[statusCode]?.content?.["application/json"]?.schema;
+
+  expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
 }
