@@ -84,12 +84,14 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 
 `pnpm validate` runs format check, lint, type-check, tests, Knip, dependency audit, and build.
 
-Run the browser smoke test when you want full-stack UI confidence:
+Run the browser QA matrix when you want full-stack auth confidence:
 
 ```bash
 pnpm --filter @easygen/web exec playwright install chromium
 pnpm test:browser
 pnpm infra:down
 ```
+
+The matrix is defined in `apps/web/e2e/auth-flow.pw.ts`. Playwright starts MongoDB, the API, and the web app through `apps/web/playwright.config.ts`; Docker must be available for MongoDB. Override `PORT`, `WEB_PORT`, and `MONGODB_PORT` when running parallel worktrees.
 
 License: MIT
