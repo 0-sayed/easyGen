@@ -44,7 +44,7 @@ export class JwtAuthGuard implements CanActivate {
 
       this.authAuditLogger.logTokenFailure({
         ...buildTokenRequestContext(request),
-        reason: "invalid_token",
+        reason: "revoked_token",
       });
       throw new UnauthorizedException();
     }

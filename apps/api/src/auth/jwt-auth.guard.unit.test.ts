@@ -70,7 +70,7 @@ describe("JwtAuthGuard", () => {
     expect(request.user).toBeUndefined();
     expect(authAuditLogger.logTokenFailure).toHaveBeenCalledWith(
       expect.objectContaining({
-        reason: "invalid_token",
+        reason: "revoked_token",
       })
     );
   });

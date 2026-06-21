@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 
 @Schema({ collection: "auth_sessions", timestamps: true })
 export class AuthSession {
-  @Prop({ index: true, required: true, type: String })
+  @Prop({ required: true, type: String })
   userId!: string;
 
   @Prop({ required: true, type: String })

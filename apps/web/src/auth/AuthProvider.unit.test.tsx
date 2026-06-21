@@ -66,6 +66,28 @@ describe("AuthProvider", () => {
     expect(await screen.findByText("Person Name")).toBeInTheDocument();
   });
 
+  it("revokes the stored token before clearing logout state", async () => {
+    setAccessToken("token-123");
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    const logout = vi.spyOn(api, "logout").mockResolvedValueOnce(undefined);
+
+    render(
+      <AuthProvider>
+        <LogoutButton />
+        <Probe />
+      </AuthProvider>
+    );
+
+    await screen.findByText("Person Name");
+    await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+
+    await waitFor(() => {
+      expect(logout).toHaveBeenCalledWith("token-123");
+    });
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+    expect(screen.getByText("guest")).toBeInTheDocument();
+  });
+
   it("does not let a stale bootstrap request replace a new signin session", async () => {
     const staleUser = { id: "user-old", email: "old@example.com", name: "Old Session" };
     const newUser = { id: "user-new", email: "new@example.com", name: "New Session" };
@@ -121,6 +143,21 @@ function SigninButton() {
       }}
     >
       Sign in
+    </button>
+  );
+}
+
+function LogoutButton() {
+  const { logout } = useAuth();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void logout();
+      }}
+    >
+      Log out
     </button>
   );
 }
