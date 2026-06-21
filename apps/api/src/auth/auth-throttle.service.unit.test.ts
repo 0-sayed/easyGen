@@ -103,7 +103,7 @@ describe("AuthThrottleService", () => {
     });
   });
 
-  it("tracks signup and signin windows separately", () => {
+  it("tracks auth windows separately by scope", () => {
     const service = createService({
       AUTH_THROTTLE_LIMIT: 1,
       AUTH_THROTTLE_WINDOW_MS: 60000,
@@ -116,6 +116,12 @@ describe("AuthThrottleService", () => {
 
     expect(service.consume({ ...input, scope: "signin" })).toEqual({ allowed: true });
     expect(service.consume({ ...input, scope: "signup" })).toEqual({ allowed: true });
+    expect(service.consume({ ...input, scope: "email-verification-request" })).toEqual({
+      allowed: true,
+    });
+    expect(service.consume({ ...input, scope: "email-verification-confirm" })).toEqual({
+      allowed: true,
+    });
   });
 
   it("uses a stable fallback IP when request IP is unavailable", () => {

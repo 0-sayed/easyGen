@@ -17,6 +17,12 @@ export class PublicUserResponse implements PublicUser {
   email!: string;
 
   @ApiProperty({
+    description: "Whether the user has verified their email address.",
+    example: false,
+  })
+  emailVerified!: boolean;
+
+  @ApiProperty({
     description: "Display name for the user account.",
     example: "Person Name",
   })

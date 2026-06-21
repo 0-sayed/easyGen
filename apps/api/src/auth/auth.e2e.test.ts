@@ -10,6 +10,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { configureApp } from "../configure-app";
 import { AuthThrottleService } from "./auth-throttle.service";
+import {
+  EMAIL_VERIFICATION_DELIVERY,
+  InMemoryEmailVerificationDelivery,
+} from "./email-verification.delivery";
 
 interface OpenApiOperation {
   responses?: Record<string, OpenApiResponseObject>;
@@ -120,6 +124,7 @@ describe("Auth API", () => {
       accessToken: expect.any(String),
       user: {
         email: "person@example.com",
+        emailVerified: false,
         id: expect.any(String),
         name: "Person Name",
       },
@@ -157,10 +162,28 @@ describe("Auth API", () => {
 
     const signupOperation = expectPostOperation(document, "/auth/signup");
     const signinOperation = expectPostOperation(document, "/auth/signin");
+    const emailVerificationRequestOperation = expectPostOperation(
+      document,
+      "/auth/email-verification/request"
+    );
+    const emailVerificationConfirmOperation = expectPostOperation(
+      document,
+      "/auth/email-verification/confirm"
+    );
     const meOperation = expectGetOperation(document, "/auth/me");
 
     expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
     expectJsonSchemaReference(signinOperation, "200", "AuthResponse");
+    expectJsonSchemaReference(
+      emailVerificationRequestOperation,
+      "202",
+      "EmailVerificationResponse"
+    );
+    expectJsonSchemaReference(
+      emailVerificationConfirmOperation,
+      "200",
+      "EmailVerificationConfirmResponse"
+    );
     expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
 
     const authSchema = expectSchema(document, "AuthResponse");
@@ -170,10 +193,149 @@ describe("Auth API", () => {
     const currentUserSchema = expectSchema(document, "CurrentUserResponse");
     expectSchemaPropertyReference(currentUserSchema, "user", "PublicUserResponse");
 
+    const emailVerificationSchema = expectSchema(document, "EmailVerificationResponse");
+    expect(emailVerificationSchema.properties?.message).toMatchObject({ type: "string" });
+
+    const emailVerificationConfirmSchema = expectSchema(
+      document,
+      "EmailVerificationConfirmResponse"
+    );
+    expectSchemaPropertyReference(emailVerificationConfirmSchema, "user", "PublicUserResponse");
+
     const publicUserSchema = expectSchema(document, "PublicUserResponse");
     expect(publicUserSchema.properties?.id).toMatchObject({ type: "string" });
     expect(publicUserSchema.properties?.email).toMatchObject({ type: "string" });
+    expect(publicUserSchema.properties?.emailVerified).toMatchObject({ type: "boolean" });
     expect(publicUserSchema.properties?.name).toMatchObject({ type: "string" });
+  });
+
+  it("requests and confirms email verification with a single-use token", async () => {
+    const server = getServer(app);
+    const delivery = getEmailVerificationDelivery(app);
+    const payload = {
+      email: "verify-single-use@example.com",
+      name: "Verify Single Use",
+      password: "Password1!",
+    };
+
+    delivery.drainMessages();
+
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    expect(signupResponse.body.user.emailVerified).toBe(false);
+
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    const messages = delivery.drainMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ email: payload.email, token: expect.any(String) });
+
+    const confirmResponse = await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(200);
+
+    expect(confirmResponse.body).toEqual({
+      user: {
+        email: payload.email,
+        emailVerified: true,
+        id: signupResponse.body.user.id,
+        name: payload.name,
+      },
+    });
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(400);
+  });
+
+  it("returns a safe generic email verification request response for unknown and verified emails", async () => {
+    const server = getServer(app);
+    const delivery = getEmailVerificationDelivery(app);
+    const payload = {
+      email: "already-verified-email-verification@example.com",
+      name: "Already Verified",
+      password: "Password1!",
+    };
+
+    delivery.drainMessages();
+
+    const unknownEmailResponse = await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: "unknown-email-verification@example.com" })
+      .expect(202);
+
+    expect(unknownEmailResponse.body).toEqual({
+      message: "If an account exists for that email, a verification link has been prepared.",
+    });
+    expect(delivery.drainMessages()).toEqual([]);
+
+    await request(server).post("/auth/signup").send(payload).expect(201);
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    const messages = delivery.drainMessages();
+    expect(messages).toHaveLength(1);
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(200);
+    expect(delivery.drainMessages()).toEqual([]);
+    readThrottleAttempts(getThrottleService(app)).clear();
+
+    const verifiedEmailResponse = await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    expect(verifiedEmailResponse.body).toEqual({
+      message: "If an account exists for that email, a verification link has been prepared.",
+    });
+    expect(delivery.drainMessages()).toEqual([]);
+  });
+
+  it("safely rejects wrong-account and malformed verification tokens", async () => {
+    const server = getServer(app);
+    const delivery = getEmailVerificationDelivery(app);
+    const ownerPayload = {
+      email: "verification-owner@example.com",
+      name: "Verification Owner",
+      password: "Password1!",
+    };
+    const otherPayload = {
+      email: "verification-other@example.com",
+      name: "Verification Other",
+      password: "Password1!",
+    };
+
+    delivery.drainMessages();
+
+    await request(server).post("/auth/signup").send(ownerPayload).expect(201);
+    await request(server).post("/auth/signup").send(otherPayload).expect(201);
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: ownerPayload.email })
+      .expect(202);
+
+    const messages = delivery.drainMessages();
+    expect(messages).toHaveLength(1);
+    const token = messages[0]?.token;
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: otherPayload.email, token })
+      .expect(400);
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: ownerPayload.email, token: "not-the-token" })
+      .expect(400);
   });
 
   it("rejects invalid signup input", async () => {
@@ -216,6 +378,50 @@ describe("Auth API", () => {
 
     const throttledResponse = await request(getServer(app))
       .post("/auth/signin")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
+  it("throttles repeated email verification requests", async () => {
+    const payload = { email: "verification-throttled@example.com" };
+
+    await request(getServer(app))
+      .post("/auth/email-verification/request")
+      .send(payload)
+      .expect(202);
+    await request(getServer(app))
+      .post("/auth/email-verification/request")
+      .send(payload)
+      .expect(202);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/email-verification/request")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
+  it("throttles repeated email verification confirm attempts", async () => {
+    const payload = { email: "verification-confirm-throttled@example.com", token: "invalid-token" };
+
+    await request(getServer(app))
+      .post("/auth/email-verification/confirm")
+      .send(payload)
+      .expect(400);
+    await request(getServer(app))
+      .post("/auth/email-verification/confirm")
+      .send(payload)
+      .expect(400);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/email-verification/confirm")
       .send(payload)
       .expect(429);
 
@@ -340,6 +546,16 @@ function getThrottleService(app: INestApplication | undefined): AuthThrottleServ
   }
 
   return app.get(AuthThrottleService);
+}
+
+function getEmailVerificationDelivery(
+  app: INestApplication | undefined
+): InMemoryEmailVerificationDelivery {
+  if (app === undefined) {
+    throw new Error("Nest app was not initialized.");
+  }
+
+  return app.get(EMAIL_VERIFICATION_DELIVERY);
 }
 
 function readThrottleAttempts(service: AuthThrottleService): Map<string, unknown> {

@@ -66,6 +66,8 @@ describe("AuthService", () => {
   it("maps duplicate email prechecks during signup to sanitized conflict responses", async () => {
     vi.mocked(usersService.findByEmail).mockResolvedValue({
       email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: "user-id",
       name: "Person Name",
       passwordHash: "hash",

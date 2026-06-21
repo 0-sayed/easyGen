@@ -53,6 +53,8 @@ describe("UsersRepository persistence contract", () => {
 
     expect(createdUser).toEqual({
       email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: expect.any(String),
       name: "Person Name",
       passwordHash: "hashed-password",
@@ -103,12 +105,15 @@ describe("UsersRepository persistence contract", () => {
 
     await expect(getRepository().findPublicById(createdUser.id)).resolves.toEqual({
       email: "public@example.com",
+      emailVerified: false,
       id: createdUser.id,
       name: "Public User",
     });
 
     await expect(getRepository().findByEmail("public@example.com")).resolves.toEqual({
       email: "public@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: createdUser.id,
       name: "Public User",
       passwordHash: "public-hash",
@@ -122,6 +127,153 @@ describe("UsersRepository persistence contract", () => {
       })
     );
     expect(defaultRead).not.toHaveProperty("passwordHash");
+  });
+
+  it("stores and clears email verification token fields without exposing token hashes publicly", async () => {
+    const createdUser = await getRepository().create({
+      email: "verify@example.com",
+      name: "Verify User",
+      passwordHash: "verify-hash",
+    });
+    const expiresAt = new Date("2026-06-21T11:00:00.000Z");
+    const verifiedAt = new Date("2026-06-21T12:00:00.000Z");
+
+    await expect(
+      getRepository().setEmailVerificationToken(createdUser.id, {
+        expiresAt,
+        tokenHash: "hashed-verification-token",
+      })
+    ).resolves.toEqual({
+      email: "verify@example.com",
+      emailVerificationTokenExpiresAt: expiresAt,
+      emailVerificationTokenHash: "hashed-verification-token",
+      emailVerifiedAt: null,
+      id: createdUser.id,
+      name: "Verify User",
+    });
+
+    await expect(
+      getRepository().findVerificationStateByEmail("  VERIFY@example.COM  ")
+    ).resolves.toEqual({
+      email: "verify@example.com",
+      emailVerificationTokenExpiresAt: expiresAt,
+      emailVerificationTokenHash: "hashed-verification-token",
+      emailVerifiedAt: null,
+      id: createdUser.id,
+      name: "Verify User",
+    });
+
+    await expect(getRepository().findPublicById(createdUser.id)).resolves.toEqual({
+      email: "verify@example.com",
+      emailVerified: false,
+      id: createdUser.id,
+      name: "Verify User",
+    });
+
+    const defaultRead = await getUserModel().findById(createdUser.id).lean().exec();
+    expect(defaultRead).not.toHaveProperty("emailVerificationTokenHash");
+    expect(defaultRead).not.toHaveProperty("emailVerificationTokenExpiresAt");
+
+    await expect(getRepository().markEmailVerified(createdUser.id, verifiedAt)).resolves.toEqual({
+      email: "verify@example.com",
+      emailVerificationTokenExpiresAt: null,
+      emailVerificationTokenHash: null,
+      emailVerifiedAt: verifiedAt,
+      id: createdUser.id,
+      name: "Verify User",
+    });
+
+    await expect(
+      getRepository().findVerificationStateByEmail("verify@example.com")
+    ).resolves.toEqual({
+      email: "verify@example.com",
+      emailVerificationTokenExpiresAt: null,
+      emailVerificationTokenHash: null,
+      emailVerifiedAt: verifiedAt,
+      id: createdUser.id,
+      name: "Verify User",
+    });
+
+    await expect(
+      getRepository().setEmailVerificationToken(createdUser.id, {
+        expiresAt: new Date("2026-06-21T13:00:00.000Z"),
+        tokenHash: "stale-verification-token",
+      })
+    ).resolves.toBe(null);
+
+    await expect(
+      getRepository().findVerificationStateByEmail("verify@example.com")
+    ).resolves.toEqual({
+      email: "verify@example.com",
+      emailVerificationTokenExpiresAt: null,
+      emailVerificationTokenHash: null,
+      emailVerifiedAt: verifiedAt,
+      id: createdUser.id,
+      name: "Verify User",
+    });
+  });
+
+  it("atomically verifies email only for a matching unexpired token hash", async () => {
+    const createdUser = await getRepository().create({
+      email: "atomic@example.com",
+      name: "Atomic User",
+      passwordHash: "atomic-hash",
+    });
+    const expiresAt = new Date("2026-06-21T12:00:00.000Z");
+    const verifiedAt = new Date("2026-06-21T11:00:00.000Z");
+
+    await getRepository().setEmailVerificationToken(createdUser.id, {
+      expiresAt,
+      tokenHash: "expected-token-hash",
+    });
+
+    await expect(
+      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, "other-token-hash")
+    ).resolves.toBe(null);
+    await expect(
+      getRepository().findVerificationStateByEmail("atomic@example.com")
+    ).resolves.toEqual({
+      email: "atomic@example.com",
+      emailVerificationTokenExpiresAt: expiresAt,
+      emailVerificationTokenHash: "expected-token-hash",
+      emailVerifiedAt: null,
+      id: createdUser.id,
+      name: "Atomic User",
+    });
+
+    await expect(
+      getRepository().markEmailVerifiedForToken(createdUser.id, expiresAt, "expected-token-hash")
+    ).resolves.toBe(null);
+
+    await expect(
+      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, "expected-token-hash")
+    ).resolves.toEqual({
+      email: "atomic@example.com",
+      emailVerificationTokenExpiresAt: null,
+      emailVerificationTokenHash: null,
+      emailVerifiedAt: verifiedAt,
+      id: createdUser.id,
+      name: "Atomic User",
+    });
+
+    await expect(
+      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, "expected-token-hash")
+    ).resolves.toBe(null);
+  });
+
+  it("returns null for verification state lookups with unknown or malformed user data", async () => {
+    await expect(getRepository().findVerificationStateByEmail("missing@example.com")).resolves.toBe(
+      null
+    );
+    await expect(
+      getRepository().setEmailVerificationToken("not-an-object-id", {
+        expiresAt: new Date("2026-06-21T11:00:00.000Z"),
+        tokenHash: "hashed-verification-token",
+      })
+    ).resolves.toBe(null);
+    await expect(
+      getRepository().markEmailVerified("not-an-object-id", new Date("2026-06-21T12:00:00.000Z"))
+    ).resolves.toBe(null);
   });
 
   function getRepository(): UsersRepository {

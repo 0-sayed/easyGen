@@ -8,6 +8,11 @@ import { AuthAuditLogger } from "./auth-audit.logger";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { AuthThrottleService } from "./auth-throttle.service";
+import {
+  EMAIL_VERIFICATION_DELIVERY,
+  InMemoryEmailVerificationDelivery,
+} from "./email-verification.delivery";
+import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 type JwtExpiresIn = NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"];
@@ -39,6 +44,17 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
       },
     }),
   ],
-  providers: [AuthService, JwtAuthGuard, AuthAuditLogger, AuthThrottleService],
+  providers: [
+    AuthService,
+    JwtAuthGuard,
+    AuthAuditLogger,
+    AuthThrottleService,
+    EmailVerificationService,
+    InMemoryEmailVerificationDelivery,
+    {
+      provide: EMAIL_VERIFICATION_DELIVERY,
+      useExisting: InMemoryEmailVerificationDelivery,
+    },
+  ],
 })
 export class AuthModule {}
