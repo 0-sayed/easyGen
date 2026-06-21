@@ -2,6 +2,7 @@ import { getModelToken, MongooseModule } from "@nestjs/mongoose";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
 import type { Model } from "mongoose";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { User, UserSchema } from "./schemas/user.schema";
@@ -137,16 +138,18 @@ describe("UsersRepository persistence contract", () => {
     });
     const expiresAt = new Date("2026-06-21T11:00:00.000Z");
     const verifiedAt = new Date("2026-06-21T12:00:00.000Z");
+    const tokenHash = testTokenHash("verification");
+    const staleTokenHash = testTokenHash("stale-verification");
 
     await expect(
       getRepository().setEmailVerificationToken(createdUser.id, {
         expiresAt,
-        tokenHash: "hashed-verification-token",
+        tokenHash,
       })
     ).resolves.toEqual({
       email: "verify@example.com",
       emailVerificationTokenExpiresAt: expiresAt,
-      emailVerificationTokenHash: "hashed-verification-token",
+      emailVerificationTokenHash: tokenHash,
       emailVerifiedAt: null,
       id: createdUser.id,
       name: "Verify User",
@@ -157,7 +160,7 @@ describe("UsersRepository persistence contract", () => {
     ).resolves.toEqual({
       email: "verify@example.com",
       emailVerificationTokenExpiresAt: expiresAt,
-      emailVerificationTokenHash: "hashed-verification-token",
+      emailVerificationTokenHash: tokenHash,
       emailVerifiedAt: null,
       id: createdUser.id,
       name: "Verify User",
@@ -197,7 +200,7 @@ describe("UsersRepository persistence contract", () => {
     await expect(
       getRepository().setEmailVerificationToken(createdUser.id, {
         expiresAt: new Date("2026-06-21T13:00:00.000Z"),
-        tokenHash: "stale-verification-token",
+        tokenHash: staleTokenHash,
       })
     ).resolves.toBe(null);
 
@@ -221,32 +224,34 @@ describe("UsersRepository persistence contract", () => {
     });
     const expiresAt = new Date("2026-06-21T12:00:00.000Z");
     const verifiedAt = new Date("2026-06-21T11:00:00.000Z");
+    const expectedTokenHash = testTokenHash("expected");
+    const otherTokenHash = testTokenHash("other");
 
     await getRepository().setEmailVerificationToken(createdUser.id, {
       expiresAt,
-      tokenHash: "expected-token-hash",
+      tokenHash: expectedTokenHash,
     });
 
     await expect(
-      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, "other-token-hash")
+      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, otherTokenHash)
     ).resolves.toBe(null);
     await expect(
       getRepository().findVerificationStateByEmail("atomic@example.com")
     ).resolves.toEqual({
       email: "atomic@example.com",
       emailVerificationTokenExpiresAt: expiresAt,
-      emailVerificationTokenHash: "expected-token-hash",
+      emailVerificationTokenHash: expectedTokenHash,
       emailVerifiedAt: null,
       id: createdUser.id,
       name: "Atomic User",
     });
 
     await expect(
-      getRepository().markEmailVerifiedForToken(createdUser.id, expiresAt, "expected-token-hash")
+      getRepository().markEmailVerifiedForToken(createdUser.id, expiresAt, expectedTokenHash)
     ).resolves.toBe(null);
 
     await expect(
-      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, "expected-token-hash")
+      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, expectedTokenHash)
     ).resolves.toEqual({
       email: "atomic@example.com",
       emailVerificationTokenExpiresAt: null,
@@ -257,7 +262,7 @@ describe("UsersRepository persistence contract", () => {
     });
 
     await expect(
-      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, "expected-token-hash")
+      getRepository().markEmailVerifiedForToken(createdUser.id, verifiedAt, expectedTokenHash)
     ).resolves.toBe(null);
   });
 
@@ -268,7 +273,7 @@ describe("UsersRepository persistence contract", () => {
     await expect(
       getRepository().setEmailVerificationToken("not-an-object-id", {
         expiresAt: new Date("2026-06-21T11:00:00.000Z"),
-        tokenHash: "hashed-verification-token",
+        tokenHash: testTokenHash("malformed-user"),
       })
     ).resolves.toBe(null);
     await expect(
@@ -290,5 +295,9 @@ describe("UsersRepository persistence contract", () => {
     }
 
     return userModel;
+  }
+
+  function testTokenHash(label: string): string {
+    return `${label}-${randomUUID()}`;
   }
 });

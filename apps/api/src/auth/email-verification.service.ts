@@ -47,11 +47,15 @@ export class EmailVerificationService {
       return { message: EMAIL_VERIFICATION_REQUEST_MESSAGE };
     }
 
-    await this.delivery.sendVerificationToken({
-      email: storedUser.email,
-      expiresAt,
-      token,
-    });
+    try {
+      await this.delivery.sendVerificationToken({
+        email: storedUser.email,
+        expiresAt,
+        token,
+      });
+    } catch {
+      return { message: EMAIL_VERIFICATION_REQUEST_MESSAGE };
+    }
 
     return { message: EMAIL_VERIFICATION_REQUEST_MESSAGE };
   }
