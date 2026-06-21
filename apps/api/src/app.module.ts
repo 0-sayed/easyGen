@@ -5,6 +5,7 @@ import { LoggerModule } from "nestjs-pino";
 import { AppController } from "./app.controller";
 import { AuthModule } from "./auth/auth.module";
 import { BuildInfoService } from "./build-info/build-info.service";
+import { validateAppConfig } from "./config/app-config";
 import { DatabaseModule } from "./database/database.module";
 import { createCorrelationId } from "./observability/correlation-id";
 
@@ -13,7 +14,9 @@ import { createCorrelationId } from "./observability/correlation-id";
     ConfigModule.forRoot({
       cache: true,
       envFilePath: [".env", "../../.env"],
+      ignoreEnvFile: process.env.NODE_ENV === "test",
       isGlobal: true,
+      validate: validateAppConfig,
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
