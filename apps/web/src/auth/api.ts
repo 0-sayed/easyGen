@@ -34,6 +34,17 @@ export async function getCurrentUser(accessToken: string): Promise<PublicUser> {
   return readCurrentUser(await response.json());
 }
 
+export async function logout(accessToken: string): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+}
+
 async function postJson(path: string, body: unknown): Promise<unknown> {
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",

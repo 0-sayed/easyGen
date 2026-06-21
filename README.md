@@ -74,6 +74,7 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 - `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
 - `POST /auth/signup`
 - `POST /auth/signin`
+- `POST /auth/logout` - revokes the current bearer token; requires a bearer token.
 - `GET /auth/me` - requires a bearer token.
 - `GET /docs`
 - `GET /docs-json`
@@ -84,6 +85,7 @@ Use `/health` for process liveness probes and `/ready` for traffic readiness pro
 
 - `POST /auth/signup` creates a user and returns an access token.
 - `POST /auth/signin` returns an access token for valid credentials.
+- `POST /auth/logout` revokes the stored token on the backend; a revoked token is rejected by protected endpoints.
 - `GET /auth/me` verifies the stored token and powers the protected application page.
 - The React app provides `/signup`, `/signin`, and `/app`.
 

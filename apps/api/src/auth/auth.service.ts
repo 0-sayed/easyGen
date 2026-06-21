@@ -1,10 +1,12 @@
 import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { argon2id, hash, verify } from "argon2";
+import { randomUUID } from "node:crypto";
 
 import { toPublicUser } from "../users/user.mapper";
 import type { PublicUser, UserWithPasswordHash } from "../users/user.types";
 import { UsersService } from "../users/users.service";
+import { AuthSessionService } from "./auth-session.service";
 import type { AuthResponse } from "./dto/auth-response.dto";
 import type { SigninDto } from "./dto/signin.dto";
 import type { SignupDto } from "./dto/signup.dto";
@@ -18,6 +20,7 @@ const DUPLICATE_SIGNUP_MESSAGE = "Unable to create account with the provided det
 export class AuthService {
   constructor(
     @Inject(JwtService) private readonly jwtService: JwtService,
+    @Inject(AuthSessionService) private readonly authSessionService: AuthSessionService,
     @Inject(UsersService) private readonly usersService: UsersService
   ) {}
 
@@ -60,9 +63,21 @@ export class AuthService {
     return user;
   }
 
+  async logout(payload: JwtPayload): Promise<void> {
+    await this.authSessionService.revokeCurrentSession(payload);
+  }
+
   private async buildAuthResponse(user: PublicUser): Promise<AuthResponse> {
-    const payload: JwtPayload = { email: user.email, sub: user.id };
+    const tokenId = randomUUID();
+    const payload: JwtPayload = { email: user.email, jti: tokenId, sub: user.id };
     const accessToken = await this.jwtService.signAsync(payload);
+    const expiresAt = readTokenExpiration(this.jwtService.decode(accessToken));
+
+    await this.authSessionService.createSession({
+      expiresAt,
+      tokenId,
+      userId: user.id,
+    });
 
     return { accessToken, user };
   }
@@ -86,4 +101,18 @@ export class AuthService {
 
 function isDuplicateKeyError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
+}
+
+function readTokenExpiration(decodedToken: unknown): Date {
+  if (
+    typeof decodedToken !== "object" ||
+    decodedToken === null ||
+    !("exp" in decodedToken) ||
+    typeof decodedToken.exp !== "number" ||
+    !Number.isFinite(decodedToken.exp)
+  ) {
+    throw new Error("Signed access token is missing an expiration timestamp.");
+  }
+
+  return new Date(decodedToken.exp * 1000);
 }
