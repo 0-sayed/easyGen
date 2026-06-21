@@ -11,6 +11,7 @@ import { AuthThrottleService } from "./auth-throttle.service";
 import {
   EMAIL_VERIFICATION_DELIVERY,
   InMemoryEmailVerificationDelivery,
+  LogEmailVerificationDelivery,
 } from "./email-verification.delivery";
 import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -51,9 +52,10 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
     AuthThrottleService,
     EmailVerificationService,
     InMemoryEmailVerificationDelivery,
+    LogEmailVerificationDelivery,
     {
       provide: EMAIL_VERIFICATION_DELIVERY,
-      useExisting: InMemoryEmailVerificationDelivery,
+      useExisting: LogEmailVerificationDelivery,
     },
   ],
 })

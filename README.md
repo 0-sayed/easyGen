@@ -87,6 +87,8 @@ Use `/health` for process liveness probes and `/ready` for traffic readiness pro
 
 - `POST /auth/signup` creates a user and returns an access token.
 - `POST /auth/signin` returns an access token for valid credentials.
+- `POST /auth/email-verification/request` prepares a verification token and writes it to the API log as `auth.email_verification.token` for local delivery.
+- `POST /auth/email-verification/confirm` consumes that token once for the matching email address.
 - `GET /auth/me` verifies the stored token and powers the protected application page.
 - The React app provides `/signup`, `/signin`, and `/app`.
 

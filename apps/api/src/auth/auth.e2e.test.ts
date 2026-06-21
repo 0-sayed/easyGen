@@ -72,7 +72,10 @@ describe("Auth API", () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(EMAIL_VERIFICATION_DELIVERY)
+      .useClass(InMemoryEmailVerificationDelivery)
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureApp(app);
