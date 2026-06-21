@@ -1,11 +1,5 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
-declare const process: {
-  env: {
-    GITHUB_RUN_ID?: string;
-  };
-};
-
 const PASSWORD = "Password1!";
 const suiteRunId = sanitizeForEmail(process.env.GITHUB_RUN_ID ?? `local-${String(Date.now())}`);
 
@@ -51,6 +45,9 @@ test.describe("full-stack auth browser matrix", () => {
 
     await createAccount(page, account);
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+
     await page.goto("/signup");
     await fillSignupForm(page, account);
     await page.getByRole("button", { name: "Create account" }).click();
