@@ -22,7 +22,7 @@ describe("InMemoryEmailVerificationDelivery", () => {
 });
 
 describe("LogEmailVerificationDelivery", () => {
-  it("writes the verification token to the runtime logger", async () => {
+  it("writes verification metadata without exposing the raw token", async () => {
     const info = vi.fn();
     const delivery = new LogEmailVerificationDelivery({ info });
 
@@ -33,10 +33,10 @@ describe("LogEmailVerificationDelivery", () => {
         email: "person@example.com",
         event: "auth.email_verification.token",
         expiresAt: "2026-06-21T10:15:00.000Z",
-        token: "raw-token",
       },
       "email verification token prepared"
     );
+    expect(JSON.stringify(info.mock.calls)).not.toContain("raw-token");
   });
 });
 

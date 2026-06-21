@@ -50,7 +50,6 @@ interface EmailVerificationLogPayload {
   email: string;
   event: "auth.email_verification.token";
   expiresAt: string;
-  token: string;
 }
 
 @Injectable()
@@ -63,7 +62,6 @@ export class LogEmailVerificationDelivery implements EmailVerificationDelivery {
         email: message.email,
         event: "auth.email_verification.token",
         expiresAt: message.expiresAt.toISOString(),
-        token: message.token,
       },
       "email verification token prepared"
     );
