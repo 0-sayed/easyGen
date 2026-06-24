@@ -158,6 +158,50 @@ describe("Auth API", () => {
     });
   });
 
+  it("revokes the current bearer token on logout", async () => {
+    const server = getServer(app);
+
+    const signupResponse = await request(server)
+      .post("/auth/signup")
+      .send({ email: "logout-person@example.com", name: "Logout Person", password: "Password1!" })
+      .expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+
+    const logoutResponse = await request(server)
+      .post("/auth/logout")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
+
+    expect(logoutResponse.text).toBe("");
+    expect(logoutResponse.body).toEqual({});
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(401);
+  });
+
+  it("rejects signed legacy tokens without a token id even when the user has an active session", async () => {
+    const server = getServer(app);
+    const email = "legacy-token@example.com";
+
+    const signupResponse = await request(server)
+      .post("/auth/signup")
+      .send({ email, name: "Legacy Token", password: "Password1!" })
+      .expect(201);
+
+    await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${getAccessToken(signupResponse)}`)
+      .expect(200);
+
+    const legacyToken = await getJwtService(app).signAsync({
+      email,
+      sub: signupResponse.body.user.id,
+    });
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${legacyToken}`).expect(401);
+  });
+
   it("documents auth response contracts in OpenAPI output", async () => {
     const response = await request(getServer(app)).get("/docs-json").expect(200);
     const document = response.body;
@@ -172,6 +216,7 @@ describe("Auth API", () => {
       document,
       "/auth/email-verification/confirm"
     );
+    const logoutOperation = expectPostOperation(document, "/auth/logout");
     const meOperation = expectGetOperation(document, "/auth/me");
 
     expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
@@ -186,6 +231,7 @@ describe("Auth API", () => {
       "200",
       "EmailVerificationConfirmResponse"
     );
+    expect(logoutOperation.responses?.["204"]).toBeDefined();
     expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
 
     const authSchema = expectSchema(document, "AuthResponse");

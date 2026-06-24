@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -179,6 +180,29 @@ export class AuthController {
           ...buildTokenRequestContext(request),
           userId: request.user.sub,
         });
+      }
+
+      throw error;
+    }
+  }
+
+  @Post("logout")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiNoContentResponse({ description: "Current access token revoked." })
+  @ApiUnauthorizedResponse({
+    description: "Missing, malformed, expired, invalid, or revoked token.",
+  })
+  async logout(@Req() request: AuthenticatedRequest): Promise<void> {
+    const context = buildTokenRequestContext(request);
+
+    try {
+      await this.authService.logout(request.user);
+      this.authAuditLogger.logLogoutSuccess({ ...context, userId: request.user.sub });
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        this.authAuditLogger.logLogoutFailure({ ...context, userId: request.user.sub });
       }
 
       throw error;

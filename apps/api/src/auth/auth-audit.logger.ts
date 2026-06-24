@@ -10,7 +10,9 @@ type AuthAuditEvent =
   | "auth.signin.failure"
   | "auth.throttle.blocked"
   | "auth.token.failure"
-  | "auth.user_lookup.failure";
+  | "auth.user_lookup.failure"
+  | "auth.logout.success"
+  | "auth.logout.failure";
 
 type AuthAuditFailureReason =
   | "delivery_failed"
@@ -19,6 +21,7 @@ type AuthAuditFailureReason =
   | "invalid_token"
   | "missing_token"
   | "malformed_token"
+  | "revoked_token"
   | "signup_rejected"
   | "throttled"
   | "user_not_found";
@@ -108,6 +111,25 @@ export class AuthAuditLogger {
       correlationId: input.correlationId,
       ip: input.ip,
       reason: "user_not_found",
+      userAgent: input.userAgent,
+      userId: input.userId,
+    });
+  }
+
+  logLogoutSuccess(input: Omit<AuthAuditContext, "email"> & { userId: string }): void {
+    this.log("auth.logout.success", {
+      correlationId: input.correlationId,
+      ip: input.ip,
+      userAgent: input.userAgent,
+      userId: input.userId,
+    });
+  }
+
+  logLogoutFailure(input: Omit<AuthAuditContext, "email"> & { userId?: string }): void {
+    this.log("auth.logout.failure", {
+      correlationId: input.correlationId,
+      ip: input.ip,
+      reason: "revoked_token",
       userAgent: input.userAgent,
       userId: input.userId,
     });

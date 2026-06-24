@@ -189,6 +189,65 @@ describe("AuthAuditLogger", () => {
     });
   });
 
+  it("logs logout success with whitelist-only token context and user id", () => {
+    const { auditLogger, info } = createLogger();
+
+    auditLogger.logLogoutSuccess({
+      authorization: "Bearer secret-authorization",
+      correlationId: "trace-123",
+      ip: "203.0.113.10",
+      jti: "secret-token-id",
+      token: "secret-token",
+      userAgent: "Vitest",
+      userId: "user-123",
+    } as Parameters<AuthAuditLogger["logLogoutSuccess"]>[0] & Record<string, unknown>);
+
+    const payload = info.mock.calls[0]?.[0] as Record<string, unknown>;
+    const serializedPayload = JSON.stringify(payload);
+
+    expect(payload).toEqual({
+      audit: true,
+      correlationId: "trace-123",
+      event: "auth.logout.success",
+      ip: "203.0.113.10",
+      userAgent: "Vitest",
+      userId: "user-123",
+    });
+    expect(serializedPayload).not.toContain("token");
+    expect(serializedPayload).not.toContain("authorization");
+    expect(serializedPayload).not.toContain("jti");
+  });
+
+  it("logs logout failure as revoked token with whitelist-only token context", () => {
+    const { auditLogger, info } = createLogger();
+
+    auditLogger.logLogoutFailure({
+      authorization: "Bearer secret-authorization",
+      correlationId: "trace-123",
+      ip: "203.0.113.10",
+      jti: "secret-token-id",
+      token: "secret-token",
+      userAgent: "Vitest",
+      userId: "user-123",
+    } as Parameters<AuthAuditLogger["logLogoutFailure"]>[0] & Record<string, unknown>);
+
+    const payload = info.mock.calls[0]?.[0] as Record<string, unknown>;
+    const serializedPayload = JSON.stringify(payload);
+
+    expect(payload).toEqual({
+      audit: true,
+      correlationId: "trace-123",
+      event: "auth.logout.failure",
+      ip: "203.0.113.10",
+      reason: "revoked_token",
+      userAgent: "Vitest",
+      userId: "user-123",
+    });
+    expect(serializedPayload).not.toContain("secret-token");
+    expect(serializedPayload).not.toContain("authorization");
+    expect(serializedPayload).not.toContain("jti");
+  });
+
   it("ignores extra secret-bearing fields passed to public log methods", () => {
     const { auditLogger, info } = createLogger();
 

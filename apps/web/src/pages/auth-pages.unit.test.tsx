@@ -285,6 +285,7 @@ describe("App routes", () => {
 
   it("renders the authenticated app heading and logs out clearing localStorage", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    const logout = vi.spyOn(api, "logout").mockResolvedValueOnce(undefined);
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
@@ -304,6 +305,7 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Sign in with confidence" })
     ).toBeInTheDocument();
+    expect(logout).toHaveBeenCalledWith("token-123");
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
 
