@@ -5,6 +5,8 @@ import type { JwtModuleOptions } from "@nestjs/jwt";
 import { MongooseModule } from "@nestjs/mongoose";
 
 import { UsersModule } from "../users/users.module";
+import { AccountActivityRepository } from "./account-activity.repository";
+import { AccountActivityService } from "./account-activity.service";
 import { AuthAuditLogger } from "./auth-audit.logger";
 import { AuthController } from "./auth.controller";
 import { AuthSessionRepository } from "./auth-session.repository";
@@ -19,6 +21,10 @@ import {
 import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { PasswordResetService } from "./password-reset.service";
+import {
+  AccountActivityEvent,
+  AccountActivityEventSchema,
+} from "./schemas/account-activity-event.schema";
 import { AuthSession, AuthSessionSchema } from "./schemas/auth-session.schema";
 
 type JwtExpiresIn = NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"];
@@ -30,7 +36,10 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
   exports: [AuthService, JwtModule],
   imports: [
     UsersModule,
-    MongooseModule.forFeature([{ name: AuthSession.name, schema: AuthSessionSchema }]),
+    MongooseModule.forFeature([
+      { name: AuthSession.name, schema: AuthSessionSchema },
+      { name: AccountActivityEvent.name, schema: AccountActivityEventSchema },
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -52,6 +61,8 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
     }),
   ],
   providers: [
+    AccountActivityRepository,
+    AccountActivityService,
     AuthService,
     JwtAuthGuard,
     AuthAuditLogger,

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 
 import type { UserVerificationState } from "../users/user.types";
 import { UsersService } from "../users/users.service";
+import { AccountActivityService } from "./account-activity.service";
 import { AuthAuditLogger } from "./auth-audit.logger";
 import {
   AUTH_TOKEN_DELIVERY,
@@ -36,6 +37,7 @@ describe("EmailVerificationService", () => {
   let delivery: AuthTokenDelivery;
   let sendVerificationToken: Mock<AuthTokenDelivery["sendVerificationToken"]>;
   let authAuditLogger: { logEmailVerificationDeliveryFailure: ReturnType<typeof vi.fn> };
+  let accountActivityService: { recordEmailVerified: ReturnType<typeof vi.fn> };
   let sentMessages: AuthTokenDeliveryMessage[];
 
   beforeEach(async () => {
@@ -61,10 +63,17 @@ describe("EmailVerificationService", () => {
     authAuditLogger = {
       logEmailVerificationDeliveryFailure: vi.fn(),
     };
+    accountActivityService = {
+      recordEmailVerified: vi.fn(() => Promise.resolve()),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         EmailVerificationService,
+        {
+          provide: AccountActivityService,
+          useValue: accountActivityService,
+        },
         {
           provide: AuthAuditLogger,
           useValue: authAuditLogger,
@@ -227,6 +236,7 @@ describe("EmailVerificationService", () => {
         name: TEST_FIXTURE.userName,
       },
     });
+    expect(accountActivityService.recordEmailVerified).toHaveBeenCalledWith(TEST_FIXTURE.userId);
 
     await expect(
       service.confirmVerification({ email: TEST_FIXTURE.email, token })
@@ -258,6 +268,7 @@ describe("EmailVerificationService", () => {
       new Date("2026-06-21T10:00:00.000Z"),
       tokenHash
     );
+    expect(accountActivityService.recordEmailVerified).not.toHaveBeenCalled();
   });
 
   it("safely rejects unknown, missing stored token, expired token, and wrong token", async () => {
@@ -305,6 +316,7 @@ describe("EmailVerificationService", () => {
     }
 
     expect(usersService.markEmailVerifiedForToken).not.toHaveBeenCalled();
+    expect(accountActivityService.recordEmailVerified).not.toHaveBeenCalled();
   });
 });
 

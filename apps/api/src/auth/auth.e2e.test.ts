@@ -320,6 +320,7 @@ describe("Auth API", () => {
     );
     const logoutOperation = expectPostOperation(document, "/auth/logout");
     const meOperation = expectGetOperation(document, "/auth/me");
+    const activityOperation = expectGetOperation(document, "/auth/activity");
     const updateMeOperation = expectPatchOperation(document, "/auth/me");
     const changePasswordOperation = expectPostOperation(document, "/auth/password");
 
@@ -339,6 +340,7 @@ describe("Auth API", () => {
     expectJsonSchemaReference(passwordResetConfirmOperation, "200", "PasswordResetResponse");
     expect(logoutOperation.responses?.["204"]).toBeDefined();
     expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
+    expectJsonSchemaReference(activityOperation, "200", "AccountActivityResponse");
     expectJsonSchemaReference(updateMeOperation, "200", "CurrentUserResponse");
     expectJsonRequestSchemaReference(updateMeOperation, "UpdateProfileDto");
     expectJsonRequestSchemaReference(changePasswordOperation, "ChangePasswordDto");
@@ -350,6 +352,16 @@ describe("Auth API", () => {
 
     const currentUserSchema = expectSchema(document, "CurrentUserResponse");
     expectSchemaPropertyReference(currentUserSchema, "user", "PublicUserResponse");
+
+    const accountActivitySchema = expectSchema(document, "AccountActivityResponse");
+    expect(accountActivitySchema.properties?.limit).toMatchObject({ type: "number" });
+    expect(accountActivitySchema.properties?.activities).toMatchObject({ type: "array" });
+
+    const accountActivityEntrySchema = expectSchema(document, "AccountActivityEntryResponse");
+    expect(accountActivityEntrySchema.properties?.id).toMatchObject({ type: "string" });
+    expect(accountActivityEntrySchema.properties?.type).toBeDefined();
+    expect(accountActivityEntrySchema.properties?.description).toMatchObject({ type: "string" });
+    expect(accountActivityEntrySchema.properties?.occurredAt).toMatchObject({ type: "string" });
 
     const updateProfileSchema = expectSchema(document, "UpdateProfileDto");
     expect(updateProfileSchema.properties?.name).toMatchObject({ type: "string" });
@@ -375,6 +387,140 @@ describe("Auth API", () => {
     expect(publicUserSchema.properties?.email).toMatchObject({ type: "string" });
     expect(publicUserSchema.properties?.emailVerified).toMatchObject({ type: "boolean" });
     expect(publicUserSchema.properties?.name).toMatchObject({ type: "string" });
+  });
+
+  it("returns only the current user's safe recent account activity", async () => {
+    const server = getServer(app);
+    const ownerPayload = testAccount("activity-owner");
+    const otherPayload = testAccount("activity-other");
+
+    await request(server).post("/auth/signup").send(ownerPayload).expect(201);
+    const firstSigninResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: ownerPayload.email, password: ownerPayload.password })
+      .expect(200);
+    const firstAccessToken = getAccessToken(firstSigninResponse);
+
+    await request(server)
+      .post("/auth/logout")
+      .set("Authorization", `Bearer ${firstAccessToken}`)
+      .expect(204);
+
+    const secondSigninResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: ownerPayload.email, password: ownerPayload.password })
+      .expect(200);
+    const secondAccessToken = getAccessToken(secondSigninResponse);
+
+    await request(server).post("/auth/signup").send(otherPayload).expect(201);
+    readThrottleAttempts(getThrottleService(app)).clear();
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: ownerPayload.email, password: testPassword("activity-wrong") })
+      .expect(401);
+
+    const activityResponse = await request(server)
+      .get("/auth/activity")
+      .set("Authorization", `Bearer ${secondAccessToken}`)
+      .expect(200);
+
+    expect(activityResponse.body).toEqual({
+      activities: [
+        {
+          description: "Signed in",
+          id: expect.any(String),
+          occurredAt: expect.any(String),
+          type: "auth.signed_in",
+        },
+        {
+          description: "Signed out",
+          id: expect.any(String),
+          occurredAt: expect.any(String),
+          type: "auth.signed_out",
+        },
+        {
+          description: "Signed in",
+          id: expect.any(String),
+          occurredAt: expect.any(String),
+          type: "auth.signed_in",
+        },
+        {
+          description: "Account created",
+          id: expect.any(String),
+          occurredAt: expect.any(String),
+          type: "account.created",
+        },
+      ],
+      limit: 20,
+    });
+    expect(JSON.stringify(activityResponse.body)).not.toContain(ownerPayload.email);
+    expect(JSON.stringify(activityResponse.body)).not.toContain(otherPayload.email);
+    expect(JSON.stringify(activityResponse.body)).not.toContain("userId");
+    expect(JSON.stringify(activityResponse.body)).not.toContain("password");
+  });
+
+  it("includes successful email verification in account activity", async () => {
+    const server = getServer(app);
+    const delivery = getAuthTokenDelivery(app);
+    const payload = testAccount("activity-verify");
+
+    delivery.drainVerificationMessages();
+
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    const messages = delivery.drainVerificationMessages();
+    expect(messages).toHaveLength(1);
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(200);
+
+    const activityResponse = await request(server)
+      .get("/auth/activity")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(activityResponse.body.activities).toEqual([
+      expect.objectContaining({
+        description: "Email verified",
+        type: "email.verified",
+      }),
+      expect.objectContaining({
+        description: "Account created",
+        type: "account.created",
+      }),
+    ]);
+  });
+
+  it("rejects account activity requests with a revoked token", async () => {
+    const server = getServer(app);
+    const signupResponse = await request(server)
+      .post("/auth/signup")
+      .send(testAccount("activity-revoked"))
+      .expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server)
+      .get("/auth/activity")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    await request(server)
+      .post("/auth/logout")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
+
+    await request(server)
+      .get("/auth/activity")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(401);
   });
 
   it("requests and confirms email verification with a single-use token", async () => {

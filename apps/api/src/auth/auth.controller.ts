@@ -26,12 +26,14 @@ import {
 } from "@nestjs/swagger";
 import type { Request } from "express";
 
+import { AccountActivityService } from "./account-activity.service";
 import type { AuthenticatedRequest } from "./authenticated-request";
 import { AuthAuditLogger } from "./auth-audit.logger";
 import { buildAuthRequestContext, buildTokenRequestContext } from "./auth-request-context";
 import type { AuthRequestContext } from "./auth-request-context";
 import { AuthService } from "./auth.service";
 import { AuthThrottleScope, AuthThrottleService } from "./auth-throttle.service";
+import { AccountActivityResponse } from "./dto/account-activity.response";
 import { AuthResponse } from "./dto/auth-response.dto";
 import { CurrentUserResponse } from "./dto/current-user.response";
 import { EmailVerificationConfirmResponse } from "./dto/email-verification-confirm-response.dto";
@@ -68,7 +70,9 @@ export class AuthController {
     @Inject(PasswordResetService)
     private readonly passwordResetService: PasswordResetService,
     @Inject(AuthThrottleService) private readonly authThrottleService: AuthThrottleService,
-    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger
+    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger,
+    @Inject(AccountActivityService)
+    private readonly accountActivityService: AccountActivityService
   ) {}
 
   @Post("signup")
@@ -90,6 +94,7 @@ export class AuthController {
     try {
       const response = await this.authService.signup(dto);
       this.authAuditLogger.logSignupSuccess({ ...context, userId: response.user.id });
+      await this.accountActivityService.recordAccountCreated(response.user.id);
       return response;
     } catch (error) {
       this.authAuditLogger.logSignupFailure({ ...context, reason: "signup_rejected" });
@@ -117,6 +122,7 @@ export class AuthController {
     try {
       const response = await this.authService.signin(dto);
       this.authAuditLogger.logSigninSuccess({ ...context, userId: response.user.id });
+      await this.accountActivityService.recordSignedIn(response.user.id);
       return response;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -241,6 +247,20 @@ export class AuthController {
     }
   }
 
+  @Get("activity")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: "Recent safe account activity for the current user.",
+    type: AccountActivityResponse,
+  })
+  @ApiUnauthorizedResponse({
+    description: "Missing, malformed, expired, invalid, or revoked token.",
+  })
+  activity(@Req() request: AuthenticatedRequest): Promise<AccountActivityResponse> {
+    return this.accountActivityService.listRecentForUser(request.user.sub);
+  }
+
   @Patch("me")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -291,6 +311,7 @@ export class AuthController {
     try {
       await this.authService.logout(request.user);
       this.authAuditLogger.logLogoutSuccess({ ...context, userId: request.user.sub });
+      await this.accountActivityService.recordSignedOut(request.user.sub);
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         this.authAuditLogger.logLogoutFailure({ ...context, userId: request.user.sub });
