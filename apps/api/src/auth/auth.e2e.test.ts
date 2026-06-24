@@ -5,27 +5,32 @@ import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/
 import { MongoClient } from "mongodb";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
-import type { Response } from "supertest";
+import type { Response, Test as SupertestRequest } from "supertest";
 import type { App } from "supertest/types";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { configureApp } from "../configure-app";
 import { AuthThrottleService } from "./auth-throttle.service";
-import {
-  EMAIL_VERIFICATION_DELIVERY,
-  InMemoryEmailVerificationDelivery,
-} from "./email-verification.delivery";
+import { AUTH_TOKEN_DELIVERY, InMemoryAuthTokenDelivery } from "./auth-token.delivery";
+
+const INVALID_PASSWORD_RESET_TOKEN_MESSAGE = "Password reset token is invalid or expired.";
 
 interface OpenApiOperation {
+  requestBody?: OpenApiRequestBodyObject;
   responses?: Record<string, OpenApiResponseObject>;
 }
 
 interface OpenApiPathItem {
   get?: OpenApiOperation;
+  patch?: OpenApiOperation;
   post?: OpenApiOperation;
 }
 
 interface OpenApiResponseObject {
+  content?: Record<string, OpenApiMediaTypeObject>;
+}
+
+interface OpenApiRequestBodyObject {
   content?: Record<string, OpenApiMediaTypeObject>;
 }
 
@@ -74,8 +79,8 @@ describe("Auth API", () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(EMAIL_VERIFICATION_DELIVERY)
-      .useClass(InMemoryEmailVerificationDelivery)
+      .overrideProvider(AUTH_TOKEN_DELIVERY)
+      .useClass(InMemoryAuthTokenDelivery)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -158,6 +163,95 @@ describe("Auth API", () => {
     });
   });
 
+  it("updates the authenticated user's supported profile fields", async () => {
+    const server = getServer(app);
+    const payload = testAccount("profile-update");
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    const updateResponse = await request(server)
+      .patch("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ name: "Updated Profile Name" })
+      .expect(200);
+
+    expect(updateResponse.body).toEqual({
+      user: {
+        email: payload.email,
+        emailVerified: false,
+        id: signupResponse.body.user.id,
+        name: "Updated Profile Name",
+      },
+    });
+    expect(updateResponse.body.user).not.toHaveProperty("passwordHash");
+
+    const meResponse = await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(meResponse.body).toEqual(updateResponse.body);
+  });
+
+  it("changes password, rejects the old password, and revokes other active sessions", async () => {
+    const server = getServer(app);
+    const payload = testAccount("password-change");
+    const newPassword = testPassword("password-change-new");
+
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const currentToken = getAccessToken(signupResponse);
+
+    const secondSigninResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(200);
+    const otherToken = getAccessToken(secondSigninResponse);
+
+    await request(server)
+      .post("/auth/password")
+      .set("Authorization", `Bearer ${currentToken}`)
+      .send({ currentPassword: payload.password, newPassword })
+      .expect(204);
+
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(401);
+
+    await withClientIp(app, request(server).post("/auth/signin"), "203.0.113.10")
+      .send({ email: payload.email, password: newPassword })
+      .expect(200);
+
+    await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${currentToken}`)
+      .expect(200);
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${otherToken}`).expect(401);
+  });
+
+  it("requires the correct current password and policy-compliant new password", async () => {
+    const server = getServer(app);
+    const payload = testAccount("password-validation");
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server)
+      .post("/auth/password")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        currentPassword: testPassword("wrong-current"),
+        newPassword: testPassword("valid-new"),
+      })
+      .expect(401);
+
+    await request(server)
+      .post("/auth/password")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ currentPassword: payload.password, newPassword: "weak" })
+      .expect(400);
+  });
+
   it("revokes the current bearer token on logout", async () => {
     const server = getServer(app);
 
@@ -216,9 +310,19 @@ describe("Auth API", () => {
       document,
       "/auth/email-verification/confirm"
     );
+    const passwordResetRequestOperation = expectPostOperation(
+      document,
+      "/auth/password-reset/request"
+    );
+    const passwordResetConfirmOperation = expectPostOperation(
+      document,
+      "/auth/password-reset/confirm"
+    );
     const logoutOperation = expectPostOperation(document, "/auth/logout");
     const meOperation = expectGetOperation(document, "/auth/me");
     const activityOperation = expectGetOperation(document, "/auth/activity");
+    const updateMeOperation = expectPatchOperation(document, "/auth/me");
+    const changePasswordOperation = expectPostOperation(document, "/auth/password");
 
     expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
     expectJsonSchemaReference(signinOperation, "200", "AuthResponse");
@@ -232,9 +336,15 @@ describe("Auth API", () => {
       "200",
       "EmailVerificationConfirmResponse"
     );
+    expectJsonSchemaReference(passwordResetRequestOperation, "202", "PasswordResetResponse");
+    expectJsonSchemaReference(passwordResetConfirmOperation, "200", "PasswordResetResponse");
     expect(logoutOperation.responses?.["204"]).toBeDefined();
     expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
     expectJsonSchemaReference(activityOperation, "200", "AccountActivityResponse");
+    expectJsonSchemaReference(updateMeOperation, "200", "CurrentUserResponse");
+    expectJsonRequestSchemaReference(updateMeOperation, "UpdateProfileDto");
+    expectJsonRequestSchemaReference(changePasswordOperation, "ChangePasswordDto");
+    expect(changePasswordOperation.responses?.["204"]).toBeDefined();
 
     const authSchema = expectSchema(document, "AuthResponse");
     expect(authSchema.properties?.accessToken).toMatchObject({ type: "string" });
@@ -253,6 +363,13 @@ describe("Auth API", () => {
     expect(accountActivityEntrySchema.properties?.description).toMatchObject({ type: "string" });
     expect(accountActivityEntrySchema.properties?.occurredAt).toMatchObject({ type: "string" });
 
+    const updateProfileSchema = expectSchema(document, "UpdateProfileDto");
+    expect(updateProfileSchema.properties?.name).toMatchObject({ type: "string" });
+
+    const changePasswordSchema = expectSchema(document, "ChangePasswordDto");
+    expect(changePasswordSchema.properties?.currentPassword).toMatchObject({ type: "string" });
+    expect(changePasswordSchema.properties?.newPassword).toMatchObject({ type: "string" });
+
     const emailVerificationSchema = expectSchema(document, "EmailVerificationResponse");
     expect(emailVerificationSchema.properties?.message).toMatchObject({ type: "string" });
 
@@ -261,6 +378,9 @@ describe("Auth API", () => {
       "EmailVerificationConfirmResponse"
     );
     expectSchemaPropertyReference(emailVerificationConfirmSchema, "user", "PublicUserResponse");
+
+    const passwordResetSchema = expectSchema(document, "PasswordResetResponse");
+    expect(passwordResetSchema.properties?.message).toMatchObject({ type: "string" });
 
     const publicUserSchema = expectSchema(document, "PublicUserResponse");
     expect(publicUserSchema.properties?.id).toMatchObject({ type: "string" });
@@ -341,10 +461,10 @@ describe("Auth API", () => {
 
   it("includes successful email verification in account activity", async () => {
     const server = getServer(app);
-    const delivery = getEmailVerificationDelivery(app);
+    const delivery = getAuthTokenDelivery(app);
     const payload = testAccount("activity-verify");
 
-    delivery.drainMessages();
+    delivery.drainVerificationMessages();
 
     const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
     const accessToken = getAccessToken(signupResponse);
@@ -354,7 +474,7 @@ describe("Auth API", () => {
       .send({ email: payload.email })
       .expect(202);
 
-    const messages = delivery.drainMessages();
+    const messages = delivery.drainVerificationMessages();
     expect(messages).toHaveLength(1);
 
     await request(server)
@@ -405,12 +525,12 @@ describe("Auth API", () => {
 
   it("requests and confirms email verification with a single-use token", async () => {
     const server = getServer(app);
-    const delivery = getEmailVerificationDelivery(app);
+    const delivery = getAuthTokenDelivery(app);
     const payload = {
       ...testAccount("verify-single-use"),
     };
 
-    delivery.drainMessages();
+    delivery.drainVerificationMessages();
 
     const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
     expect(signupResponse.body.user.emailVerified).toBe(false);
@@ -420,7 +540,7 @@ describe("Auth API", () => {
       .send({ email: payload.email })
       .expect(202);
 
-    const messages = delivery.drainMessages();
+    const messages = delivery.drainVerificationMessages();
     expect(messages).toHaveLength(1);
     expect(messages[0]).toMatchObject({ email: payload.email, token: expect.any(String) });
 
@@ -446,12 +566,12 @@ describe("Auth API", () => {
 
   it("returns a safe generic email verification request response for unknown and verified emails", async () => {
     const server = getServer(app);
-    const delivery = getEmailVerificationDelivery(app);
+    const delivery = getAuthTokenDelivery(app);
     const payload = {
       ...testAccount("already-verified-email-verification"),
     };
 
-    delivery.drainMessages();
+    delivery.drainVerificationMessages();
 
     const unknownEmailResponse = await request(server)
       .post("/auth/email-verification/request")
@@ -461,7 +581,7 @@ describe("Auth API", () => {
     expect(unknownEmailResponse.body).toEqual({
       message: "If an account exists for that email, a verification link has been prepared.",
     });
-    expect(delivery.drainMessages()).toEqual([]);
+    expect(delivery.drainVerificationMessages()).toEqual([]);
 
     await request(server).post("/auth/signup").send(payload).expect(201);
     await request(server)
@@ -469,14 +589,14 @@ describe("Auth API", () => {
       .send({ email: payload.email })
       .expect(202);
 
-    const messages = delivery.drainMessages();
+    const messages = delivery.drainVerificationMessages();
     expect(messages).toHaveLength(1);
 
     await request(server)
       .post("/auth/email-verification/confirm")
       .send({ email: payload.email, token: messages[0]?.token })
       .expect(200);
-    expect(delivery.drainMessages()).toEqual([]);
+    expect(delivery.drainVerificationMessages()).toEqual([]);
     readThrottleAttempts(getThrottleService(app)).clear();
 
     const verifiedEmailResponse = await request(server)
@@ -487,12 +607,12 @@ describe("Auth API", () => {
     expect(verifiedEmailResponse.body).toEqual({
       message: "If an account exists for that email, a verification link has been prepared.",
     });
-    expect(delivery.drainMessages()).toEqual([]);
+    expect(delivery.drainVerificationMessages()).toEqual([]);
   });
 
   it("safely rejects wrong-account and malformed verification tokens", async () => {
     const server = getServer(app);
-    const delivery = getEmailVerificationDelivery(app);
+    const delivery = getAuthTokenDelivery(app);
     const ownerPayload = {
       ...testAccount("verification-owner"),
     };
@@ -500,7 +620,7 @@ describe("Auth API", () => {
       ...testAccount("verification-other"),
     };
 
-    delivery.drainMessages();
+    delivery.drainVerificationMessages();
 
     await request(server).post("/auth/signup").send(ownerPayload).expect(201);
     await request(server).post("/auth/signup").send(otherPayload).expect(201);
@@ -509,7 +629,7 @@ describe("Auth API", () => {
       .send({ email: ownerPayload.email })
       .expect(202);
 
-    const messages = delivery.drainMessages();
+    const messages = delivery.drainVerificationMessages();
     expect(messages).toHaveLength(1);
     const token = messages[0]?.token;
 
@@ -522,6 +642,158 @@ describe("Auth API", () => {
       .post("/auth/email-verification/confirm")
       .send({ email: ownerPayload.email, token: testToken("mismatched-confirm") })
       .expect(400);
+  });
+
+  it("requests and confirms password reset with a single-use token", async () => {
+    const server = getServer(app);
+    const delivery = getAuthTokenDelivery(app);
+    const payload = testAccount("password-reset");
+    const newPassword = testPassword("password-reset-new");
+
+    delivery.drainPasswordResetMessages();
+
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const oldAccessToken = getAccessToken(signupResponse);
+
+    await request(server)
+      .post("/auth/password-reset/request")
+      .send({ email: payload.email })
+      .expect(202)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          message: "If an account exists for that email, a password reset link has been prepared.",
+        });
+      });
+
+    const messages = delivery.drainPasswordResetMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ email: payload.email, token: expect.any(String) });
+
+    await request(server)
+      .post("/auth/password-reset/confirm")
+      .send({ email: payload.email, newPassword, token: messages[0]?.token })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual({ message: "Password has been reset." });
+      });
+
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(401);
+
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: newPassword })
+      .expect(200);
+
+    await request(server)
+      .post("/auth/password-reset/confirm")
+      .send({
+        email: payload.email,
+        newPassword: testPassword("reuse"),
+        token: messages[0]?.token,
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe(INVALID_PASSWORD_RESET_TOKEN_MESSAGE);
+      });
+
+    await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${oldAccessToken}`)
+      .expect(401);
+  });
+
+  it("returns a safe generic password reset request response for unknown emails", async () => {
+    const server = getServer(app);
+    const delivery = getAuthTokenDelivery(app);
+
+    delivery.drainPasswordResetMessages();
+
+    const response = await request(server)
+      .post("/auth/password-reset/request")
+      .send({ email: testEmail("unknown-password-reset") })
+      .expect(202);
+
+    expect(response.body).toEqual({
+      message: "If an account exists for that email, a password reset link has been prepared.",
+    });
+    expect(delivery.drainPasswordResetMessages()).toEqual([]);
+  });
+
+  it("safely rejects wrong-account and malformed password reset tokens", async () => {
+    const server = getServer(app);
+    const delivery = getAuthTokenDelivery(app);
+    const ownerPayload = testAccount("reset-owner");
+    const otherPayload = testAccount("reset-other");
+
+    delivery.drainPasswordResetMessages();
+
+    await request(server).post("/auth/signup").send(ownerPayload).expect(201);
+    await request(server).post("/auth/signup").send(otherPayload).expect(201);
+    await request(server)
+      .post("/auth/password-reset/request")
+      .send({ email: ownerPayload.email })
+      .expect(202);
+
+    const messages = delivery.drainPasswordResetMessages();
+    expect(messages).toHaveLength(1);
+
+    await request(server)
+      .post("/auth/password-reset/confirm")
+      .send({
+        email: otherPayload.email,
+        newPassword: testPassword("wrong-account"),
+        token: messages[0]?.token,
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe(INVALID_PASSWORD_RESET_TOKEN_MESSAGE);
+      });
+
+    await request(server)
+      .post("/auth/password-reset/confirm")
+      .send({
+        email: ownerPayload.email,
+        newPassword: testPassword("malformed"),
+        token: testToken("mismatched-reset"),
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe(INVALID_PASSWORD_RESET_TOKEN_MESSAGE);
+      });
+  });
+
+  it("safely rejects expired password reset tokens", async () => {
+    const server = getServer(app);
+    const delivery = getAuthTokenDelivery(app);
+    const payload = testAccount("reset-expired");
+
+    delivery.drainPasswordResetMessages();
+
+    await request(server).post("/auth/signup").send(payload).expect(201);
+    await request(server)
+      .post("/auth/password-reset/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    const messages = delivery.drainPasswordResetMessages();
+    expect(messages).toHaveLength(1);
+
+    await expirePasswordResetToken(payload.email);
+
+    await request(server)
+      .post("/auth/password-reset/confirm")
+      .send({
+        email: payload.email,
+        newPassword: testPassword("expired"),
+        token: messages[0]?.token,
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe(INVALID_PASSWORD_RESET_TOKEN_MESSAGE);
+      });
   });
 
   it("rejects invalid signup input", async () => {
@@ -617,6 +889,42 @@ describe("Auth API", () => {
     );
   });
 
+  it("throttles repeated password reset requests", async () => {
+    const payload = { email: testEmail("reset-request-throttled") };
+
+    await request(getServer(app)).post("/auth/password-reset/request").send(payload).expect(202);
+    await request(getServer(app)).post("/auth/password-reset/request").send(payload).expect(202);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/password-reset/request")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
+  it("throttles repeated password reset confirm attempts", async () => {
+    const payload = {
+      email: testEmail("reset-confirm-throttled"),
+      newPassword: testPassword("reset-confirm-throttled"),
+      token: testToken("invalid-reset-confirm"),
+    };
+
+    await request(getServer(app)).post("/auth/password-reset/confirm").send(payload).expect(400);
+    await request(getServer(app)).post("/auth/password-reset/confirm").send(payload).expect(400);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/password-reset/confirm")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
   it("returns a sanitized duplicate signup response", async () => {
     const server = getServer(app);
     const payload = {
@@ -698,6 +1006,15 @@ function getServer(app: INestApplication | undefined): App {
   return app.getHttpServer();
 }
 
+function withClientIp(
+  app: INestApplication | undefined,
+  test: SupertestRequest,
+  ip: string
+): SupertestRequest {
+  enableTrustedProxy(app);
+  return test.set("X-Forwarded-For", ip);
+}
+
 function getAccessToken(response: Response): string {
   const body: unknown = response.body;
 
@@ -729,14 +1046,20 @@ function getThrottleService(app: INestApplication | undefined): AuthThrottleServ
   return app.get(AuthThrottleService);
 }
 
-function getEmailVerificationDelivery(
-  app: INestApplication | undefined
-): InMemoryEmailVerificationDelivery {
+function enableTrustedProxy(app: INestApplication | undefined): void {
   if (app === undefined) {
     throw new Error("Nest app was not initialized.");
   }
 
-  return app.get(EMAIL_VERIFICATION_DELIVERY);
+  app.getHttpAdapter().getInstance().set("trust proxy", true);
+}
+
+function getAuthTokenDelivery(app: INestApplication | undefined): InMemoryAuthTokenDelivery {
+  if (app === undefined) {
+    throw new Error("Nest app was not initialized.");
+  }
+
+  return app.get(AUTH_TOKEN_DELIVERY);
 }
 
 function readThrottleAttempts(service: AuthThrottleService): Map<string, unknown> {
@@ -785,6 +1108,17 @@ function expectGetOperation(document: unknown, path: string): OpenApiOperation {
   return operation;
 }
 
+function expectPatchOperation(document: unknown, path: string): OpenApiOperation {
+  const operation = (document as OpenApiDocument).paths?.[path]?.patch;
+  expect(operation).toBeDefined();
+
+  if (operation === undefined) {
+    throw new Error(`Expected OpenAPI PATCH operation for ${path}.`);
+  }
+
+  return operation;
+}
+
 function expectSchema(document: unknown, schemaName: string): OpenApiSchemaObject {
   const schema = (document as OpenApiDocument).components?.schemas?.[schemaName];
   expect(schema).toBeDefined();
@@ -802,6 +1136,12 @@ function expectJsonSchemaReference(
   schemaName: string
 ): void {
   const schema = operation.responses?.[statusCode]?.content?.["application/json"]?.schema;
+
+  expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
+}
+
+function expectJsonRequestSchemaReference(operation: OpenApiOperation, schemaName: string): void {
+  const schema = operation.requestBody?.content?.["application/json"]?.schema;
 
   expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
 }
@@ -832,6 +1172,32 @@ async function waitForMongo(uri: string): Promise<void> {
   try {
     await client.connect();
     await client.db("admin").command({ ping: 1 });
+  } finally {
+    await client.close();
+  }
+}
+
+async function expirePasswordResetToken(email: string): Promise<void> {
+  const uri = process.env.MONGODB_URI;
+
+  if (uri === undefined) {
+    throw new Error("Expected MONGODB_URI to be configured for auth e2e tests.");
+  }
+
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    const result = await client
+      .db()
+      .collection("users")
+      .updateOne(
+        { email: email.trim().toLowerCase() },
+        { $set: { passwordResetTokenExpiresAt: new Date(Date.now() - 1_000) } }
+      );
+
+    expect(result.matchedCount).toBe(1);
+    expect(result.modifiedCount).toBe(1);
   } finally {
     await client.close();
   }

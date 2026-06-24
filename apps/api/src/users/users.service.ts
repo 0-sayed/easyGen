@@ -1,7 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 
-import type { PublicUser, UserVerificationState, UserWithPasswordHash } from "./user.types";
-import { type SetEmailVerificationTokenInput, UsersRepository } from "./users.repository";
+import type {
+  PublicUser,
+  UserPasswordResetState,
+  UserVerificationState,
+  UserWithPasswordHash,
+} from "./user.types";
+import {
+  type SetEmailVerificationTokenInput,
+  type SetPasswordResetTokenInput,
+  UsersRepository,
+} from "./users.repository";
 
 interface CreateUserInput {
   email: string;
@@ -25,6 +34,22 @@ export class UsersService {
     return this.usersRepository.findPublicById(id);
   }
 
+  findByIdWithPasswordHash(id: string): Promise<UserWithPasswordHash | null> {
+    return this.usersRepository.findByIdWithPasswordHash(id);
+  }
+
+  updateProfile(id: string, input: { name: string }): Promise<PublicUser | null> {
+    return this.usersRepository.updateProfile(id, input);
+  }
+
+  updatePasswordHash(
+    id: string,
+    passwordHash: string,
+    expectedCurrentPasswordHash: string
+  ): Promise<boolean> {
+    return this.usersRepository.updatePasswordHash(id, passwordHash, expectedCurrentPasswordHash);
+  }
+
   findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
     return this.usersRepository.findVerificationStateByEmail(email);
   }
@@ -46,5 +71,25 @@ export class UsersService {
     expectedTokenHash: string
   ): Promise<UserVerificationState | null> {
     return this.usersRepository.markEmailVerifiedForToken(id, verifiedAt, expectedTokenHash);
+  }
+
+  findPasswordResetStateByEmail(email: string): Promise<UserPasswordResetState | null> {
+    return this.usersRepository.findPasswordResetStateByEmail(email);
+  }
+
+  setPasswordResetToken(
+    id: string,
+    input: SetPasswordResetTokenInput
+  ): Promise<UserPasswordResetState | null> {
+    return this.usersRepository.setPasswordResetToken(id, input);
+  }
+
+  resetPasswordForToken(
+    id: string,
+    resetAt: Date,
+    expectedTokenHash: string,
+    passwordHash: string
+  ): Promise<UserPasswordResetState | null> {
+    return this.usersRepository.resetPasswordForToken(id, resetAt, expectedTokenHash, passwordHash);
   }
 }

@@ -8,10 +8,10 @@ import { UsersService } from "../users/users.service";
 import { AccountActivityService } from "./account-activity.service";
 import { AuthAuditLogger } from "./auth-audit.logger";
 import {
-  EMAIL_VERIFICATION_DELIVERY,
-  type EmailVerificationDelivery,
-  type EmailVerificationDeliveryMessage,
-} from "./email-verification.delivery";
+  AUTH_TOKEN_DELIVERY,
+  type AuthTokenDelivery,
+  type AuthTokenDeliveryMessage,
+} from "./auth-token.delivery";
 import { EmailVerificationService } from "./email-verification.service";
 
 const NOW = new Date("2026-06-21T10:00:00.000Z");
@@ -34,11 +34,11 @@ describe("EmailVerificationService", () => {
     "findVerificationStateByEmail" | "markEmailVerifiedForToken" | "setEmailVerificationToken"
   >;
   let configGet: ReturnType<typeof vi.fn>;
-  let delivery: EmailVerificationDelivery;
-  let sendVerificationToken: Mock<EmailVerificationDelivery["sendVerificationToken"]>;
+  let delivery: AuthTokenDelivery;
+  let sendVerificationToken: Mock<AuthTokenDelivery["sendVerificationToken"]>;
   let authAuditLogger: { logEmailVerificationDeliveryFailure: ReturnType<typeof vi.fn> };
   let accountActivityService: { recordEmailVerified: ReturnType<typeof vi.fn> };
-  let sentMessages: EmailVerificationDeliveryMessage[];
+  let sentMessages: AuthTokenDeliveryMessage[];
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -57,6 +57,7 @@ describe("EmailVerificationService", () => {
       return Promise.resolve();
     });
     delivery = {
+      sendPasswordResetToken: vi.fn(),
       sendVerificationToken,
     };
     authAuditLogger = {
@@ -88,7 +89,7 @@ describe("EmailVerificationService", () => {
           },
         },
         {
-          provide: EMAIL_VERIFICATION_DELIVERY,
+          provide: AUTH_TOKEN_DELIVERY,
           useValue: delivery,
         },
       ],

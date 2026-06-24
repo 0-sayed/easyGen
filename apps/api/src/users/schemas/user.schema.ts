@@ -19,6 +19,12 @@ export class User {
 
   @Prop({ default: null, select: false, type: Date })
   emailVerificationTokenExpiresAt!: Date | null;
+
+  @Prop({ default: null, select: false, type: String })
+  passwordResetTokenHash!: string | null;
+
+  @Prop({ default: null, select: false, type: Date })
+  passwordResetTokenExpiresAt!: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

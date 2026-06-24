@@ -1,4 +1,5 @@
 import { UnauthorizedException } from "@nestjs/common";
+import type { Request } from "express";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,6 +10,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { AuthThrottleService } from "./auth-throttle.service";
 import { EmailVerificationService } from "./email-verification.service";
+import { PasswordResetService } from "./password-reset.service";
 
 const TEST_FIXTURE = {
   accessToken: testToken("access"),
@@ -52,7 +54,7 @@ describe("AuthController", () => {
   it("records account creation activity after successful signup", async () => {
     const { accountActivityService, authController } = createController();
 
-    await authController.signup(createPlainRequest(), {
+    await authController.signup(createRequest(), {
       email: TEST_FIXTURE.email,
       name: TEST_FIXTURE.userName,
       password: TEST_FIXTURE.password,
@@ -64,12 +66,52 @@ describe("AuthController", () => {
   it("records signin activity after successful signin", async () => {
     const { accountActivityService, authController } = createController();
 
-    await authController.signin(createPlainRequest(), {
+    await authController.signin(createRequest(), {
       email: TEST_FIXTURE.email,
       password: TEST_FIXTURE.password,
     });
 
     expect(accountActivityService.recordSignedIn).toHaveBeenCalledWith(TEST_FIXTURE.userId);
+  });
+
+  it("delegates password reset request after throttle passes", async () => {
+    const { authController, authThrottleService, passwordResetService } = createController();
+    authThrottleService.consume.mockReturnValue({ allowed: true });
+    const request = createRequest();
+    const dto = { email: "person@example.com" };
+
+    await expect(authController.requestPasswordReset(request, dto)).resolves.toEqual({
+      message: "If an account exists for that email, a password reset link has been prepared.",
+    });
+
+    expect(authThrottleService.consume).toHaveBeenCalledWith({
+      email: dto.email,
+      ip: "203.0.113.10",
+      scope: "password-reset-request",
+    });
+    expect(passwordResetService.requestReset).toHaveBeenCalledWith(dto);
+  });
+
+  it("delegates password reset confirm after throttle passes", async () => {
+    const { authController, authThrottleService, passwordResetService } = createController();
+    authThrottleService.consume.mockReturnValue({ allowed: true });
+    const request = createRequest();
+    const dto = {
+      email: "person@example.com",
+      newPassword: "NewPassword1!",
+      token: "reset-token",
+    };
+
+    await expect(authController.confirmPasswordReset(request, dto)).resolves.toEqual({
+      message: "Password has been reset.",
+    });
+
+    expect(authThrottleService.consume).toHaveBeenCalledWith({
+      email: dto.email,
+      ip: "203.0.113.10",
+      scope: "password-reset-confirm",
+    });
+    expect(passwordResetService.confirmReset).toHaveBeenCalledWith(dto);
   });
 
   it("logs out the current token and records logout success", async () => {
@@ -144,6 +186,13 @@ function createController(): {
     signin: ReturnType<typeof vi.fn>;
     signup: ReturnType<typeof vi.fn>;
   };
+  authThrottleService: {
+    consume: ReturnType<typeof vi.fn>;
+  };
+  passwordResetService: {
+    confirmReset: ReturnType<typeof vi.fn>;
+    requestReset: ReturnType<typeof vi.fn>;
+  };
 } {
   const authService = {
     logout: vi.fn(() => Promise.resolve()),
@@ -174,6 +223,14 @@ function createController(): {
     confirmVerification: vi.fn(),
     requestVerification: vi.fn(),
   };
+  const passwordResetService = {
+    confirmReset: vi.fn(() => Promise.resolve({ message: "Password has been reset." })),
+    requestReset: vi.fn(() =>
+      Promise.resolve({
+        message: "If an account exists for that email, a password reset link has been prepared.",
+      })
+    ),
+  };
   const authAuditLogger = {
     logSigninFailure: vi.fn(),
     logSigninSuccess: vi.fn(),
@@ -199,15 +256,18 @@ function createController(): {
     authController: new AuthController(
       authService as unknown as AuthService,
       emailVerificationService as unknown as EmailVerificationService,
+      passwordResetService as unknown as PasswordResetService,
       authThrottleService as unknown as AuthThrottleService,
       authAuditLogger as unknown as AuthAuditLogger,
       accountActivityService as unknown as AccountActivityService
     ),
     authService,
+    authThrottleService,
+    passwordResetService,
   };
 }
 
-function createPlainRequest(): AuthenticatedRequest {
+function createRequest(): Request {
   return {
     headers: {
       "user-agent": "Vitest",
@@ -215,7 +275,7 @@ function createPlainRequest(): AuthenticatedRequest {
     },
     id: "trace-123",
     ip: "203.0.113.10",
-  } as unknown as AuthenticatedRequest;
+  } as unknown as Request;
 }
 
 function createAuthenticatedRequest(): AuthenticatedRequest {

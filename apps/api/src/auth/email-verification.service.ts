@@ -11,10 +11,7 @@ import type { EmailVerificationRequestDto } from "./dto/email-verification-reque
 import type { EmailVerificationResponse } from "./dto/email-verification-response.dto";
 import { AccountActivityService } from "./account-activity.service";
 import { AuthAuditLogger } from "./auth-audit.logger";
-import {
-  EMAIL_VERIFICATION_DELIVERY,
-  type EmailVerificationDelivery,
-} from "./email-verification.delivery";
+import { AUTH_TOKEN_DELIVERY, type AuthTokenDelivery } from "./auth-token.delivery";
 
 const DEFAULT_EMAIL_VERIFICATION_TOKEN_TTL_MS = 900_000;
 const EMAIL_VERIFICATION_REQUEST_MESSAGE =
@@ -26,8 +23,8 @@ export class EmailVerificationService {
   constructor(
     @Inject(UsersService) private readonly usersService: UsersService,
     @Inject(ConfigService) private readonly configService: ConfigService,
-    @Inject(EMAIL_VERIFICATION_DELIVERY)
-    private readonly delivery: EmailVerificationDelivery,
+    @Inject(AUTH_TOKEN_DELIVERY)
+    private readonly delivery: AuthTokenDelivery,
     @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger,
     @Inject(AccountActivityService)
     private readonly accountActivityService: AccountActivityService
