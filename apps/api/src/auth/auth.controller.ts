@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   HttpCode,
@@ -35,7 +36,9 @@ import { AuthService } from "./auth.service";
 import { AuthThrottleScope, AuthThrottleService } from "./auth-throttle.service";
 import { AccountActivityResponse } from "./dto/account-activity.response";
 import { AuthResponse } from "./dto/auth-response.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { CurrentUserResponse } from "./dto/current-user.response";
+import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { EmailVerificationConfirmResponse } from "./dto/email-verification-confirm-response.dto";
 import { EmailVerificationConfirmDto } from "./dto/email-verification-confirm.dto";
 import { EmailVerificationRequestDto } from "./dto/email-verification-request.dto";
@@ -45,7 +48,6 @@ import { PasswordResetRequestDto } from "./dto/password-reset-request.dto";
 import { PasswordResetResponse } from "./dto/password-reset-response.dto";
 import { SigninDto } from "./dto/signin.dto";
 import { SignupDto } from "./dto/signup.dto";
-import { ChangePasswordDto } from "./dto/change-password.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -295,6 +297,23 @@ export class AuthController {
     @Body() dto: ChangePasswordDto
   ): Promise<void> {
     await this.authService.changePassword(request.user, dto);
+  }
+
+  @Delete("me")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiNoContentResponse({ description: "Current account deleted and active sessions revoked." })
+  @ApiBadRequestResponse({ description: "Account deletion input failed validation." })
+  @ApiUnauthorizedResponse({
+    description:
+      "Missing, malformed, expired, invalid, revoked token, deleted account, or invalid current password.",
+  })
+  async deleteMe(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: DeleteAccountDto
+  ): Promise<void> {
+    await this.authService.deleteCurrentAccount(request.user, dto);
   }
 
   @Post("logout")

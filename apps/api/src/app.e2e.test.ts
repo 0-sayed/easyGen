@@ -226,6 +226,7 @@ describe("App", () => {
       .expect(204);
 
     expect(response.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:5173");
+    expect(response.headers["access-control-allow-methods"]).toContain("DELETE");
     expect(response.headers["access-control-allow-methods"]).toContain("POST");
     expect(response.headers["access-control-allow-headers"]).toContain("Authorization");
     expect(response.headers["access-control-allow-headers"]).toContain("Content-Type");

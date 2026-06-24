@@ -5,6 +5,7 @@ import type { Model } from "mongoose";
 import { User } from "./schemas/user.schema";
 import type {
   PublicUser,
+  SoftDeleteUserInput,
   UserPasswordResetState,
   UserVerificationState,
   UserWithPasswordHash,
@@ -52,7 +53,7 @@ export class UsersRepository {
 
   async findByEmail(email: string): Promise<UserWithPasswordHash | null> {
     const user = await this.userModel
-      .findOne({ email: normalizeEmail(email) })
+      .findOne({ email: normalizeEmail(email), deletedAt: null })
       .select("+passwordHash")
       .exec();
 
@@ -75,7 +76,7 @@ export class UsersRepository {
       return null;
     }
 
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel.findOne({ _id: id, deletedAt: null }).exec();
 
     if (user === null) {
       return null;
@@ -94,7 +95,10 @@ export class UsersRepository {
       return null;
     }
 
-    const user = await this.userModel.findById(id).select("+passwordHash").exec();
+    const user = await this.userModel
+      .findOne({ _id: id, deletedAt: null })
+      .select("+passwordHash")
+      .exec();
 
     if (user === null) {
       return null;
@@ -116,7 +120,11 @@ export class UsersRepository {
     }
 
     const user = await this.userModel
-      .findByIdAndUpdate(id, { name: input.name }, { returnDocument: "after" })
+      .findOneAndUpdate(
+        { _id: id, deletedAt: null },
+        { name: input.name },
+        { returnDocument: "after" }
+      )
       .exec();
 
     if (user === null) {
@@ -141,15 +149,48 @@ export class UsersRepository {
     }
 
     const result = await this.userModel
-      .updateOne({ _id: id, passwordHash: expectedCurrentPasswordHash }, { $set: { passwordHash } })
+      .updateOne(
+        { _id: id, deletedAt: null, passwordHash: expectedCurrentPasswordHash },
+        { $set: { passwordHash } }
+      )
       .exec();
 
     return result.matchedCount === 1;
   }
 
+  async softDelete(id: string, input: SoftDeleteUserInput): Promise<boolean> {
+    if (!isObjectIdString(id)) {
+      return false;
+    }
+
+    const result = await this.userModel
+      .updateOne(
+        {
+          _id: id,
+          deletedAt: null,
+          passwordHash: input.previousPasswordHash,
+        },
+        {
+          $set: {
+            deletedAt: input.deletedAt,
+            email: buildDeletedEmail(id),
+            emailVerificationTokenExpiresAt: null,
+            emailVerificationTokenHash: null,
+            name: "Deleted Account",
+            passwordHash: input.passwordHash,
+            passwordResetTokenExpiresAt: null,
+            passwordResetTokenHash: null,
+          },
+        }
+      )
+      .exec();
+
+    return result.modifiedCount === 1;
+  }
+
   async findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
     const user = await this.userModel
-      .findOne({ email: normalizeEmail(email) })
+      .findOne({ email: normalizeEmail(email), deletedAt: null })
       .select("+emailVerificationTokenHash +emailVerificationTokenExpiresAt")
       .exec();
 
@@ -168,6 +209,7 @@ export class UsersRepository {
       .findOneAndUpdate(
         {
           _id: id,
+          deletedAt: null,
           emailVerifiedAt: null,
         },
         {
@@ -188,8 +230,11 @@ export class UsersRepository {
     }
 
     const user = await this.userModel
-      .findByIdAndUpdate(
-        id,
+      .findOneAndUpdate(
+        {
+          _id: id,
+          deletedAt: null,
+        },
         {
           emailVerificationTokenExpiresAt: null,
           emailVerificationTokenHash: null,
@@ -216,6 +261,7 @@ export class UsersRepository {
       .findOneAndUpdate(
         {
           _id: id,
+          deletedAt: null,
           emailVerificationTokenExpiresAt: { $gt: verifiedAt },
           emailVerificationTokenHash: expectedTokenHash,
         },
@@ -234,7 +280,7 @@ export class UsersRepository {
 
   async findPasswordResetStateByEmail(email: string): Promise<UserPasswordResetState | null> {
     const user = await this.userModel
-      .findOne({ email: normalizeEmail(email) })
+      .findOne({ email: normalizeEmail(email), deletedAt: null })
       .select("+passwordResetTokenHash +passwordResetTokenExpiresAt")
       .exec();
 
@@ -250,8 +296,11 @@ export class UsersRepository {
     }
 
     const user = await this.userModel
-      .findByIdAndUpdate(
-        id,
+      .findOneAndUpdate(
+        {
+          _id: id,
+          deletedAt: null,
+        },
         {
           passwordResetTokenExpiresAt: input.expiresAt,
           passwordResetTokenHash: input.tokenHash,
@@ -278,6 +327,7 @@ export class UsersRepository {
       .findOneAndUpdate(
         {
           _id: id,
+          deletedAt: null,
           passwordResetTokenExpiresAt: { $gt: resetAt },
           passwordResetTokenHash: expectedTokenHash,
         },
@@ -297,6 +347,10 @@ export class UsersRepository {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function buildDeletedEmail(id: string): string {
+  return `deleted+${id.toLowerCase()}@deleted.local`;
 }
 
 function isObjectIdString(value: string): boolean {

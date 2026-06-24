@@ -10,6 +10,12 @@ export interface UserWithPasswordHash extends PublicUser {
   passwordHash: string;
 }
 
+export interface SoftDeleteUserInput {
+  deletedAt: Date;
+  passwordHash: string;
+  previousPasswordHash: string;
+}
+
 export interface UserVerificationState {
   email: string;
   emailVerificationTokenExpiresAt: Date | null;

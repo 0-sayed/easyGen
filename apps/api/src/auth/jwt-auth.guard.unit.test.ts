@@ -7,6 +7,7 @@ import { AuthAuditLogger } from "./auth-audit.logger";
 import { AuthSessionService } from "./auth-session.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import type { JwtPayload } from "./jwt-payload";
+import { UsersService } from "../users/users.service";
 
 interface GuardTestRequest {
   headers: Record<string, string | string[]>;
@@ -20,6 +21,7 @@ describe("JwtAuthGuard", () => {
   let authSessionService: Pick<AuthSessionService, "assertActive">;
   let guard: JwtAuthGuard;
   let jwtService: Pick<JwtService, "verifyAsync">;
+  let usersService: Pick<UsersService, "findPublicById">;
 
   const payload: JwtPayload = {
     email: "person@example.com",
@@ -33,6 +35,7 @@ describe("JwtAuthGuard", () => {
         { index: 0, param: JwtService },
         { index: 1, param: AuthAuditLogger },
         { index: 2, param: AuthSessionService },
+        { index: 3, param: UsersService },
       ])
     );
   });
@@ -47,10 +50,21 @@ describe("JwtAuthGuard", () => {
     jwtService = {
       verifyAsync: vi.fn(),
     };
+    usersService = {
+      findPublicById: vi.fn(() =>
+        Promise.resolve({
+          email: "person@example.com",
+          emailVerified: false,
+          id: "user-id",
+          name: "Person Name",
+        })
+      ),
+    };
     guard = new JwtAuthGuard(
       jwtService as JwtService,
       authAuditLogger as AuthAuditLogger,
-      authSessionService as AuthSessionService
+      authSessionService as AuthSessionService,
+      usersService as UsersService
     );
   });
 
@@ -63,8 +77,29 @@ describe("JwtAuthGuard", () => {
 
     expect(jwtService.verifyAsync).toHaveBeenCalledWith("access-token");
     expect(authSessionService.assertActive).toHaveBeenCalledWith(payload);
+    expect(usersService.findPublicById).toHaveBeenCalledWith("user-id");
     expect(request.user).toBe(payload);
     expect(authAuditLogger.logTokenFailure).not.toHaveBeenCalled();
+  });
+
+  it("rejects active sessions whose token subject no longer maps to a public user", async () => {
+    vi.mocked(jwtService.verifyAsync).mockResolvedValue(payload);
+    vi.mocked(authSessionService.assertActive).mockResolvedValue(undefined);
+    vi.mocked(usersService.findPublicById).mockResolvedValue(null);
+    const request = createRequest("Bearer access-token");
+
+    await expect(guard.canActivate(createContext(request))).rejects.toBeInstanceOf(
+      UnauthorizedException
+    );
+
+    expect(authSessionService.assertActive).toHaveBeenCalledWith(payload);
+    expect(usersService.findPublicById).toHaveBeenCalledWith("user-id");
+    expect(request.user).toBeUndefined();
+    expect(authAuditLogger.logTokenFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "user_not_found",
+      })
+    );
   });
 
   it("rejects with UnauthorizedException when the session is inactive", async () => {

@@ -12,13 +12,15 @@ import { AuthAuditLogger } from "./auth-audit.logger";
 import { buildTokenRequestContext } from "./auth-request-context";
 import { AuthSessionService } from "./auth-session.service";
 import type { JwtPayload } from "./jwt-payload";
+import { UsersService } from "../users/users.service";
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     @Inject(JwtService) private readonly jwtService: JwtService,
     @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger,
-    @Inject(AuthSessionService) private readonly authSessionService: AuthSessionService
+    @Inject(AuthSessionService) private readonly authSessionService: AuthSessionService,
+    @Inject(UsersService) private readonly usersService: UsersService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -45,6 +47,16 @@ export class JwtAuthGuard implements CanActivate {
       this.authAuditLogger.logTokenFailure({
         ...buildTokenRequestContext(request),
         reason: "revoked_token",
+      });
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.usersService.findPublicById(payload.sub);
+
+    if (user === null) {
+      this.authAuditLogger.logTokenFailure({
+        ...buildTokenRequestContext(request),
+        reason: "user_not_found",
       });
       throw new UnauthorizedException();
     }

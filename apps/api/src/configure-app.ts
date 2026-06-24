@@ -13,7 +13,7 @@ export function configureApp(app: INestApplication): void {
 
   app.enableCors({
     allowedHeaders: ["Authorization", "Content-Type"],
-    methods: ["GET", "PATCH", "POST"],
+    methods: ["DELETE", "GET", "PATCH", "POST"],
     origin: [`http://127.0.0.1:${String(webPort)}`, `http://localhost:${String(webPort)}`],
   });
 

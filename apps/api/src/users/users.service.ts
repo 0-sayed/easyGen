@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 
 import type {
   PublicUser,
+  SoftDeleteUserInput,
   UserPasswordResetState,
   UserVerificationState,
   UserWithPasswordHash,
@@ -48,6 +49,10 @@ export class UsersService {
     expectedCurrentPasswordHash: string
   ): Promise<boolean> {
     return this.usersRepository.updatePasswordHash(id, passwordHash, expectedCurrentPasswordHash);
+  }
+
+  softDelete(id: string, input: SoftDeleteUserInput): Promise<boolean> {
+    return this.usersRepository.softDelete(id, input);
   }
 
   findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {

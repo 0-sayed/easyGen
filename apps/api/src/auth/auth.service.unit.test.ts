@@ -24,7 +24,7 @@ describe("AuthService", () => {
   let authService: AuthService;
   let authSessionService: Pick<
     AuthSessionService,
-    "createSession" | "revokeCurrentSession" | "revokeOtherSessions"
+    "createSession" | "revokeActiveSessionsForUser" | "revokeCurrentSession" | "revokeOtherSessions"
   >;
   let jwtService: {
     decode: ReturnType<typeof vi.fn>;
@@ -36,6 +36,7 @@ describe("AuthService", () => {
     | "findByEmail"
     | "findByIdWithPasswordHash"
     | "findPublicById"
+    | "softDelete"
     | "updatePasswordHash"
     | "updateProfile"
   >;
@@ -50,11 +51,13 @@ describe("AuthService", () => {
       findByEmail: vi.fn(),
       findByIdWithPasswordHash: vi.fn(),
       findPublicById: vi.fn(),
+      softDelete: vi.fn(),
       updatePasswordHash: vi.fn(),
       updateProfile: vi.fn(),
     };
     authSessionService = {
       createSession: vi.fn(),
+      revokeActiveSessionsForUser: vi.fn(),
       revokeCurrentSession: vi.fn(),
       revokeOtherSessions: vi.fn(),
     };
@@ -109,6 +112,19 @@ describe("AuthService", () => {
 
     const result = authService.signup({
       email: "person@example.com",
+      name: "Person Name",
+      password: "Password1!",
+    });
+
+    await expectSanitizedSignupConflict(result);
+    expect(usersService.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects signup emails in the deleted-account tombstone namespace", async () => {
+    vi.mocked(usersService.findByEmail).mockResolvedValue(null);
+
+    const result = authService.signup({
+      email: "Deleted+507f1f77bcf86cd799439011@deleted.local",
       name: "Person Name",
       password: "Password1!",
     });
@@ -371,6 +387,103 @@ describe("AuthService", () => {
       "old-hash"
     );
     expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
+  });
+
+  it("deletes the current account after verifying the current password and revokes all sessions", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+    vi.mocked(usersService.softDelete).mockResolvedValue(true);
+
+    await authService.deleteCurrentAccount(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!" }
+    );
+
+    expect(verify).toHaveBeenCalledWith("old-hash", "Password1!");
+    expect(hash).toHaveBeenCalledWith(expect.any(String), { type: expect.any(Number) });
+    expect(usersService.softDelete).toHaveBeenCalledWith("user-id", {
+      deletedAt: expect.any(Date),
+      passwordHash: "hashed-new-password",
+      previousPasswordHash: "old-hash",
+    });
+    expect(authSessionService.revokeActiveSessionsForUser).toHaveBeenCalledWith("user-id");
+  });
+
+  it("rejects account deletion for unknown token subjects without checking credentials", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue(null);
+
+    const result = authService.deleteCurrentAccount(
+      { email: "person@example.com", jti: "current-token-id", sub: "missing-user" },
+      { currentPassword: "Password1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid authentication token.",
+    });
+    expect(verify).not.toHaveBeenCalled();
+    expect(usersService.softDelete).not.toHaveBeenCalled();
+    expect(authSessionService.revokeActiveSessionsForUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects account deletion with the wrong current password", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(false);
+
+    const result = authService.deleteCurrentAccount(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "WrongPassword1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid current password.",
+    });
+    expect(usersService.softDelete).not.toHaveBeenCalled();
+    expect(authSessionService.revokeActiveSessionsForUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale account deletion races without revoking sessions", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+    vi.mocked(usersService.softDelete).mockResolvedValue(false);
+
+    const result = authService.deleteCurrentAccount(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid current password.",
+    });
+    expect(usersService.softDelete).toHaveBeenCalledWith("user-id", {
+      deletedAt: expect.any(Date),
+      passwordHash: "hashed-new-password",
+      previousPasswordHash: "old-hash",
+    });
+    expect(authSessionService.revokeActiveSessionsForUser).not.toHaveBeenCalled();
   });
 });
 
