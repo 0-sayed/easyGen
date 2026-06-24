@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
 
+import { AccountActivityPanel } from "../account-activity/AccountActivityPanel";
 import { useAuth } from "../auth/AuthProvider";
 import { ApplicationStatusPanel } from "../status/ApplicationStatusPanel";
 import { authStyles } from "./authStyles";
 
 export function ApplicationPage() {
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { accessToken, logout, user } = useAuth();
 
   function handleLogout() {
     void logout()
@@ -47,6 +48,8 @@ export function ApplicationPage() {
       </section>
 
       <ApplicationStatusPanel />
+
+      <AccountActivityPanel accessToken={accessToken} />
 
       <button className={authStyles.button} type="button" onClick={handleLogout}>
         Log out

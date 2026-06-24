@@ -12,6 +12,7 @@ import { clearAccessToken, getAccessToken, setAccessToken } from "./session";
 import type { SigninFormValues, SignupFormValues } from "./validation";
 
 interface AuthContextValue {
+  accessToken: string | null;
   isLoading: boolean;
   user: PublicUser | null;
   signin: (input: SigninFormValues) => Promise<void>;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
+  const [accessToken, setCurrentAccessToken] = useState<string | null>(() => getAccessToken());
   const [user, setUser] = useState<PublicUser | null>(null);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error.category === "unauthorized"
         ) {
           clearAccessToken();
+          setCurrentAccessToken(null);
           setUser(null);
         }
       })
@@ -64,16 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      accessToken,
       isLoading,
       user,
       signin: async (input) => {
         const response = await signinRequest(input);
         setAccessToken(response.accessToken);
+        setCurrentAccessToken(response.accessToken);
         setUser(response.user);
       },
       signup: async (input) => {
         const response = await signupRequest(input);
         setAccessToken(response.accessToken);
+        setCurrentAccessToken(response.accessToken);
         setUser(response.user);
       },
       logout: async () => {
@@ -85,11 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } finally {
           clearAccessToken();
+          setCurrentAccessToken(null);
           setUser(null);
         }
       },
     }),
-    [isLoading, user]
+    [accessToken, isLoading, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -85,6 +85,23 @@ describe("AuthProvider", () => {
     expect(await screen.findByText("Person Name")).toBeInTheDocument();
   });
 
+  it("surfaces the current access token through auth context", async () => {
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "token-123", user });
+
+    render(
+      <AuthProvider>
+        <TokenProbe />
+        <SigninButton />
+      </AuthProvider>
+    );
+
+    expect(await screen.findByText("token:none")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("token:token-123")).toBeInTheDocument();
+  });
+
   it("revokes the stored token before clearing logout state", async () => {
     setAccessToken("token-123");
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
@@ -190,4 +207,10 @@ function AuthStateProbe() {
       <p data-testid="auth-user">{user?.name ?? "guest"}</p>
     </>
   );
+}
+
+function TokenProbe() {
+  const { accessToken } = useAuth();
+
+  return <p>token:{accessToken ?? "none"}</p>;
 }

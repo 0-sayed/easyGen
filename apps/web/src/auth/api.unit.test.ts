@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/client";
-import { getCurrentUser, logout, signin, signup } from "./api";
+import { getAccountActivity, getCurrentUser, logout, signin, signup } from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const expectedApiUrl =
@@ -74,6 +74,39 @@ describe("auth api", () => {
     });
   });
 
+  it("loads account activity with bearer auth", async () => {
+    const activityResponse = buildAccountActivityResponse();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(activityResponse));
+
+    await expect(getAccountActivity("token-123")).resolves.toEqual(activityResponse);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/activity`, {
+      headers: { Authorization: "Bearer token-123" },
+    });
+  });
+
+  it("rejects malformed account activity responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        activities: [
+          {
+            id: "activity-1",
+            type: "auth.failed",
+            description: "Should not be accepted",
+            occurredAt: "2026-06-24T12:00:00.000Z",
+          },
+        ],
+        limit: 20,
+      })
+    );
+
+    await expect(getAccountActivity("token-123")).rejects.toEqual(
+      new ApiClientError("Unexpected account activity response.", "unexpected")
+    );
+  });
+
   it("rejects signin unauthorized responses with typed API errors", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ message: "Invalid email or password." }, 401)
@@ -130,6 +163,26 @@ function buildAuthResponse() {
       email: buildEmail(),
       name: "Person Name",
     },
+  };
+}
+
+function buildAccountActivityResponse() {
+  return {
+    activities: [
+      {
+        id: `activity-${crypto.randomUUID()}`,
+        type: "auth.signed_in" as const,
+        description: "Signed in",
+        occurredAt: "2026-06-24T12:00:00.000Z",
+      },
+      {
+        id: `activity-${crypto.randomUUID()}`,
+        type: "account.created" as const,
+        description: "Account created",
+        occurredAt: "2026-06-23T09:30:00.000Z",
+      },
+    ],
+    limit: 20,
   };
 }
 
