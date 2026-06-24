@@ -39,7 +39,7 @@ Sizing:
 | [x]  | L    | `T019` — Password reset token flow               | `T015`, `T016`         | `feat/t019-password-reset-flow`        | `planning/context/technical/password-reset.md`                                                                             |
 | [x]  | M    | `T020` — User-facing account activity API        | `T012`, `T015`         | `feat/t020-account-activity-api`       | `planning/context/technical/account-activity-api.md`                                                                       |
 | [ ]  | M    | `T021` — Account settings frontend               | `T017`, `T018`         | `feat/t021-account-settings-frontend`  | `planning/context/business/account-settings-frontend.md`                                                                   |
-| [ ]  | M    | `T022` — Account activity frontend               | `T017`, `T020`         | `feat/t022-account-activity-frontend`  | `planning/context/business/account-activity-frontend.md`                                                                   |
+| [x]  | M    | `T022` — Account activity frontend               | `T017`, `T020`         | `feat/t022-account-activity-frontend`  | `planning/context/business/account-activity-frontend.md`                                                                   |
 | [x]  | L    | `T023` — Account deletion and data lifecycle     | `T015`, `T018`         | `feat/t023-account-data-lifecycle`     | `planning/context/technical/account-data-lifecycle.md`                                                                     |
 
 ## Execution Waves
