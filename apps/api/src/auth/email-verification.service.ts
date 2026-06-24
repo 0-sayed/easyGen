@@ -9,6 +9,7 @@ import type { EmailVerificationConfirmResponse } from "./dto/email-verification-
 import type { EmailVerificationConfirmDto } from "./dto/email-verification-confirm.dto";
 import type { EmailVerificationRequestDto } from "./dto/email-verification-request.dto";
 import type { EmailVerificationResponse } from "./dto/email-verification-response.dto";
+import { AccountActivityService } from "./account-activity.service";
 import { AuthAuditLogger } from "./auth-audit.logger";
 import {
   EMAIL_VERIFICATION_DELIVERY,
@@ -27,7 +28,9 @@ export class EmailVerificationService {
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(EMAIL_VERIFICATION_DELIVERY)
     private readonly delivery: EmailVerificationDelivery,
-    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger
+    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger,
+    @Inject(AccountActivityService)
+    private readonly accountActivityService: AccountActivityService
   ) {}
 
   async requestVerification(dto: EmailVerificationRequestDto): Promise<EmailVerificationResponse> {
@@ -95,6 +98,8 @@ export class EmailVerificationService {
     if (verifiedUser === null) {
       throw invalidVerificationToken();
     }
+
+    await this.accountActivityService.recordEmailVerified(verifiedUser.id);
 
     return { user: toPublicUser(verifiedUser) };
   }
