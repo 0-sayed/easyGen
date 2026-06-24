@@ -377,9 +377,9 @@ describe("App routes", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
     expect(screen.getByText("person@example.com")).toBeInTheDocument();
-    expect(await screen.findByRole("status", { name: "Account activity unavailable" })).toHaveTextContent(
-      "Recent account activity is unavailable."
-    );
+    expect(
+      await screen.findByRole("status", { name: "Account activity unavailable" })
+    ).toHaveTextContent("Recent account activity is unavailable.");
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });
 

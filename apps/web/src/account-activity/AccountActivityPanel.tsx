@@ -7,6 +7,11 @@ type ActivityState =
   | { status: "ready"; activities: AccountActivityEntry[] }
   | { status: "failed" };
 
+const activityTimestampFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 export function AccountActivityPanel({ accessToken }: { accessToken: string | null }) {
   const [state, setState] = useState<ActivityState>(() =>
     accessToken === null ? { status: "failed" } : { status: "loading" }
@@ -48,7 +53,10 @@ export function AccountActivityPanel({ accessToken }: { accessToken: string | nu
         <p className="mb-2 mt-0 text-xs font-extrabold uppercase tracking-wide text-brand">
           Account activity
         </p>
-        <h2 id="account-activity-title" className="m-0 text-xl font-semibold leading-tight text-ink">
+        <h2
+          id="account-activity-title"
+          className="m-0 text-xl font-semibold leading-tight text-ink"
+        >
           Recent activity
         </h2>
       </div>
@@ -81,7 +89,10 @@ export function AccountActivityPanel({ accessToken }: { accessToken: string | nu
       {state.status === "ready" && state.activities.length > 0 ? (
         <ol className="m-0 grid list-none gap-3 p-0" aria-label="Recent account activity">
           {state.activities.map((activity) => (
-            <li className="grid gap-1 border-t border-line pt-3 first:border-t-0 first:pt-0" key={activity.id}>
+            <li
+              className="grid gap-1 border-t border-line pt-3 first:border-t-0 first:pt-0"
+              key={activity.id}
+            >
               <span className="text-sm font-bold leading-5 text-label">{activity.description}</span>
               <time className="text-sm leading-5 text-muted" dateTime={activity.occurredAt}>
                 {formatActivityTimestamp(activity.occurredAt)}
@@ -101,8 +112,5 @@ function formatActivityTimestamp(value: string): string {
     return "Unknown time";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return activityTimestampFormatter.format(date);
 }

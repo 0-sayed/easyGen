@@ -12,7 +12,7 @@ export interface AuthResponse {
   user: PublicUser;
 }
 
-export type AccountActivityType =
+type AccountActivityType =
   | "account.created"
   | "auth.signed_in"
   | "auth.signed_out"
@@ -65,9 +65,7 @@ export async function logout(accessToken: string): Promise<void> {
   });
 }
 
-export async function getAccountActivity(
-  accessToken: string
-): Promise<AccountActivityResponse> {
+export async function getAccountActivity(accessToken: string): Promise<AccountActivityResponse> {
   return readAccountActivityResponse(
     await apiRequest("/auth/activity", {
       headers: { Authorization: `Bearer ${accessToken}` },

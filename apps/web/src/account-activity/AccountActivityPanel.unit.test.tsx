@@ -30,7 +30,9 @@ describe("AccountActivityPanel", () => {
   });
 
   it("renders loading state while activity is loading", () => {
-    vi.spyOn(authApi, "getAccountActivity").mockImplementationOnce(() => new Promise(() => undefined));
+    vi.spyOn(authApi, "getAccountActivity").mockImplementationOnce(
+      () => new Promise(() => undefined)
+    );
 
     render(<AccountActivityPanel accessToken="token-123" />);
 
@@ -47,7 +49,9 @@ describe("AccountActivityPanel", () => {
 
     render(<AccountActivityPanel accessToken="token-123" />);
 
-    expect(await screen.findByRole("list", { name: "Recent account activity" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("list", { name: "Recent account activity" })
+    ).toBeInTheDocument();
     expect(screen.getByText("Signed in")).toBeInTheDocument();
     expect(screen.getByText("Account created")).toBeInTheDocument();
     expect(
@@ -76,7 +80,9 @@ describe("AccountActivityPanel", () => {
 
     render(<AccountActivityPanel accessToken="token-123" />);
 
-    expect(await screen.findByRole("list", { name: "Recent account activity" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("list", { name: "Recent account activity" })
+    ).toBeInTheDocument();
     expect(screen.getByText("Unknown time")).toBeInTheDocument();
   });
 
