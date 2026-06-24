@@ -56,6 +56,7 @@ Copy `.env.example` to `.env`.
 | `JWT_SECRET`                      | JWT signing secret required by the API                                                  | empty; set in local `.env`                                |
 | `JWT_EXPIRES_IN`                  | JWT access token lifetime; duration such as `15m`, `1h`, or `7d`                        | `15m`                                                     |
 | `EMAIL_VERIFICATION_TOKEN_TTL_MS` | Email verification token lifetime in milliseconds                                       | `900000`                                                  |
+| `PASSWORD_RESET_TOKEN_TTL_MS`     | Password reset token lifetime in milliseconds                                           | `900000`                                                  |
 | `AUTH_THROTTLE_LIMIT`             | Auth attempts allowed per throttle window                                               | `5`                                                       |
 | `AUTH_THROTTLE_MAX_ENTRIES`       | Maximum in-memory auth throttle windows per API process                                 | `10000`                                                   |
 | `AUTH_THROTTLE_WINDOW_MS`         | Auth throttle window duration in milliseconds                                           | `60000`                                                   |
@@ -77,6 +78,8 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 - `POST /auth/signin`
 - `POST /auth/email-verification/request`
 - `POST /auth/email-verification/confirm`
+- `POST /auth/password-reset/request`
+- `POST /auth/password-reset/confirm`
 - `POST /auth/logout` - revokes the current bearer token; requires a bearer token.
 - `GET /auth/me` - requires a bearer token.
 - `GET /docs`
@@ -90,6 +93,8 @@ Use `/health` for process liveness probes and `/ready` for traffic readiness pro
 - `POST /auth/signin` returns an access token for valid credentials.
 - `POST /auth/email-verification/request` prepares a verification token and logs delivery metadata as `auth.email_verification.token`; the raw token is not logged.
 - `POST /auth/email-verification/confirm` consumes that token once for the matching email address.
+- `POST /auth/password-reset/request` prepares a password reset token and logs delivery metadata as `auth.password_reset.token`; the raw token is not logged.
+- `POST /auth/password-reset/confirm` consumes that token once for the matching email address, updates the password, and revokes active sessions for the user.
 - `POST /auth/logout` revokes the stored token on the backend; a revoked token is rejected by protected endpoints.
 - `GET /auth/me` verifies the stored token and powers the protected application page.
 - The React app provides `/signup`, `/signin`, and `/app`.

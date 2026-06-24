@@ -40,6 +40,15 @@ describe("AuthSessionService", () => {
     expect(repository.revoke).not.toHaveBeenCalled();
   });
 
+  it("revokes all active sessions for a user", async () => {
+    const repository = createRepository();
+    const service = new AuthSessionService(repository as AuthSessionRepository);
+
+    await service.revokeActiveSessionsForUser("user-123");
+
+    expect(repository.revokeActiveForUser).toHaveBeenCalledWith("user-123");
+  });
+
   it("rejects other-session revocation payloads without a token id before querying sessions", async () => {
     const repository = createRepository();
     const service = new AuthSessionService(repository as AuthSessionRepository);
@@ -72,12 +81,18 @@ describe("AuthSessionService", () => {
 });
 
 function createRepository(
-  overrides: Partial<Pick<AuthSessionRepository, "existsActive" | "revoke" | "revokeOthers">> = {}
-): Pick<AuthSessionRepository, "create" | "existsActive" | "revoke" | "revokeOthers"> {
+  overrides: Partial<
+    Pick<AuthSessionRepository, "existsActive" | "revoke" | "revokeActiveForUser" | "revokeOthers">
+  > = {}
+): Pick<
+  AuthSessionRepository,
+  "create" | "existsActive" | "revoke" | "revokeActiveForUser" | "revokeOthers"
+> {
   return {
     create: vi.fn(),
     existsActive: vi.fn(() => Promise.resolve(false)),
     revoke: vi.fn(() => Promise.resolve()),
+    revokeActiveForUser: vi.fn(() => Promise.resolve()),
     revokeOthers: vi.fn(() => Promise.resolve()),
     ...overrides,
   };

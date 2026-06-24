@@ -62,6 +62,19 @@ export class AuthSessionRepository {
       .exec();
   }
 
+  async revokeActiveForUser(userId: string, revokedAt = new Date()): Promise<void> {
+    await this.authSessionModel
+      .updateMany(
+        {
+          expiresAt: { $gt: revokedAt },
+          revokedAt: null,
+          userId,
+        },
+        { $set: { revokedAt } }
+      )
+      .exec();
+  }
+
   async revokeOthers(input: RevokeOtherSessionsInput, revokedAt = new Date()): Promise<void> {
     await this.authSessionModel
       .updateMany(

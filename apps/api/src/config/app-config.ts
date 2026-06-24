@@ -2,6 +2,7 @@ import { mongo } from "mongoose";
 
 const DEFAULT_JWT_EXPIRES_IN = "15m";
 const DEFAULT_EMAIL_VERIFICATION_TOKEN_TTL_MS = "900000";
+const DEFAULT_PASSWORD_RESET_TOKEN_TTL_MS = "900000";
 const DEFAULT_LOG_LEVEL = "info";
 const DEFAULT_MONGODB_HOST = "127.0.0.1";
 const DEFAULT_MONGODB_PORT = "27018";
@@ -19,6 +20,7 @@ export type ValidatedAppConfig = Record<string, unknown> & {
   LOG_LEVEL: LogLevel;
   MONGODB_PORT: string;
   MONGODB_URI: string;
+  PASSWORD_RESET_TOKEN_TTL_MS: string;
   PORT: string;
   WEB_PORT: string;
 };
@@ -43,6 +45,10 @@ export function validateAppConfig(config: Record<string, unknown>): ValidatedApp
       DEFAULT_EMAIL_VERIFICATION_TOKEN_TTL_MS,
     "EMAIL_VERIFICATION_TOKEN_TTL_MS"
   );
+  const passwordResetTokenTtlMs = parsePositiveIntegerString(
+    readOptionalString(config.PASSWORD_RESET_TOKEN_TTL_MS) ?? DEFAULT_PASSWORD_RESET_TOKEN_TTL_MS,
+    "PASSWORD_RESET_TOKEN_TTL_MS"
+  );
   const logLevel = parseLogLevel(readOptionalString(config.LOG_LEVEL) ?? DEFAULT_LOG_LEVEL);
   const mongodbUri = parseMongodbUri(
     readOptionalString(config.MONGODB_URI) ?? buildLocalMongodbUri(mongodbPort)
@@ -56,6 +62,7 @@ export function validateAppConfig(config: Record<string, unknown>): ValidatedApp
     LOG_LEVEL: logLevel,
     MONGODB_PORT: mongodbPort,
     MONGODB_URI: mongodbUri,
+    PASSWORD_RESET_TOKEN_TTL_MS: passwordResetTokenTtlMs,
     PORT: port,
     WEB_PORT: webPort,
   };

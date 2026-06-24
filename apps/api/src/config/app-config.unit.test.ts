@@ -13,6 +13,7 @@ describe("validateAppConfig", () => {
       LOG_LEVEL: "info",
       MONGODB_PORT: "27018",
       MONGODB_URI: "mongodb://127.0.0.1:27018/easygen?directConnection=true",
+      PASSWORD_RESET_TOKEN_TTL_MS: "900000",
       PORT: "3000",
       WEB_PORT: "5173",
     });
@@ -26,6 +27,7 @@ describe("validateAppConfig", () => {
       LOG_LEVEL: "warn",
       MONGODB_PORT: "37018",
       MONGODB_URI: "mongodb://mongo.example.test:27017/easygen",
+      PASSWORD_RESET_TOKEN_TTL_MS: "120000",
       PORT: "8080",
       WEB_PORT: "4173",
     });
@@ -37,6 +39,7 @@ describe("validateAppConfig", () => {
       LOG_LEVEL: "warn",
       MONGODB_PORT: "37018",
       MONGODB_URI: "mongodb://mongo.example.test:27017/easygen",
+      PASSWORD_RESET_TOKEN_TTL_MS: "120000",
       PORT: "8080",
       WEB_PORT: "4173",
     });
@@ -76,6 +79,10 @@ describe("validateAppConfig", () => {
     [
       { JWT_SECRET: "secret", EMAIL_VERIFICATION_TOKEN_TTL_MS: "0" },
       "EMAIL_VERIFICATION_TOKEN_TTL_MS must be a positive integer.",
+    ],
+    [
+      { JWT_SECRET: "secret", PASSWORD_RESET_TOKEN_TTL_MS: "0" },
+      "PASSWORD_RESET_TOKEN_TTL_MS must be a positive integer.",
     ],
     [
       { JWT_SECRET: "secret", MONGODB_URI: "https://example.test" },

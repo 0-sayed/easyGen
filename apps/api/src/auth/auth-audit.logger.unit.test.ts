@@ -156,6 +156,28 @@ describe("AuthAuditLogger", () => {
     expect(JSON.stringify(payload)).not.toContain("secret-verification-token");
   });
 
+  it("logs password reset delivery failure without raw email or token fields", () => {
+    const { auditLogger, error } = createLogger();
+
+    auditLogger.logPasswordResetDeliveryFailure({
+      email: "Person@Example.com ",
+      error: new Error("smtp failed"),
+      userId: "user-123",
+    });
+
+    const payload = error.mock.calls[0]?.[0];
+    expect(payload).toMatchObject({
+      audit: true,
+      emailHash: "542d240129883c019e106e3b1b2d3f3cb3537c43c425364de8e951d5a3083345",
+      errorName: "Error",
+      event: "auth.password_reset.delivery_failure",
+      reason: "delivery_failed",
+      userId: "user-123",
+    });
+    expect(JSON.stringify(payload)).not.toContain("Person@Example.com");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("reset-token");
+  });
+
   it("logs user lookup failure with whitelist-only payload keys even if email is present", () => {
     const { auditLogger, info } = createLogger();
 

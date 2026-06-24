@@ -32,6 +32,10 @@ export class AuthSessionService {
     await this.authSessionRepository.revoke(readSessionLookup(payload));
   }
 
+  async revokeActiveSessionsForUser(userId: string): Promise<void> {
+    await this.authSessionRepository.revokeActiveForUser(userId);
+  }
+
   async revokeOtherSessions(payload: JwtPayload): Promise<void> {
     const lookup = readSessionLookup(payload);
 

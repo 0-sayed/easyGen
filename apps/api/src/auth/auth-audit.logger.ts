@@ -4,6 +4,7 @@ import { PinoLogger } from "nestjs-pino";
 
 type AuthAuditEvent =
   | "auth.email_verification.delivery_failure"
+  | "auth.password_reset.delivery_failure"
   | "auth.signup.success"
   | "auth.signup.failure"
   | "auth.signin.success"
@@ -33,6 +34,11 @@ interface AuthAuditContext {
   userAgent?: string;
 }
 
+interface AuthAuditErrorContext extends AuthAuditContext {
+  error?: unknown;
+  errorName?: string;
+}
+
 interface AuthAuditPayload {
   audit: true;
   event: AuthAuditEvent;
@@ -57,6 +63,7 @@ interface AuthAuditLogInput {
   correlationId?: string;
   email?: string;
   error?: unknown;
+  errorName?: string;
   ip?: string;
   reason?: AuthAuditFailureReason;
   userAgent?: string;
@@ -96,11 +103,17 @@ export class AuthAuditLogger {
     this.log("auth.token.failure", input);
   }
 
-  logEmailVerificationDeliveryFailure(
-    input: AuthAuditContext & { error: unknown; userId: string }
-  ): void {
+  logEmailVerificationDeliveryFailure(input: AuthAuditErrorContext & { userId: string }): void {
     this.log(
       "auth.email_verification.delivery_failure",
+      { ...input, reason: "delivery_failed" },
+      "error"
+    );
+  }
+
+  logPasswordResetDeliveryFailure(input: AuthAuditErrorContext & { userId: string }): void {
+    this.log(
+      "auth.password_reset.delivery_failure",
       { ...input, reason: "delivery_failed" },
       "error"
     );
@@ -151,7 +164,9 @@ export class AuthAuditLogger {
     if (input.email !== undefined) {
       payload.emailHash = hashEmail(input.email);
     }
-    if (input.error !== undefined) {
+    if (input.errorName !== undefined) {
+      payload.errorName = input.errorName;
+    } else if (input.error !== undefined) {
       payload.errorName = getErrorName(input.error);
     }
     if (input.ip !== undefined) {
