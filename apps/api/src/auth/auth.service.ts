@@ -1,4 +1,10 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { argon2id, hash, verify } from "argon2";
 import { randomUUID } from "node:crypto";
@@ -17,6 +23,7 @@ import type { JwtPayload } from "./jwt-payload";
 const DUMMY_PASSWORD_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$YW55c2FsdHNhbHQ$R29vZEJ5ZSBXb3JsZCBHb29kQnllIFdvcmxk";
 const DUPLICATE_SIGNUP_MESSAGE = "Unable to create account with the provided details.";
+const INVALID_CURRENT_PASSWORD_MESSAGE = "Invalid current password.";
 
 @Injectable()
 export class AuthService {
@@ -85,11 +92,24 @@ export class AuthService {
     const passwordMatches = await verify(user.passwordHash, dto.currentPassword);
 
     if (!passwordMatches) {
-      throw new UnauthorizedException("Invalid email or password.");
+      throw new UnauthorizedException(INVALID_CURRENT_PASSWORD_MESSAGE);
+    }
+
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException("New password must be different from current password.");
     }
 
     const passwordHash = await hash(dto.newPassword, { type: argon2id });
-    await this.usersService.updatePasswordHash(user.id, passwordHash);
+    const passwordUpdated = await this.usersService.updatePasswordHash(
+      user.id,
+      passwordHash,
+      user.passwordHash
+    );
+
+    if (!passwordUpdated) {
+      throw new UnauthorizedException(INVALID_CURRENT_PASSWORD_MESSAGE);
+    }
+
     await this.authSessionService.revokeOtherSessions(payload);
   }
 

@@ -1,4 +1,4 @@
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { hash, verify } from "argon2";
@@ -252,6 +252,7 @@ describe("AuthService", () => {
       passwordHash: "old-hash",
     });
     vi.mocked(verify).mockResolvedValue(true);
+    vi.mocked(usersService.updatePasswordHash).mockResolvedValue(true);
 
     await authService.changePassword(
       { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
@@ -260,7 +261,11 @@ describe("AuthService", () => {
 
     expect(verify).toHaveBeenCalledWith("old-hash", "Password1!");
     expect(hash).toHaveBeenCalledWith("NewPassword1!", { type: expect.any(Number) });
-    expect(usersService.updatePasswordHash).toHaveBeenCalledWith("user-id", "hashed-new-password");
+    expect(usersService.updatePasswordHash).toHaveBeenCalledWith(
+      "user-id",
+      "hashed-new-password",
+      "old-hash"
+    );
     expect(authSessionService.revokeOtherSessions).toHaveBeenCalledWith({
       email: "person@example.com",
       jti: "current-token-id",
@@ -305,10 +310,66 @@ describe("AuthService", () => {
 
     await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(result).rejects.toMatchObject({
-      message: "Invalid email or password.",
+      message: "Invalid current password.",
     });
 
     expect(usersService.updatePasswordHash).not.toHaveBeenCalled();
+    expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
+  });
+
+  it("rejects password changes that reuse the current password", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+
+    const result = authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!", newPassword: "Password1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(BadRequestException);
+    await expect(result).rejects.toMatchObject({
+      message: "New password must be different from current password.",
+    });
+
+    expect(hash).not.toHaveBeenCalled();
+    expect(usersService.updatePasswordHash).not.toHaveBeenCalled();
+    expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale password changes without revoking sessions", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+    vi.mocked(usersService.updatePasswordHash).mockResolvedValue(false);
+
+    const result = authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!", newPassword: "NewPassword1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid current password.",
+    });
+
+    expect(usersService.updatePasswordHash).toHaveBeenCalledWith(
+      "user-id",
+      "hashed-new-password",
+      "old-hash"
+    );
     expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
   });
 });

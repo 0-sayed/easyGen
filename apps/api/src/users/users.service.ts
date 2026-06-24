@@ -33,8 +33,12 @@ export class UsersService {
     return this.usersRepository.updateProfile(id, input);
   }
 
-  updatePasswordHash(id: string, passwordHash: string): Promise<void> {
-    return this.usersRepository.updatePasswordHash(id, passwordHash);
+  updatePasswordHash(
+    id: string,
+    passwordHash: string,
+    expectedCurrentPasswordHash: string
+  ): Promise<boolean> {
+    return this.usersRepository.updatePasswordHash(id, passwordHash, expectedCurrentPasswordHash);
   }
 
   findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {

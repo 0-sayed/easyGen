@@ -121,12 +121,20 @@ export class UsersRepository {
     };
   }
 
-  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+  async updatePasswordHash(
+    id: string,
+    passwordHash: string,
+    expectedCurrentPasswordHash: string
+  ): Promise<boolean> {
     if (!isObjectIdString(id)) {
-      return;
+      return false;
     }
 
-    await this.userModel.updateOne({ _id: id }, { $set: { passwordHash } }).exec();
+    const result = await this.userModel
+      .updateOne({ _id: id, passwordHash: expectedCurrentPasswordHash }, { $set: { passwordHash } })
+      .exec();
+
+    return result.matchedCount === 1;
   }
 
   async findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
