@@ -28,7 +28,7 @@ export class AccountActivityRepository {
   async listRecentForUser(userId: string, limit: number): Promise<AccountActivityEventRecord[]> {
     const events = await this.accountActivityEventModel
       .find({ userId })
-      .sort({ occurredAt: -1 })
+      .sort({ occurredAt: -1, _id: -1 })
       .limit(limit)
       .lean<AccountActivityEventDocument[]>()
       .exec();

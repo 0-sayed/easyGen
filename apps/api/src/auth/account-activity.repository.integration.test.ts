@@ -104,6 +104,35 @@ describe("AccountActivityRepository persistence contract", () => {
     expect(activities.at(-1)?.occurredAt).toEqual(new Date("2026-06-24T10:05:00.000Z"));
   });
 
+  it("uses a stable newest-created tie-breaker for matching activity timestamps", async () => {
+    const userId = testUserId("same-time");
+    const occurredAt = new Date("2026-06-24T10:00:00.000Z");
+
+    await getRepository().create({
+      occurredAt,
+      type: "account.created",
+      userId,
+    });
+    await getRepository().create({
+      occurredAt,
+      type: "auth.signed_in",
+      userId,
+    });
+
+    await expect(getRepository().listRecentForUser(userId, 20)).resolves.toMatchObject([
+      {
+        occurredAt,
+        type: "auth.signed_in",
+        userId,
+      },
+      {
+        occurredAt,
+        type: "account.created",
+        userId,
+      },
+    ]);
+  });
+
   function getRepository(): AccountActivityRepository {
     if (repository === undefined) {
       throw new Error("AccountActivityRepository was not initialized.");

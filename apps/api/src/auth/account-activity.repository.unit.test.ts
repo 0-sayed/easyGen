@@ -18,7 +18,7 @@ describe("AccountActivityRepository", () => {
     await repository.listRecentForUser("user-123", 20);
 
     expect(find).toHaveBeenCalledWith({ userId: "user-123" });
-    expect(sort).toHaveBeenCalledWith({ occurredAt: -1 });
+    expect(sort).toHaveBeenCalledWith({ occurredAt: -1, _id: -1 });
     expect(limit).toHaveBeenCalledWith(20);
   });
 });

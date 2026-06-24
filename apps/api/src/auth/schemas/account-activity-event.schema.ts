@@ -16,4 +16,4 @@ export class AccountActivityEvent {
 
 export const AccountActivityEventSchema = SchemaFactory.createForClass(AccountActivityEvent);
 
-AccountActivityEventSchema.index({ userId: 1, occurredAt: -1 });
+AccountActivityEventSchema.index({ userId: 1, occurredAt: -1, _id: -1 });
