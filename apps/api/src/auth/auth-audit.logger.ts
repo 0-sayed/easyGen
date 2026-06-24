@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { PinoLogger } from "nestjs-pino";
 
 type AuthAuditEvent =
+  | "auth.email_verification.delivery_failure"
   | "auth.signup.success"
   | "auth.signup.failure"
   | "auth.signin.success"
@@ -12,6 +13,7 @@ type AuthAuditEvent =
   | "auth.user_lookup.failure";
 
 type AuthAuditFailureReason =
+  | "delivery_failed"
   | "duplicate_signup"
   | "invalid_credentials"
   | "invalid_token"
@@ -33,6 +35,7 @@ interface AuthAuditPayload {
   event: AuthAuditEvent;
   correlationId?: string;
   emailHash?: string;
+  errorName?: string;
   ip?: string;
   reason?: AuthAuditFailureReason;
   userAgent?: string;
@@ -50,6 +53,7 @@ interface AuthAuditFailureInput extends AuthAuditContext {
 interface AuthAuditLogInput {
   correlationId?: string;
   email?: string;
+  error?: unknown;
   ip?: string;
   reason?: AuthAuditFailureReason;
   userAgent?: string;
@@ -57,6 +61,7 @@ interface AuthAuditLogInput {
 }
 
 interface AuthAuditSink {
+  error?: (payload: AuthAuditPayload, message: string) => void;
   info(payload: AuthAuditPayload, message: string): void;
 }
 
@@ -88,6 +93,16 @@ export class AuthAuditLogger {
     this.log("auth.token.failure", input);
   }
 
+  logEmailVerificationDeliveryFailure(
+    input: AuthAuditContext & { error: unknown; userId: string }
+  ): void {
+    this.log(
+      "auth.email_verification.delivery_failure",
+      { ...input, reason: "delivery_failed" },
+      "error"
+    );
+  }
+
   logUserLookupFailure(input: Omit<AuthAuditContext, "email"> & { userId?: string }): void {
     this.log("auth.user_lookup.failure", {
       correlationId: input.correlationId,
@@ -98,7 +113,11 @@ export class AuthAuditLogger {
     });
   }
 
-  private log(event: AuthAuditEvent, input: AuthAuditLogInput): void {
+  private log(
+    event: AuthAuditEvent,
+    input: AuthAuditLogInput,
+    level: "error" | "info" = "info"
+  ): void {
     const payload: AuthAuditPayload = {
       audit: true,
       event,
@@ -109,6 +128,9 @@ export class AuthAuditLogger {
     }
     if (input.email !== undefined) {
       payload.emailHash = hashEmail(input.email);
+    }
+    if (input.error !== undefined) {
+      payload.errorName = getErrorName(input.error);
     }
     if (input.ip !== undefined) {
       payload.ip = input.ip;
@@ -123,7 +145,13 @@ export class AuthAuditLogger {
       payload.userId = input.userId;
     }
 
-    this.getAuditSink().info(payload, "auth audit event");
+    const sink = this.getAuditSink();
+    if (level === "error" && sink.error !== undefined) {
+      sink.error(payload, "auth audit event");
+      return;
+    }
+
+    sink.info(payload, "auth audit event");
   }
 
   private getAuditSink(): AuthAuditSink {
@@ -134,6 +162,10 @@ export class AuthAuditLogger {
 
 function hashEmail(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+}
+
+function getErrorName(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
 }
 
 function isAuthAuditSink(value: unknown): value is AuthAuditSink {

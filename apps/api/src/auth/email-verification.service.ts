@@ -9,6 +9,7 @@ import type { EmailVerificationConfirmResponse } from "./dto/email-verification-
 import type { EmailVerificationConfirmDto } from "./dto/email-verification-confirm.dto";
 import type { EmailVerificationRequestDto } from "./dto/email-verification-request.dto";
 import type { EmailVerificationResponse } from "./dto/email-verification-response.dto";
+import { AuthAuditLogger } from "./auth-audit.logger";
 import {
   EMAIL_VERIFICATION_DELIVERY,
   type EmailVerificationDelivery,
@@ -25,7 +26,8 @@ export class EmailVerificationService {
     @Inject(UsersService) private readonly usersService: UsersService,
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(EMAIL_VERIFICATION_DELIVERY)
-    private readonly delivery: EmailVerificationDelivery
+    private readonly delivery: EmailVerificationDelivery,
+    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger
   ) {}
 
   async requestVerification(dto: EmailVerificationRequestDto): Promise<EmailVerificationResponse> {
@@ -53,7 +55,13 @@ export class EmailVerificationService {
         expiresAt,
         token,
       });
-    } catch {
+    } catch (error) {
+      this.authAuditLogger.logEmailVerificationDeliveryFailure({
+        email: storedUser.email,
+        error,
+        userId: storedUser.id,
+      });
+
       return { message: EMAIL_VERIFICATION_REQUEST_MESSAGE };
     }
 

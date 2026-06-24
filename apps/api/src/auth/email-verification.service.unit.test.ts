@@ -1,10 +1,11 @@
 import { ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import { createHash, randomUUID } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import type { UserVerificationState } from "../users/user.types";
 import { UsersService } from "../users/users.service";
+import { AuthAuditLogger } from "./auth-audit.logger";
 import {
   EMAIL_VERIFICATION_DELIVERY,
   type EmailVerificationDelivery,
@@ -33,6 +34,8 @@ describe("EmailVerificationService", () => {
   >;
   let configGet: ReturnType<typeof vi.fn>;
   let delivery: EmailVerificationDelivery;
+  let sendVerificationToken: Mock<EmailVerificationDelivery["sendVerificationToken"]>;
+  let authAuditLogger: { logEmailVerificationDeliveryFailure: ReturnType<typeof vi.fn> };
   let sentMessages: EmailVerificationDeliveryMessage[];
 
   beforeEach(async () => {
@@ -47,16 +50,24 @@ describe("EmailVerificationService", () => {
     };
     vi.mocked(usersService.setEmailVerificationToken).mockResolvedValue(unverifiedUser());
     configGet = vi.fn(() => 900_000);
+    sendVerificationToken = vi.fn((message) => {
+      sentMessages.push(message);
+      return Promise.resolve();
+    });
     delivery = {
-      sendVerificationToken: vi.fn((message) => {
-        sentMessages.push(message);
-        return Promise.resolve();
-      }),
+      sendVerificationToken,
+    };
+    authAuditLogger = {
+      logEmailVerificationDeliveryFailure: vi.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         EmailVerificationService,
+        {
+          provide: AuthAuditLogger,
+          useValue: authAuditLogger,
+        },
         {
           provide: UsersService,
           useValue: usersService,
@@ -125,13 +136,26 @@ describe("EmailVerificationService", () => {
 
   it("returns generic response when verification delivery fails", async () => {
     vi.mocked(usersService.findVerificationStateByEmail).mockResolvedValue(unverifiedUser());
-    delivery.sendVerificationToken = vi.fn(() => Promise.reject(new Error("delivery failed")));
+    sendVerificationToken.mockRejectedValue(new Error("delivery failed"));
 
     await expect(service.requestVerification({ email: TEST_FIXTURE.email })).resolves.toEqual({
       message: REQUEST_MESSAGE,
     });
 
     expect(usersService.setEmailVerificationToken).toHaveBeenCalledTimes(1);
+    const token = sendVerificationToken.mock.calls[0]?.[0].token;
+    expect(authAuditLogger.logEmailVerificationDeliveryFailure).toHaveBeenCalledWith({
+      email: TEST_FIXTURE.email,
+      error: expect.any(Error),
+      userId: TEST_FIXTURE.userId,
+    });
+    expect(token).toBeDefined();
+    if (token === undefined) {
+      throw new Error("Expected verification token delivery attempt.");
+    }
+    expect(
+      JSON.stringify(authAuditLogger.logEmailVerificationDeliveryFailure.mock.calls)
+    ).not.toContain(token);
   });
 
   it("uses a positive custom ttl and falls back for invalid ttl values", async () => {
