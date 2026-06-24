@@ -31,6 +31,15 @@ export class AuthSessionService {
   async revokeCurrentSession(payload: JwtPayload): Promise<void> {
     await this.authSessionRepository.revoke(readSessionLookup(payload));
   }
+
+  async revokeOtherSessions(payload: JwtPayload): Promise<void> {
+    const lookup = readSessionLookup(payload);
+
+    await this.authSessionRepository.revokeOthers({
+      exceptTokenId: lookup.tokenId,
+      userId: lookup.userId,
+    });
+  }
 }
 
 function readSessionLookup(payload: JwtPayload): { tokenId: string; userId: string } {

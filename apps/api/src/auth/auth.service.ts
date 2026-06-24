@@ -8,8 +8,10 @@ import type { PublicUser, UserWithPasswordHash } from "../users/user.types";
 import { UsersService } from "../users/users.service";
 import { AuthSessionService } from "./auth-session.service";
 import type { AuthResponse } from "./dto/auth-response.dto";
+import type { ChangePasswordDto } from "./dto/change-password.dto";
 import type { SigninDto } from "./dto/signin.dto";
 import type { SignupDto } from "./dto/signup.dto";
+import type { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { JwtPayload } from "./jwt-payload";
 
 const DUMMY_PASSWORD_HASH =
@@ -61,6 +63,34 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async updateCurrentUserProfile(userId: string, dto: UpdateProfileDto): Promise<PublicUser> {
+    const user = await this.usersService.updateProfile(userId, { name: dto.name });
+
+    if (user === null) {
+      throw new UnauthorizedException("Invalid authentication token.");
+    }
+
+    return user;
+  }
+
+  async changePassword(payload: JwtPayload, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.usersService.findByIdWithPasswordHash(payload.sub);
+
+    if (user === null) {
+      throw new UnauthorizedException("Invalid authentication token.");
+    }
+
+    const passwordMatches = await verify(user.passwordHash, dto.currentPassword);
+
+    if (!passwordMatches) {
+      throw new UnauthorizedException("Invalid email or password.");
+    }
+
+    const passwordHash = await hash(dto.newPassword, { type: argon2id });
+    await this.usersService.updatePasswordHash(user.id, passwordHash);
+    await this.authSessionService.revokeOtherSessions(payload);
   }
 
   async logout(payload: JwtPayload): Promise<void> {

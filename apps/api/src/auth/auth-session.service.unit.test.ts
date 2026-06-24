@@ -39,15 +39,46 @@ describe("AuthSessionService", () => {
 
     expect(repository.revoke).not.toHaveBeenCalled();
   });
+
+  it("rejects other-session revocation payloads without a token id before querying sessions", async () => {
+    const repository = createRepository();
+    const service = new AuthSessionService(repository as AuthSessionRepository);
+
+    await expect(
+      service.revokeOtherSessions({
+        email: "person@example.com",
+        sub: "user-id",
+      } as JwtPayload)
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(repository.revokeOthers).not.toHaveBeenCalled();
+  });
+
+  it("revokes active sessions for the same user except the current token", async () => {
+    const repository = createRepository();
+    const service = new AuthSessionService(repository as AuthSessionRepository);
+
+    await service.revokeOtherSessions({
+      email: "person@example.com",
+      jti: "current-token-id",
+      sub: "user-id",
+    });
+
+    expect(repository.revokeOthers).toHaveBeenCalledWith({
+      exceptTokenId: "current-token-id",
+      userId: "user-id",
+    });
+  });
 });
 
 function createRepository(
-  overrides: Partial<Pick<AuthSessionRepository, "existsActive" | "revoke">> = {}
-): Pick<AuthSessionRepository, "create" | "existsActive" | "revoke"> {
+  overrides: Partial<Pick<AuthSessionRepository, "existsActive" | "revoke" | "revokeOthers">> = {}
+): Pick<AuthSessionRepository, "create" | "existsActive" | "revoke" | "revokeOthers"> {
   return {
     create: vi.fn(),
     existsActive: vi.fn(() => Promise.resolve(false)),
     revoke: vi.fn(() => Promise.resolve()),
+    revokeOthers: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }

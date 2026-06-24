@@ -15,6 +15,11 @@ interface SessionLookupInput {
   userId: string;
 }
 
+interface RevokeOtherSessionsInput {
+  exceptTokenId: string;
+  userId: string;
+}
+
 @Injectable()
 export class AuthSessionRepository {
   constructor(
@@ -50,6 +55,20 @@ export class AuthSessionRepository {
           expiresAt: { $gt: revokedAt },
           revokedAt: null,
           tokenId: input.tokenId,
+          userId: input.userId,
+        },
+        { $set: { revokedAt } }
+      )
+      .exec();
+  }
+
+  async revokeOthers(input: RevokeOtherSessionsInput, revokedAt = new Date()): Promise<void> {
+    await this.authSessionModel
+      .updateMany(
+        {
+          expiresAt: { $gt: revokedAt },
+          revokedAt: null,
+          tokenId: { $ne: input.exceptTokenId },
           userId: input.userId,
         },
         { $set: { revokedAt } }
