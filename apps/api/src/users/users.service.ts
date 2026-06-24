@@ -34,6 +34,22 @@ export class UsersService {
     return this.usersRepository.findPublicById(id);
   }
 
+  findByIdWithPasswordHash(id: string): Promise<UserWithPasswordHash | null> {
+    return this.usersRepository.findByIdWithPasswordHash(id);
+  }
+
+  updateProfile(id: string, input: { name: string }): Promise<PublicUser | null> {
+    return this.usersRepository.updateProfile(id, input);
+  }
+
+  updatePasswordHash(
+    id: string,
+    passwordHash: string,
+    expectedCurrentPasswordHash: string
+  ): Promise<boolean> {
+    return this.usersRepository.updatePasswordHash(id, passwordHash, expectedCurrentPasswordHash);
+  }
+
   findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
     return this.usersRepository.findVerificationStateByEmail(email);
   }

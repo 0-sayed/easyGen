@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Patch,
   Post,
   Req,
   UnauthorizedException,
@@ -42,6 +43,8 @@ import { PasswordResetRequestDto } from "./dto/password-reset-request.dto";
 import { PasswordResetResponse } from "./dto/password-reset-response.dto";
 import { SigninDto } from "./dto/signin.dto";
 import { SignupDto } from "./dto/signup.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { PasswordResetService } from "./password-reset.service";
@@ -236,6 +239,42 @@ export class AuthController {
 
       throw error;
     }
+  }
+
+  @Patch("me")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: "Updated authenticated user profile.",
+    type: CurrentUserResponse,
+  })
+  @ApiBadRequestResponse({ description: "Profile update input failed validation." })
+  @ApiUnauthorizedResponse({
+    description: "Missing, malformed, expired, invalid, or revoked token.",
+  })
+  async updateMe(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: UpdateProfileDto
+  ): Promise<CurrentUserResponse> {
+    const user = await this.authService.updateCurrentUserProfile(request.user.sub, dto);
+    return { user };
+  }
+
+  @Post("password")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiNoContentResponse({ description: "Password changed and other active sessions revoked." })
+  @ApiBadRequestResponse({ description: "Password change input failed validation." })
+  @ApiUnauthorizedResponse({
+    description:
+      "Missing, malformed, expired, invalid, revoked token, or invalid current password.",
+  })
+  async changePassword(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto
+  ): Promise<void> {
+    await this.authService.changePassword(request.user, dto);
   }
 
   @Post("logout")

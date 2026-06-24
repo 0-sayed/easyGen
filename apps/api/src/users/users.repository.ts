@@ -16,6 +16,10 @@ interface CreateUserInput {
   passwordHash: string;
 }
 
+interface UpdateProfileInput {
+  name: string;
+}
+
 export interface SetEmailVerificationTokenInput {
   expiresAt: Date;
   tokenHash: string;
@@ -83,6 +87,64 @@ export class UsersRepository {
       id: user.id,
       name: user.name,
     };
+  }
+
+  async findByIdWithPasswordHash(id: string): Promise<UserWithPasswordHash | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel.findById(id).select("+passwordHash").exec();
+
+    if (user === null) {
+      return null;
+    }
+
+    return {
+      email: user.email,
+      emailVerified: user.emailVerifiedAt instanceof Date,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
+      id: user.id,
+      name: user.name,
+      passwordHash: user.passwordHash,
+    };
+  }
+
+  async updateProfile(id: string, input: UpdateProfileInput): Promise<PublicUser | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { name: input.name }, { returnDocument: "after" })
+      .exec();
+
+    if (user === null) {
+      return null;
+    }
+
+    return {
+      email: user.email,
+      emailVerified: user.emailVerifiedAt instanceof Date,
+      id: user.id,
+      name: user.name,
+    };
+  }
+
+  async updatePasswordHash(
+    id: string,
+    passwordHash: string,
+    expectedCurrentPasswordHash: string
+  ): Promise<boolean> {
+    if (!isObjectIdString(id)) {
+      return false;
+    }
+
+    const result = await this.userModel
+      .updateOne({ _id: id, passwordHash: expectedCurrentPasswordHash }, { $set: { passwordHash } })
+      .exec();
+
+    return result.matchedCount === 1;
   }
 
   async findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
