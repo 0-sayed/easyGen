@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
+import { ApiClientError } from "../api/client";
 import { AuthProvider } from "../auth/AuthProvider";
 import * as api from "../auth/api";
 import { setAccessToken } from "../auth/session";
@@ -62,7 +63,9 @@ describe("SignupPage", () => {
   });
 
   it("keeps the submit error slot mounted before signup fails", async () => {
-    vi.spyOn(api, "signup").mockRejectedValueOnce(new Error("Email is already registered."));
+    vi.spyOn(api, "signup").mockRejectedValueOnce(
+      new ApiClientError("Email is already registered.", "conflict", 409)
+    );
     const { container } = renderAuthRoutes(
       <Route path="/signup" element={<SignupPage />} />,
       "/signup"
@@ -80,6 +83,32 @@ describe("SignupPage", () => {
     await waitFor(() => {
       expect(submitMessageSlot).toHaveTextContent("Email is already registered.");
     });
+  });
+
+  it("shows the API error message when signup is rejected by the API", async () => {
+    vi.spyOn(api, "signup").mockRejectedValueOnce(
+      new ApiClientError("Email is already registered.", "conflict", 409)
+    );
+    renderAuthRoutes(<Route path="/signup" element={<SignupPage />} />, "/signup");
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Name"), "Person Name");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByText("Email is already registered.")).toBeInTheDocument();
+  });
+
+  it("shows a fallback error when signup fails outside the API client", async () => {
+    vi.spyOn(api, "signup").mockRejectedValueOnce(new Error("Low-level failure"));
+    renderAuthRoutes(<Route path="/signup" element={<SignupPage />} />, "/signup");
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Name"), "Person Name");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByText("Unable to create account.")).toBeInTheDocument();
   });
 });
 
@@ -139,6 +168,30 @@ describe("SigninPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Welcome to the application.")).toBeInTheDocument();
     });
+  });
+
+  it("shows the API error message when signin is rejected by the API", async () => {
+    vi.spyOn(api, "signin").mockRejectedValueOnce(
+      new ApiClientError("Invalid email or password.", "unauthorized", 401)
+    );
+    renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Invalid email or password.")).toBeInTheDocument();
+  });
+
+  it("shows a fallback error when signin fails outside the API client", async () => {
+    vi.spyOn(api, "signin").mockRejectedValueOnce(new Error("Low-level failure"));
+    renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Unable to sign in.")).toBeInTheDocument();
   });
 });
 
@@ -209,7 +262,7 @@ describe("App routes", () => {
 
   it("clears a stale stored token and returns the protected app route to signin", async () => {
     vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
-      new Error("Invalid authentication token.")
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
     );
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("stale-token");

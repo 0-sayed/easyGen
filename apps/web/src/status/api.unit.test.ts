@@ -25,7 +25,7 @@ describe("status api", () => {
 
     await expect(getBuildInfo()).resolves.toEqual(buildInfo);
 
-    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/status`);
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/status`, {});
   });
 
   it("loads build information from the configured API URL", async () => {
@@ -36,13 +36,18 @@ describe("status api", () => {
 
     await expect(getConfiguredBuildInfo()).resolves.toEqual(buildInfo);
 
-    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3010/status");
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3010/status", {});
   });
 
   it("rejects non-OK responses", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ message: "nope" }, 500));
 
-    await expect(getBuildInfo()).rejects.toThrow("Unable to load API status.");
+    await expect(getBuildInfo()).rejects.toMatchObject({
+      name: "ApiClientError",
+      category: "unexpected",
+      message: "nope",
+      status: 500,
+    });
   });
 
   it("rejects unexpected response shapes", async () => {
@@ -50,7 +55,10 @@ describe("status api", () => {
       jsonResponse({ service: "easygen-api", version: "0.1.0" })
     );
 
-    await expect(getBuildInfo()).rejects.toThrow("Unexpected API status response.");
+    await expect(getBuildInfo()).rejects.toMatchObject({
+      category: "unexpected",
+      message: "Unexpected API status response.",
+    });
   });
 
   it("rejects invalid JSON responses", async () => {
@@ -61,7 +69,10 @@ describe("status api", () => {
       })
     );
 
-    await expect(getBuildInfo()).rejects.toThrow("Unexpected API status response.");
+    await expect(getBuildInfo()).rejects.toMatchObject({
+      category: "unexpected",
+      message: "Something went wrong. Please try again.",
+    });
   });
 });
 
