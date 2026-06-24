@@ -12,12 +12,13 @@ import { AuthSessionService } from "./auth-session.service";
 import { AuthService } from "./auth.service";
 import { AuthThrottleService } from "./auth-throttle.service";
 import {
-  EMAIL_VERIFICATION_DELIVERY,
-  InMemoryEmailVerificationDelivery,
-  LogEmailVerificationDelivery,
-} from "./email-verification.delivery";
+  AUTH_TOKEN_DELIVERY,
+  InMemoryAuthTokenDelivery,
+  LogAuthTokenDelivery,
+} from "./auth-token.delivery";
 import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { PasswordResetService } from "./password-reset.service";
 import { AuthSession, AuthSessionSchema } from "./schemas/auth-session.schema";
 
 type JwtExpiresIn = NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"];
@@ -56,11 +57,12 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
     AuthAuditLogger,
     AuthThrottleService,
     EmailVerificationService,
-    InMemoryEmailVerificationDelivery,
-    LogEmailVerificationDelivery,
+    PasswordResetService,
+    InMemoryAuthTokenDelivery,
+    LogAuthTokenDelivery,
     {
-      provide: EMAIL_VERIFICATION_DELIVERY,
-      useExisting: LogEmailVerificationDelivery,
+      provide: AUTH_TOKEN_DELIVERY,
+      useExisting: LogAuthTokenDelivery,
     },
     AuthSessionRepository,
     AuthSessionService,

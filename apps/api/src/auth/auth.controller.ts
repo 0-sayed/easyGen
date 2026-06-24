@@ -37,10 +37,14 @@ import { EmailVerificationConfirmResponse } from "./dto/email-verification-confi
 import { EmailVerificationConfirmDto } from "./dto/email-verification-confirm.dto";
 import { EmailVerificationRequestDto } from "./dto/email-verification-request.dto";
 import { EmailVerificationResponse } from "./dto/email-verification-response.dto";
+import { PasswordResetConfirmDto } from "./dto/password-reset-confirm.dto";
+import { PasswordResetRequestDto } from "./dto/password-reset-request.dto";
+import { PasswordResetResponse } from "./dto/password-reset-response.dto";
 import { SigninDto } from "./dto/signin.dto";
 import { SignupDto } from "./dto/signup.dto";
 import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { PasswordResetService } from "./password-reset.service";
 
 class TooManyRequestsException extends HttpException {
   constructor(message: string) {
@@ -58,6 +62,8 @@ export class AuthController {
     @Inject(AuthService) private readonly authService: AuthService,
     @Inject(EmailVerificationService)
     private readonly emailVerificationService: EmailVerificationService,
+    @Inject(PasswordResetService)
+    private readonly passwordResetService: PasswordResetService,
     @Inject(AuthThrottleService) private readonly authThrottleService: AuthThrottleService,
     @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger
   ) {}
@@ -160,6 +166,52 @@ export class AuthController {
     this.enforceThrottle("email-verification-confirm", context);
 
     return this.emailVerificationService.confirmVerification(dto);
+  }
+
+  @Post("password-reset/request")
+  @HttpCode(202)
+  @ApiAcceptedResponse({
+    description: "Password reset delivery prepared when an account exists.",
+    type: PasswordResetResponse,
+  })
+  @ApiBadRequestResponse({ description: "Password reset request input failed validation." })
+  @ApiTooManyRequestsResponse({
+    description: "Too many authentication attempts. Please try again later.",
+  })
+  requestPasswordReset(
+    @Req() request: Request,
+    @Body() dto: PasswordResetRequestDto
+  ): Promise<PasswordResetResponse> {
+    const context = buildAuthRequestContext(request, dto.email) as AuthRequestContext & {
+      email: string;
+    };
+    this.enforceThrottle("password-reset-request", context);
+
+    return this.passwordResetService.requestReset(dto);
+  }
+
+  @Post("password-reset/confirm")
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: "Password reset completed for a valid single-use token.",
+    type: PasswordResetResponse,
+  })
+  @ApiBadRequestResponse({
+    description: "Password reset token is invalid or expired, or input failed validation.",
+  })
+  @ApiTooManyRequestsResponse({
+    description: "Too many authentication attempts. Please try again later.",
+  })
+  confirmPasswordReset(
+    @Req() request: Request,
+    @Body() dto: PasswordResetConfirmDto
+  ): Promise<PasswordResetResponse> {
+    const context = buildAuthRequestContext(request, dto.email) as AuthRequestContext & {
+      email: string;
+    };
+    this.enforceThrottle("password-reset-confirm", context);
+
+    return this.passwordResetService.confirmReset(dto);
   }
 
   @Get("me")

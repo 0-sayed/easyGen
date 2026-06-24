@@ -4,6 +4,7 @@ import { PinoLogger } from "nestjs-pino";
 
 type AuthAuditEvent =
   | "auth.email_verification.delivery_failure"
+  | "auth.password_reset.delivery_failure"
   | "auth.signup.success"
   | "auth.signup.failure"
   | "auth.signin.success"
@@ -101,6 +102,16 @@ export class AuthAuditLogger {
   ): void {
     this.log(
       "auth.email_verification.delivery_failure",
+      { ...input, reason: "delivery_failed" },
+      "error"
+    );
+  }
+
+  logPasswordResetDeliveryFailure(
+    input: AuthAuditContext & { error: unknown; userId: string }
+  ): void {
+    this.log(
+      "auth.password_reset.delivery_failure",
       { ...input, reason: "delivery_failed" },
       "error"
     );

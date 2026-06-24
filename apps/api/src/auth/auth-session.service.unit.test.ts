@@ -39,15 +39,27 @@ describe("AuthSessionService", () => {
 
     expect(repository.revoke).not.toHaveBeenCalled();
   });
+
+  it("revokes all active sessions for a user", async () => {
+    const repository = createRepository();
+    const service = new AuthSessionService(repository as AuthSessionRepository);
+
+    await service.revokeActiveSessionsForUser("user-123");
+
+    expect(repository.revokeActiveForUser).toHaveBeenCalledWith("user-123");
+  });
 });
 
 function createRepository(
-  overrides: Partial<Pick<AuthSessionRepository, "existsActive" | "revoke">> = {}
-): Pick<AuthSessionRepository, "create" | "existsActive" | "revoke"> {
+  overrides: Partial<
+    Pick<AuthSessionRepository, "existsActive" | "revoke" | "revokeActiveForUser">
+  > = {}
+): Pick<AuthSessionRepository, "create" | "existsActive" | "revoke" | "revokeActiveForUser"> {
   return {
     create: vi.fn(),
     existsActive: vi.fn(() => Promise.resolve(false)),
     revoke: vi.fn(() => Promise.resolve()),
+    revokeActiveForUser: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }

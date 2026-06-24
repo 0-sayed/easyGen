@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { AuthModule } from "./auth.module";
 import {
-  EMAIL_VERIFICATION_DELIVERY,
-  InMemoryEmailVerificationDelivery,
-  LogEmailVerificationDelivery,
-} from "./email-verification.delivery";
+  AUTH_TOKEN_DELIVERY,
+  InMemoryAuthTokenDelivery,
+  LogAuthTokenDelivery,
+} from "./auth-token.delivery";
 
 describe("AuthModule", () => {
-  it("binds runtime email verification delivery to the log delivery implementation", () => {
+  it("binds runtime auth token delivery to the log delivery implementation", () => {
     const providersMetadata: unknown = Reflect.getMetadata("providers", AuthModule);
     if (!Array.isArray(providersMetadata)) {
       throw new Error("Expected AuthModule providers metadata.");
@@ -18,11 +18,11 @@ describe("AuthModule", () => {
     const deliveryProvider = providers.find(isEmailVerificationDeliveryProvider);
 
     expect(deliveryProvider).toEqual({
-      provide: EMAIL_VERIFICATION_DELIVERY,
-      useExisting: LogEmailVerificationDelivery,
+      provide: AUTH_TOKEN_DELIVERY,
+      useExisting: LogAuthTokenDelivery,
     });
     expect(deliveryProvider).not.toMatchObject({
-      useExisting: InMemoryEmailVerificationDelivery,
+      useExisting: InMemoryAuthTokenDelivery,
     });
   });
 });
@@ -34,6 +34,6 @@ function isEmailVerificationDeliveryProvider(
     typeof provider === "object" &&
     provider !== null &&
     "provide" in provider &&
-    provider.provide === EMAIL_VERIFICATION_DELIVERY
+    provider.provide === AUTH_TOKEN_DELIVERY
   );
 }

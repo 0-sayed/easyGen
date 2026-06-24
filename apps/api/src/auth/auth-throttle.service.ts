@@ -4,6 +4,8 @@ import { ConfigService } from "@nestjs/config";
 export type AuthThrottleScope =
   | "email-verification-confirm"
   | "email-verification-request"
+  | "password-reset-confirm"
+  | "password-reset-request"
   | "signin"
   | "signup";
 

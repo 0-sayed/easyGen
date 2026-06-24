@@ -266,6 +266,57 @@ describe("UsersRepository persistence contract", () => {
     ).resolves.toBe(null);
   });
 
+  it("stores and atomically consumes password reset tokens without exposing raw token fields", async () => {
+    const repository = getRepository();
+    const user = await repository.create({
+      email: "Reset.Person@example.test",
+      name: "Reset Person",
+      passwordHash: "old-hash",
+    });
+    const expiresAt = new Date("2026-06-24T10:15:00.000Z");
+
+    const tokenState = await repository.setPasswordResetToken(user.id, {
+      expiresAt,
+      tokenHash: "hashed-token",
+    });
+
+    expect(tokenState).toMatchObject({
+      email: "reset.person@example.test",
+      id: user.id,
+      passwordResetTokenExpiresAt: expiresAt,
+      passwordResetTokenHash: "hashed-token",
+    });
+
+    const foundState = await repository.findPasswordResetStateByEmail(
+      " RESET.PERSON@example.test "
+    );
+    expect(foundState).toMatchObject({
+      id: user.id,
+      passwordResetTokenExpiresAt: expiresAt,
+      passwordResetTokenHash: "hashed-token",
+    });
+
+    const resetAt = new Date("2026-06-24T10:00:00.000Z");
+    const resetState = await repository.resetPasswordForToken(
+      user.id,
+      resetAt,
+      "hashed-token",
+      "new-hash"
+    );
+
+    expect(resetState).toMatchObject({
+      id: user.id,
+      passwordResetTokenExpiresAt: null,
+      passwordResetTokenHash: null,
+    });
+    await expect(
+      repository.resetPasswordForToken(user.id, resetAt, "hashed-token", "newer-hash")
+    ).resolves.toBeNull();
+
+    const userWithPassword = await repository.findByEmail(user.email);
+    expect(userWithPassword?.passwordHash).toBe("new-hash");
+  });
+
   it("returns null for verification state lookups with unknown or malformed user data", async () => {
     await expect(getRepository().findVerificationStateByEmail("missing@example.com")).resolves.toBe(
       null

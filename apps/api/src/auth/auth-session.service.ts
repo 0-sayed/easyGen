@@ -31,6 +31,10 @@ export class AuthSessionService {
   async revokeCurrentSession(payload: JwtPayload): Promise<void> {
     await this.authSessionRepository.revoke(readSessionLookup(payload));
   }
+
+  async revokeActiveSessionsForUser(userId: string): Promise<void> {
+    await this.authSessionRepository.revokeActiveForUser(userId);
+  }
 }
 
 function readSessionLookup(payload: JwtPayload): { tokenId: string; userId: string } {

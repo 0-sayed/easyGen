@@ -3,7 +3,12 @@ import { InjectModel } from "@nestjs/mongoose";
 import type { Model } from "mongoose";
 
 import { User } from "./schemas/user.schema";
-import type { PublicUser, UserVerificationState, UserWithPasswordHash } from "./user.types";
+import type {
+  PublicUser,
+  UserPasswordResetState,
+  UserVerificationState,
+  UserWithPasswordHash,
+} from "./user.types";
 
 interface CreateUserInput {
   email: string;
@@ -12,6 +17,11 @@ interface CreateUserInput {
 }
 
 export interface SetEmailVerificationTokenInput {
+  expiresAt: Date;
+  tokenHash: string;
+}
+
+export interface SetPasswordResetTokenInput {
   expiresAt: Date;
   tokenHash: string;
 }
@@ -159,6 +169,68 @@ export class UsersRepository {
 
     return toVerificationState(user);
   }
+
+  async findPasswordResetStateByEmail(email: string): Promise<UserPasswordResetState | null> {
+    const user = await this.userModel
+      .findOne({ email: normalizeEmail(email) })
+      .select("+passwordResetTokenHash +passwordResetTokenExpiresAt")
+      .exec();
+
+    return toPasswordResetState(user);
+  }
+
+  async setPasswordResetToken(
+    id: string,
+    input: SetPasswordResetTokenInput
+  ): Promise<UserPasswordResetState | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        id,
+        {
+          passwordResetTokenExpiresAt: input.expiresAt,
+          passwordResetTokenHash: input.tokenHash,
+        },
+        { returnDocument: "after" }
+      )
+      .select("+passwordResetTokenHash +passwordResetTokenExpiresAt")
+      .exec();
+
+    return toPasswordResetState(user);
+  }
+
+  async resetPasswordForToken(
+    id: string,
+    resetAt: Date,
+    expectedTokenHash: string,
+    passwordHash: string
+  ): Promise<UserPasswordResetState | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findOneAndUpdate(
+        {
+          _id: id,
+          passwordResetTokenExpiresAt: { $gt: resetAt },
+          passwordResetTokenHash: expectedTokenHash,
+        },
+        {
+          passwordHash,
+          passwordResetTokenExpiresAt: null,
+          passwordResetTokenHash: null,
+        },
+        { returnDocument: "after" }
+      )
+      .select("+passwordResetTokenHash +passwordResetTokenExpiresAt")
+      .exec();
+
+    return toPasswordResetState(user);
+  }
 }
 
 function normalizeEmail(email: string): string {
@@ -185,6 +257,22 @@ function toVerificationState(user: UserDocument | null): UserVerificationState |
     emailVerifiedAt: user.emailVerifiedAt instanceof Date ? user.emailVerifiedAt : null,
     id: user.id,
     name: user.name,
+  };
+}
+
+function toPasswordResetState(user: UserDocument | null): UserPasswordResetState | null {
+  if (user === null || typeof user.email !== "string" || typeof user.name !== "string") {
+    return null;
+  }
+
+  return {
+    email: user.email,
+    id: user.id,
+    name: user.name,
+    passwordResetTokenExpiresAt:
+      user.passwordResetTokenExpiresAt instanceof Date ? user.passwordResetTokenExpiresAt : null,
+    passwordResetTokenHash:
+      typeof user.passwordResetTokenHash === "string" ? user.passwordResetTokenHash : null,
   };
 }
 
