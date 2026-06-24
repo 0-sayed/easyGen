@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 
-import type { PublicUser, UserWithPasswordHash } from "./user.types";
-import { UsersRepository } from "./users.repository";
+import type { PublicUser, UserVerificationState, UserWithPasswordHash } from "./user.types";
+import { type SetEmailVerificationTokenInput, UsersRepository } from "./users.repository";
 
 interface CreateUserInput {
   email: string;
@@ -23,5 +23,28 @@ export class UsersService {
 
   findPublicById(id: string): Promise<PublicUser | null> {
     return this.usersRepository.findPublicById(id);
+  }
+
+  findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
+    return this.usersRepository.findVerificationStateByEmail(email);
+  }
+
+  setEmailVerificationToken(
+    id: string,
+    input: SetEmailVerificationTokenInput
+  ): Promise<UserVerificationState | null> {
+    return this.usersRepository.setEmailVerificationToken(id, input);
+  }
+
+  markEmailVerified(id: string, verifiedAt: Date): Promise<UserVerificationState | null> {
+    return this.usersRepository.markEmailVerified(id, verifiedAt);
+  }
+
+  markEmailVerifiedForToken(
+    id: string,
+    verifiedAt: Date,
+    expectedTokenHash: string
+  ): Promise<UserVerificationState | null> {
+    return this.usersRepository.markEmailVerifiedForToken(id, verifiedAt, expectedTokenHash);
   }
 }

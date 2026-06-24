@@ -40,6 +40,13 @@ export async function getCurrentUser(accessToken: string): Promise<PublicUser> {
   );
 }
 
+export async function logout(accessToken: string): Promise<void> {
+  await apiRequest("/auth/logout", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 function readAuthResponse(body: unknown): AuthResponse {
   if (!isObject(body) || typeof body.accessToken !== "string" || !isPublicUser(body.user)) {
     throw new ApiClientError("Unexpected authentication response.", "unexpected");

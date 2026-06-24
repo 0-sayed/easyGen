@@ -9,8 +9,11 @@ export function ApplicationPage() {
   const { logout, user } = useAuth();
 
   function handleLogout() {
-    logout();
-    void navigate("/signin", { replace: true });
+    void logout()
+      .catch(() => undefined)
+      .then(() => {
+        void navigate("/signin", { replace: true });
+      });
   }
 
   return (

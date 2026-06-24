@@ -12,10 +12,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
+  ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -31,8 +33,13 @@ import { AuthService } from "./auth.service";
 import { AuthThrottleScope, AuthThrottleService } from "./auth-throttle.service";
 import { AuthResponse } from "./dto/auth-response.dto";
 import { CurrentUserResponse } from "./dto/current-user.response";
+import { EmailVerificationConfirmResponse } from "./dto/email-verification-confirm-response.dto";
+import { EmailVerificationConfirmDto } from "./dto/email-verification-confirm.dto";
+import { EmailVerificationRequestDto } from "./dto/email-verification-request.dto";
+import { EmailVerificationResponse } from "./dto/email-verification-response.dto";
 import { SigninDto } from "./dto/signin.dto";
 import { SignupDto } from "./dto/signup.dto";
+import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 class TooManyRequestsException extends HttpException {
@@ -49,6 +56,8 @@ class TooManyRequestsException extends HttpException {
 export class AuthController {
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(EmailVerificationService)
+    private readonly emailVerificationService: EmailVerificationService,
     @Inject(AuthThrottleService) private readonly authThrottleService: AuthThrottleService,
     @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger
   ) {}
@@ -109,6 +118,50 @@ export class AuthController {
     }
   }
 
+  @Post("email-verification/request")
+  @HttpCode(202)
+  @ApiAcceptedResponse({
+    description: "Verification delivery prepared when an account exists.",
+    type: EmailVerificationResponse,
+  })
+  @ApiBadRequestResponse({ description: "Email verification request input failed validation." })
+  @ApiTooManyRequestsResponse({
+    description: "Too many authentication attempts. Please try again later.",
+  })
+  requestEmailVerification(
+    @Req() request: Request,
+    @Body() dto: EmailVerificationRequestDto
+  ): Promise<EmailVerificationResponse> {
+    const context = buildAuthRequestContext(request, dto.email) as AuthRequestContext & {
+      email: string;
+    };
+    this.enforceThrottle("email-verification-request", context);
+
+    return this.emailVerificationService.requestVerification(dto);
+  }
+
+  @Post("email-verification/confirm")
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: "Email verified for a valid single-use token.",
+    type: EmailVerificationConfirmResponse,
+  })
+  @ApiBadRequestResponse({ description: "Verification token is invalid or expired." })
+  @ApiTooManyRequestsResponse({
+    description: "Too many authentication attempts. Please try again later.",
+  })
+  confirmEmailVerification(
+    @Req() request: Request,
+    @Body() dto: EmailVerificationConfirmDto
+  ): Promise<EmailVerificationConfirmResponse> {
+    const context = buildAuthRequestContext(request, dto.email) as AuthRequestContext & {
+      email: string;
+    };
+    this.enforceThrottle("email-verification-confirm", context);
+
+    return this.emailVerificationService.confirmVerification(dto);
+  }
+
   @Get("me")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -127,6 +180,29 @@ export class AuthController {
           ...buildTokenRequestContext(request),
           userId: request.user.sub,
         });
+      }
+
+      throw error;
+    }
+  }
+
+  @Post("logout")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiNoContentResponse({ description: "Current access token revoked." })
+  @ApiUnauthorizedResponse({
+    description: "Missing, malformed, expired, invalid, or revoked token.",
+  })
+  async logout(@Req() request: AuthenticatedRequest): Promise<void> {
+    const context = buildTokenRequestContext(request);
+
+    try {
+      await this.authService.logout(request.user);
+      this.authAuditLogger.logLogoutSuccess({ ...context, userId: request.user.sub });
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        this.authAuditLogger.logLogoutFailure({ ...context, userId: request.user.sub });
       }
 
       throw error;

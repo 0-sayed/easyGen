@@ -10,13 +10,15 @@ import type { Request } from "express";
 
 import { AuthAuditLogger } from "./auth-audit.logger";
 import { buildTokenRequestContext } from "./auth-request-context";
+import { AuthSessionService } from "./auth-session.service";
 import type { JwtPayload } from "./jwt-payload";
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     @Inject(JwtService) private readonly jwtService: JwtService,
-    private readonly authAuditLogger: AuthAuditLogger
+    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger,
+    @Inject(AuthSessionService) private readonly authSessionService: AuthSessionService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -31,16 +33,24 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
+    const payload = await this.verifyToken(request, token);
+
     try {
-      request.user = await this.jwtService.verifyAsync<JwtPayload>(token);
-      return true;
-    } catch {
+      await this.authSessionService.assertActive(payload);
+    } catch (error) {
+      if (!(error instanceof UnauthorizedException)) {
+        throw error;
+      }
+
       this.authAuditLogger.logTokenFailure({
         ...buildTokenRequestContext(request),
-        reason: "invalid_token",
+        reason: "revoked_token",
       });
       throw new UnauthorizedException();
     }
+
+    request.user = payload;
+    return true;
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {
@@ -51,5 +61,17 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     return type?.toLowerCase() === "bearer" ? token : undefined;
+  }
+
+  private async verifyToken(request: Request, token: string): Promise<JwtPayload> {
+    try {
+      return await this.jwtService.verifyAsync<JwtPayload>(token);
+    } catch {
+      this.authAuditLogger.logTokenFailure({
+        ...buildTokenRequestContext(request),
+        reason: "invalid_token",
+      });
+      throw new UnauthorizedException();
+    }
   }
 }

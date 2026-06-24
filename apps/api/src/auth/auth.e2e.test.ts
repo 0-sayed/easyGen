@@ -3,6 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/mongodb";
 import { MongoClient } from "mongodb";
+import { randomUUID } from "node:crypto";
 import request from "supertest";
 import type { Response } from "supertest";
 import type { App } from "supertest/types";
@@ -10,6 +11,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { configureApp } from "../configure-app";
 import { AuthThrottleService } from "./auth-throttle.service";
+import {
+  EMAIL_VERIFICATION_DELIVERY,
+  InMemoryEmailVerificationDelivery,
+} from "./email-verification.delivery";
 
 interface OpenApiOperation {
   responses?: Record<string, OpenApiResponseObject>;
@@ -57,7 +62,7 @@ describe("Auth API", () => {
     container = await new MongoDBContainer("mongo:8.0").start();
     const host = container.getHost();
     const mappedPort = String(container.getMappedPort(27017));
-    process.env.JWT_SECRET = "test-secret";
+    process.env.JWT_SECRET = testToken("jwt-secret");
     process.env.LOG_LEVEL = "silent";
     process.env.MONGODB_URI = `mongodb://${host}:${mappedPort}/easygen_test?directConnection=true`;
     process.env.AUTH_THROTTLE_LIMIT = "2";
@@ -68,7 +73,10 @@ describe("Auth API", () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(EMAIL_VERIFICATION_DELIVERY)
+      .useClass(InMemoryEmailVerificationDelivery)
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureApp(app);
@@ -110,25 +118,24 @@ describe("Auth API", () => {
 
   it("signs up, signs in, and returns the protected current user", async () => {
     const server = getServer(app);
+    const payload = testAccount("person");
 
-    const signupResponse = await request(server)
-      .post("/auth/signup")
-      .send({ email: "person@example.com", name: "Person Name", password: "Password1!" })
-      .expect(201);
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
 
     expect(signupResponse.body).toEqual({
       accessToken: expect.any(String),
       user: {
-        email: "person@example.com",
+        email: payload.email,
+        emailVerified: false,
         id: expect.any(String),
-        name: "Person Name",
+        name: payload.name,
       },
     });
     expect(signupResponse.body.user).not.toHaveProperty("passwordHash");
 
     const signinResponse = await request(server)
       .post("/auth/signin")
-      .send({ email: "person@example.com", password: "Password1!" })
+      .send({ email: payload.email, password: payload.password })
       .expect(200);
     const accessToken = getAccessToken(signinResponse);
 
@@ -151,16 +158,80 @@ describe("Auth API", () => {
     });
   });
 
+  it("revokes the current bearer token on logout", async () => {
+    const server = getServer(app);
+
+    const signupResponse = await request(server)
+      .post("/auth/signup")
+      .send({ email: "logout-person@example.com", name: "Logout Person", password: "Password1!" })
+      .expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+
+    const logoutResponse = await request(server)
+      .post("/auth/logout")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
+
+    expect(logoutResponse.text).toBe("");
+    expect(logoutResponse.body).toEqual({});
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(401);
+  });
+
+  it("rejects signed legacy tokens without a token id even when the user has an active session", async () => {
+    const server = getServer(app);
+    const email = "legacy-token@example.com";
+
+    const signupResponse = await request(server)
+      .post("/auth/signup")
+      .send({ email, name: "Legacy Token", password: "Password1!" })
+      .expect(201);
+
+    await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${getAccessToken(signupResponse)}`)
+      .expect(200);
+
+    const legacyToken = await getJwtService(app).signAsync({
+      email,
+      sub: signupResponse.body.user.id,
+    });
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${legacyToken}`).expect(401);
+  });
+
   it("documents auth response contracts in OpenAPI output", async () => {
     const response = await request(getServer(app)).get("/docs-json").expect(200);
     const document = response.body;
 
     const signupOperation = expectPostOperation(document, "/auth/signup");
     const signinOperation = expectPostOperation(document, "/auth/signin");
+    const emailVerificationRequestOperation = expectPostOperation(
+      document,
+      "/auth/email-verification/request"
+    );
+    const emailVerificationConfirmOperation = expectPostOperation(
+      document,
+      "/auth/email-verification/confirm"
+    );
+    const logoutOperation = expectPostOperation(document, "/auth/logout");
     const meOperation = expectGetOperation(document, "/auth/me");
 
     expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
     expectJsonSchemaReference(signinOperation, "200", "AuthResponse");
+    expectJsonSchemaReference(
+      emailVerificationRequestOperation,
+      "202",
+      "EmailVerificationResponse"
+    );
+    expectJsonSchemaReference(
+      emailVerificationConfirmOperation,
+      "200",
+      "EmailVerificationConfirmResponse"
+    );
+    expect(logoutOperation.responses?.["204"]).toBeDefined();
     expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
 
     const authSchema = expectSchema(document, "AuthResponse");
@@ -170,46 +241,175 @@ describe("Auth API", () => {
     const currentUserSchema = expectSchema(document, "CurrentUserResponse");
     expectSchemaPropertyReference(currentUserSchema, "user", "PublicUserResponse");
 
+    const emailVerificationSchema = expectSchema(document, "EmailVerificationResponse");
+    expect(emailVerificationSchema.properties?.message).toMatchObject({ type: "string" });
+
+    const emailVerificationConfirmSchema = expectSchema(
+      document,
+      "EmailVerificationConfirmResponse"
+    );
+    expectSchemaPropertyReference(emailVerificationConfirmSchema, "user", "PublicUserResponse");
+
     const publicUserSchema = expectSchema(document, "PublicUserResponse");
     expect(publicUserSchema.properties?.id).toMatchObject({ type: "string" });
     expect(publicUserSchema.properties?.email).toMatchObject({ type: "string" });
+    expect(publicUserSchema.properties?.emailVerified).toMatchObject({ type: "boolean" });
     expect(publicUserSchema.properties?.name).toMatchObject({ type: "string" });
+  });
+
+  it("requests and confirms email verification with a single-use token", async () => {
+    const server = getServer(app);
+    const delivery = getEmailVerificationDelivery(app);
+    const payload = {
+      ...testAccount("verify-single-use"),
+    };
+
+    delivery.drainMessages();
+
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    expect(signupResponse.body.user.emailVerified).toBe(false);
+
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    const messages = delivery.drainMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ email: payload.email, token: expect.any(String) });
+
+    const confirmResponse = await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(200);
+
+    expect(confirmResponse.body).toEqual({
+      user: {
+        email: payload.email,
+        emailVerified: true,
+        id: signupResponse.body.user.id,
+        name: payload.name,
+      },
+    });
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(400);
+  });
+
+  it("returns a safe generic email verification request response for unknown and verified emails", async () => {
+    const server = getServer(app);
+    const delivery = getEmailVerificationDelivery(app);
+    const payload = {
+      ...testAccount("already-verified-email-verification"),
+    };
+
+    delivery.drainMessages();
+
+    const unknownEmailResponse = await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: testEmail("unknown-email-verification") })
+      .expect(202);
+
+    expect(unknownEmailResponse.body).toEqual({
+      message: "If an account exists for that email, a verification link has been prepared.",
+    });
+    expect(delivery.drainMessages()).toEqual([]);
+
+    await request(server).post("/auth/signup").send(payload).expect(201);
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    const messages = delivery.drainMessages();
+    expect(messages).toHaveLength(1);
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: payload.email, token: messages[0]?.token })
+      .expect(200);
+    expect(delivery.drainMessages()).toEqual([]);
+    readThrottleAttempts(getThrottleService(app)).clear();
+
+    const verifiedEmailResponse = await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: payload.email })
+      .expect(202);
+
+    expect(verifiedEmailResponse.body).toEqual({
+      message: "If an account exists for that email, a verification link has been prepared.",
+    });
+    expect(delivery.drainMessages()).toEqual([]);
+  });
+
+  it("safely rejects wrong-account and malformed verification tokens", async () => {
+    const server = getServer(app);
+    const delivery = getEmailVerificationDelivery(app);
+    const ownerPayload = {
+      ...testAccount("verification-owner"),
+    };
+    const otherPayload = {
+      ...testAccount("verification-other"),
+    };
+
+    delivery.drainMessages();
+
+    await request(server).post("/auth/signup").send(ownerPayload).expect(201);
+    await request(server).post("/auth/signup").send(otherPayload).expect(201);
+    await request(server)
+      .post("/auth/email-verification/request")
+      .send({ email: ownerPayload.email })
+      .expect(202);
+
+    const messages = delivery.drainMessages();
+    expect(messages).toHaveLength(1);
+    const token = messages[0]?.token;
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: otherPayload.email, token })
+      .expect(400);
+
+    await request(server)
+      .post("/auth/email-verification/confirm")
+      .send({ email: ownerPayload.email, token: testToken("mismatched-confirm") })
+      .expect(400);
   });
 
   it("rejects invalid signup input", async () => {
     await request(getServer(app))
       .post("/auth/signup")
-      .send({ email: "not-email", name: "Al", password: "weak" })
+      .send({ email: "not-email", name: "Al", password: testPassword("invalid-input") })
       .expect(400);
   });
 
   it("returns a generic message for signin failures", async () => {
     const server = getServer(app);
     const payload = {
-      email: "generic-signin-failure@example.com",
-      name: "Generic Signin Failure",
-      password: "Password1!",
+      ...testAccount("generic-signin-failure"),
     };
 
     await request(server).post("/auth/signup").send(payload).expect(201);
 
     const wrongPasswordResponse = await request(server)
       .post("/auth/signin")
-      .send({ email: payload.email, password: "WrongPassword1!" })
+      .send({ email: payload.email, password: testPassword("wrong-signin") })
       .expect(401);
 
     expect(wrongPasswordResponse.body.message).toBe("Invalid email or password.");
 
     const unknownEmailResponse = await request(server)
       .post("/auth/signin")
-      .send({ email: "unknown-signin-failure@example.com", password: "Password1!" })
+      .send({ email: testEmail("unknown-signin-failure"), password: payload.password })
       .expect(401);
 
     expect(unknownEmailResponse.body.message).toBe("Invalid email or password.");
   });
 
   it("throttles repeated signin attempts", async () => {
-    const payload = { email: "throttled@example.com", password: "Password1!" };
+    const payload = { email: testEmail("throttled"), password: testPassword("throttled") };
 
     await request(getServer(app)).post("/auth/signin").send(payload).expect(401);
     await request(getServer(app)).post("/auth/signin").send(payload).expect(401);
@@ -224,12 +424,57 @@ describe("Auth API", () => {
     );
   });
 
+  it("throttles repeated email verification requests", async () => {
+    const payload = { email: testEmail("verification-throttled") };
+
+    await request(getServer(app))
+      .post("/auth/email-verification/request")
+      .send(payload)
+      .expect(202);
+    await request(getServer(app))
+      .post("/auth/email-verification/request")
+      .send(payload)
+      .expect(202);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/email-verification/request")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
+  it("throttles repeated email verification confirm attempts", async () => {
+    const payload = {
+      email: testEmail("verification-confirm-throttled"),
+      token: testToken("invalid-confirm"),
+    };
+
+    await request(getServer(app))
+      .post("/auth/email-verification/confirm")
+      .send(payload)
+      .expect(400);
+    await request(getServer(app))
+      .post("/auth/email-verification/confirm")
+      .send(payload)
+      .expect(400);
+
+    const throttledResponse = await request(getServer(app))
+      .post("/auth/email-verification/confirm")
+      .send(payload)
+      .expect(429);
+
+    expect(throttledResponse.body.message).toBe(
+      "Too many authentication attempts. Please try again later."
+    );
+  });
+
   it("returns a sanitized duplicate signup response", async () => {
     const server = getServer(app);
     const payload = {
-      email: "sanitized-duplicate@example.com",
-      name: "Sanitized Duplicate",
-      password: "Password1!",
+      ...testAccount("sanitized-duplicate"),
     };
 
     await request(server).post("/auth/signup").send(payload).expect(201);
@@ -245,9 +490,7 @@ describe("Auth API", () => {
   it("rejects duplicate signup email", async () => {
     const server = getServer(app);
     const payload = {
-      email: "duplicate@example.com",
-      name: "Duplicate User",
-      password: "Password1!",
+      ...testAccount("duplicate"),
     };
 
     await request(server).post("/auth/signup").send(payload).expect(201);
@@ -257,21 +500,19 @@ describe("Auth API", () => {
   it("rejects invalid credentials and missing bearer tokens", async () => {
     const server = getServer(app);
     const payload = {
-      email: "wrong-password@example.com",
-      name: "Wrong Password User",
-      password: "Password1!",
+      ...testAccount("wrong-password"),
     };
 
     await request(server).post("/auth/signup").send(payload).expect(201);
 
     await request(server)
       .post("/auth/signin")
-      .send({ email: payload.email, password: "WrongPassword1!" })
+      .send({ email: payload.email, password: testPassword("wrong-password") })
       .expect(401);
 
     await request(server)
       .post("/auth/signin")
-      .send({ email: "missing@example.com", password: "Password1!" })
+      .send({ email: testEmail("missing"), password: payload.password })
       .expect(401);
 
     await request(server).get("/auth/me").expect(401);
@@ -282,7 +523,7 @@ describe("Auth API", () => {
 
     const signinResponse = await request(server)
       .post("/auth/signup")
-      .send({ email: "malformed@example.com", name: "Malformed User", password: "Password1!" })
+      .send(testAccount("malformed"))
       .expect(201);
     const accessToken = getAccessToken(signinResponse);
 
@@ -295,7 +536,7 @@ describe("Auth API", () => {
   it("rejects valid tokens with malformed subject values", async () => {
     const server = getServer(app);
     const accessToken = await getJwtService(app).signAsync({
-      email: "malformed-subject@example.com",
+      email: testEmail("malformed-subject"),
       sub: "not-an-object-id",
     });
 
@@ -342,8 +583,38 @@ function getThrottleService(app: INestApplication | undefined): AuthThrottleServ
   return app.get(AuthThrottleService);
 }
 
+function getEmailVerificationDelivery(
+  app: INestApplication | undefined
+): InMemoryEmailVerificationDelivery {
+  if (app === undefined) {
+    throw new Error("Nest app was not initialized.");
+  }
+
+  return app.get(EMAIL_VERIFICATION_DELIVERY);
+}
+
 function readThrottleAttempts(service: AuthThrottleService): Map<string, unknown> {
   return (service as unknown as { attempts: Map<string, unknown> }).attempts;
+}
+
+function testAccount(label: string): { email: string; name: string; password: string } {
+  return {
+    email: testEmail(label),
+    name: `Test ${label} ${randomUUID()}`,
+    password: testPassword(label),
+  };
+}
+
+function testEmail(label: string): string {
+  return `${label.slice(0, 12)}-${randomUUID()}@example.test`;
+}
+
+function testPassword(label: string): string {
+  return `Password-${label}-${randomUUID()}1!`;
+}
+
+function testToken(label: string): string {
+  return `${label}-${randomUUID()}`;
 }
 
 function expectPostOperation(document: unknown, path: string): OpenApiOperation {

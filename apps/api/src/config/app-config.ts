@@ -1,6 +1,7 @@
 import { mongo } from "mongoose";
 
 const DEFAULT_JWT_EXPIRES_IN = "15m";
+const DEFAULT_EMAIL_VERIFICATION_TOKEN_TTL_MS = "900000";
 const DEFAULT_LOG_LEVEL = "info";
 const DEFAULT_MONGODB_HOST = "127.0.0.1";
 const DEFAULT_MONGODB_PORT = "27018";
@@ -12,6 +13,7 @@ const ALLOWED_LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal", 
 type LogLevel = (typeof ALLOWED_LOG_LEVELS)[number];
 
 export type ValidatedAppConfig = Record<string, unknown> & {
+  EMAIL_VERIFICATION_TOKEN_TTL_MS: string;
   JWT_EXPIRES_IN: string;
   JWT_SECRET: string;
   LOG_LEVEL: LogLevel;
@@ -36,6 +38,11 @@ export function validateAppConfig(config: Record<string, unknown>): ValidatedApp
   const jwtExpiresIn = parseJwtExpiresIn(
     readOptionalString(config.JWT_EXPIRES_IN) ?? DEFAULT_JWT_EXPIRES_IN
   );
+  const emailVerificationTokenTtlMs = parsePositiveIntegerString(
+    readOptionalString(config.EMAIL_VERIFICATION_TOKEN_TTL_MS) ??
+      DEFAULT_EMAIL_VERIFICATION_TOKEN_TTL_MS,
+    "EMAIL_VERIFICATION_TOKEN_TTL_MS"
+  );
   const logLevel = parseLogLevel(readOptionalString(config.LOG_LEVEL) ?? DEFAULT_LOG_LEVEL);
   const mongodbUri = parseMongodbUri(
     readOptionalString(config.MONGODB_URI) ?? buildLocalMongodbUri(mongodbPort)
@@ -43,6 +50,7 @@ export function validateAppConfig(config: Record<string, unknown>): ValidatedApp
 
   return {
     ...config,
+    EMAIL_VERIFICATION_TOKEN_TTL_MS: emailVerificationTokenTtlMs,
     JWT_EXPIRES_IN: jwtExpiresIn,
     JWT_SECRET: jwtSecret,
     LOG_LEVEL: logLevel,
@@ -99,6 +107,20 @@ function parsePort(value: string, variableName: string): string {
   }
 
   return String(port);
+}
+
+function parsePositiveIntegerString(value: string, variableName: string): string {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`${variableName} must be a positive integer.`);
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${variableName} must be a positive integer.`);
+  }
+
+  return String(parsed);
 }
 
 function parseJwtExpiresIn(value: string): string {

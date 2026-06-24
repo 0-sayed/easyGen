@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/client";
-import { getCurrentUser, signin, signup } from "./api";
+import { getCurrentUser, logout, signin, signup } from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const expectedApiUrl =
@@ -56,6 +56,21 @@ describe("auth api", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${authResponse.accessToken}` },
+    });
+  });
+
+  it("revokes the current token on logout", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(null, {
+        status: 204,
+      })
+    );
+
+    await expect(logout("token-123")).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: "Bearer token-123" },
     });
   });
 

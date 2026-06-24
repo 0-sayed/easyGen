@@ -5,6 +5,7 @@ import { AuthAuditLogger } from "./auth-audit.logger";
 import { buildAuthRequestContext, buildTokenRequestContext } from "./auth-request-context";
 
 interface TestPinoSink {
+  error?: ReturnType<typeof vi.fn>;
   info: ReturnType<typeof vi.fn>;
 }
 
@@ -16,13 +17,16 @@ afterEach(() => {
 
 function createLogger() {
   setPinoRoot(undefined);
+  const error = vi.fn();
   const info = vi.fn();
   const pinoLogger = {
+    error,
     info,
   } as unknown as PinoLogger;
 
   return {
     auditLogger: new AuthAuditLogger(pinoLogger),
+    error,
     info,
   };
 }
@@ -120,6 +124,38 @@ describe("AuthAuditLogger", () => {
     expect(JSON.stringify(payload)).not.toContain("Bearer secret-token");
   });
 
+  it("logs email verification delivery failure without raw email or token fields", () => {
+    const { auditLogger, error } = createLogger();
+
+    auditLogger.logEmailVerificationDeliveryFailure({
+      correlationId: "trace-123",
+      email: "Person@Example.com ",
+      error: new TypeError("smtp rejected"),
+      ip: "203.0.113.10",
+      userAgent: "Vitest",
+      userId: "user-123",
+    });
+
+    const payload = error.mock.calls[0]?.[0] as Record<string, unknown>;
+
+    expect(error).toHaveBeenCalledWith(
+      {
+        audit: true,
+        correlationId: "trace-123",
+        emailHash: "542d240129883c019e106e3b1b2d3f3cb3537c43c425364de8e951d5a3083345",
+        errorName: "TypeError",
+        event: "auth.email_verification.delivery_failure",
+        ip: "203.0.113.10",
+        reason: "delivery_failed",
+        userAgent: "Vitest",
+        userId: "user-123",
+      },
+      "auth audit event"
+    );
+    expect(JSON.stringify(payload)).not.toContain("Person@Example.com");
+    expect(JSON.stringify(payload)).not.toContain("secret-verification-token");
+  });
+
   it("logs user lookup failure with whitelist-only payload keys even if email is present", () => {
     const { auditLogger, info } = createLogger();
 
@@ -151,6 +187,65 @@ describe("AuthAuditLogger", () => {
       userAgent: "Vitest",
       userId: "user-123",
     });
+  });
+
+  it("logs logout success with whitelist-only token context and user id", () => {
+    const { auditLogger, info } = createLogger();
+
+    auditLogger.logLogoutSuccess({
+      authorization: "Bearer secret-authorization",
+      correlationId: "trace-123",
+      ip: "203.0.113.10",
+      jti: "secret-token-id",
+      token: "secret-token",
+      userAgent: "Vitest",
+      userId: "user-123",
+    } as Parameters<AuthAuditLogger["logLogoutSuccess"]>[0] & Record<string, unknown>);
+
+    const payload = info.mock.calls[0]?.[0] as Record<string, unknown>;
+    const serializedPayload = JSON.stringify(payload);
+
+    expect(payload).toEqual({
+      audit: true,
+      correlationId: "trace-123",
+      event: "auth.logout.success",
+      ip: "203.0.113.10",
+      userAgent: "Vitest",
+      userId: "user-123",
+    });
+    expect(serializedPayload).not.toContain("token");
+    expect(serializedPayload).not.toContain("authorization");
+    expect(serializedPayload).not.toContain("jti");
+  });
+
+  it("logs logout failure as revoked token with whitelist-only token context", () => {
+    const { auditLogger, info } = createLogger();
+
+    auditLogger.logLogoutFailure({
+      authorization: "Bearer secret-authorization",
+      correlationId: "trace-123",
+      ip: "203.0.113.10",
+      jti: "secret-token-id",
+      token: "secret-token",
+      userAgent: "Vitest",
+      userId: "user-123",
+    } as Parameters<AuthAuditLogger["logLogoutFailure"]>[0] & Record<string, unknown>);
+
+    const payload = info.mock.calls[0]?.[0] as Record<string, unknown>;
+    const serializedPayload = JSON.stringify(payload);
+
+    expect(payload).toEqual({
+      audit: true,
+      correlationId: "trace-123",
+      event: "auth.logout.failure",
+      ip: "203.0.113.10",
+      reason: "revoked_token",
+      userAgent: "Vitest",
+      userId: "user-123",
+    });
+    expect(serializedPayload).not.toContain("secret-token");
+    expect(serializedPayload).not.toContain("authorization");
+    expect(serializedPayload).not.toContain("jti");
   });
 
   it("ignores extra secret-bearing fields passed to public log methods", () => {

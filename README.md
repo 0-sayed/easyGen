@@ -45,19 +45,20 @@ planning/       Business and technical planning context
 
 Copy `.env.example` to `.env`.
 
-| Variable                    | Purpose                                                                                 | Default                                                   |
-| --------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `PORT`                      | API HTTP port; integer from 1 through 65535                                             | `3000`                                                    |
-| `LOG_LEVEL`                 | Pino/Nest logger level: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent` | `info`                                                    |
-| `WEB_PORT`                  | Vite dev server port; integer from 1 through 65535                                      | `5173`                                                    |
-| `VITE_API_URL`              | API URL used by the frontend                                                            | `http://127.0.0.1:3000`                                   |
-| `MONGODB_PORT`              | MongoDB host port; integer from 1 through 65535                                         | `27018`                                                   |
-| `MONGODB_URI`               | API and migration MongoDB connection string                                             | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
-| `JWT_SECRET`                | JWT signing secret required by the API                                                  | empty; set in local `.env`                                |
-| `JWT_EXPIRES_IN`            | JWT access token lifetime; duration such as `15m`, `1h`, or `7d`                        | `15m`                                                     |
-| `AUTH_THROTTLE_LIMIT`       | Auth attempts allowed per throttle window                                               | `5`                                                       |
-| `AUTH_THROTTLE_MAX_ENTRIES` | Maximum in-memory auth throttle windows per API process                                 | `10000`                                                   |
-| `AUTH_THROTTLE_WINDOW_MS`   | Auth throttle window duration in milliseconds                                           | `60000`                                                   |
+| Variable                          | Purpose                                                                                 | Default                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `PORT`                            | API HTTP port; integer from 1 through 65535                                             | `3000`                                                    |
+| `LOG_LEVEL`                       | Pino/Nest logger level: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent` | `info`                                                    |
+| `WEB_PORT`                        | Vite dev server port; integer from 1 through 65535                                      | `5173`                                                    |
+| `VITE_API_URL`                    | API URL used by the frontend                                                            | `http://127.0.0.1:3000`                                   |
+| `MONGODB_PORT`                    | MongoDB host port; integer from 1 through 65535                                         | `27018`                                                   |
+| `MONGODB_URI`                     | API and migration MongoDB connection string                                             | `mongodb://127.0.0.1:27018/easygen?directConnection=true` |
+| `JWT_SECRET`                      | JWT signing secret required by the API                                                  | empty; set in local `.env`                                |
+| `JWT_EXPIRES_IN`                  | JWT access token lifetime; duration such as `15m`, `1h`, or `7d`                        | `15m`                                                     |
+| `EMAIL_VERIFICATION_TOKEN_TTL_MS` | Email verification token lifetime in milliseconds                                       | `900000`                                                  |
+| `AUTH_THROTTLE_LIMIT`             | Auth attempts allowed per throttle window                                               | `5`                                                       |
+| `AUTH_THROTTLE_MAX_ENTRIES`       | Maximum in-memory auth throttle windows per API process                                 | `10000`                                                   |
+| `AUTH_THROTTLE_WINDOW_MS`         | Auth throttle window duration in milliseconds                                           | `60000`                                                   |
 
 ## Local Services
 
@@ -74,6 +75,9 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 - `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
 - `POST /auth/signup`
 - `POST /auth/signin`
+- `POST /auth/email-verification/request`
+- `POST /auth/email-verification/confirm`
+- `POST /auth/logout` - revokes the current bearer token; requires a bearer token.
 - `GET /auth/me` - requires a bearer token.
 - `GET /docs`
 - `GET /docs-json`
@@ -84,6 +88,9 @@ Use `/health` for process liveness probes and `/ready` for traffic readiness pro
 
 - `POST /auth/signup` creates a user and returns an access token.
 - `POST /auth/signin` returns an access token for valid credentials.
+- `POST /auth/email-verification/request` prepares a verification token and logs delivery metadata as `auth.email_verification.token`; the raw token is not logged.
+- `POST /auth/email-verification/confirm` consumes that token once for the matching email address.
+- `POST /auth/logout` revokes the stored token on the backend; a revoked token is rejected by protected endpoints.
 - `GET /auth/me` verifies the stored token and powers the protected application page.
 - The React app provides `/signup`, `/signin`, and `/app`.
 

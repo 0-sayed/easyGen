@@ -1,7 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-export type AuthThrottleScope = "signin" | "signup";
+export type AuthThrottleScope =
+  | "email-verification-confirm"
+  | "email-verification-request"
+  | "signin"
+  | "signup";
 
 interface AuthThrottleInput {
   scope: AuthThrottleScope;

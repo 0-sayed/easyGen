@@ -3,12 +3,17 @@ import { InjectModel } from "@nestjs/mongoose";
 import type { Model } from "mongoose";
 
 import { User } from "./schemas/user.schema";
-import type { PublicUser, UserWithPasswordHash } from "./user.types";
+import type { PublicUser, UserVerificationState, UserWithPasswordHash } from "./user.types";
 
 interface CreateUserInput {
   email: string;
   name: string;
   passwordHash: string;
+}
+
+export interface SetEmailVerificationTokenInput {
+  expiresAt: Date;
+  tokenHash: string;
 }
 
 @Injectable()
@@ -23,6 +28,8 @@ export class UsersRepository {
 
     return {
       email: user.email,
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: user.id,
       name: user.name,
       passwordHash: input.passwordHash,
@@ -41,6 +48,8 @@ export class UsersRepository {
 
     return {
       email: user.email,
+      emailVerified: user.emailVerifiedAt instanceof Date,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
       id: user.id,
       name: user.name,
       passwordHash: user.passwordHash,
@@ -60,9 +69,95 @@ export class UsersRepository {
 
     return {
       email: user.email,
+      emailVerified: user.emailVerifiedAt instanceof Date,
       id: user.id,
       name: user.name,
     };
+  }
+
+  async findVerificationStateByEmail(email: string): Promise<UserVerificationState | null> {
+    const user = await this.userModel
+      .findOne({ email: normalizeEmail(email) })
+      .select("+emailVerificationTokenHash +emailVerificationTokenExpiresAt")
+      .exec();
+
+    return toVerificationState(user);
+  }
+
+  async setEmailVerificationToken(
+    id: string,
+    input: SetEmailVerificationTokenInput
+  ): Promise<UserVerificationState | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findOneAndUpdate(
+        {
+          _id: id,
+          emailVerifiedAt: null,
+        },
+        {
+          emailVerificationTokenExpiresAt: input.expiresAt,
+          emailVerificationTokenHash: input.tokenHash,
+        },
+        { returnDocument: "after" }
+      )
+      .select("+emailVerificationTokenHash +emailVerificationTokenExpiresAt")
+      .exec();
+
+    return toVerificationState(user);
+  }
+
+  async markEmailVerified(id: string, verifiedAt: Date): Promise<UserVerificationState | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        id,
+        {
+          emailVerificationTokenExpiresAt: null,
+          emailVerificationTokenHash: null,
+          emailVerifiedAt: verifiedAt,
+        },
+        { returnDocument: "after" }
+      )
+      .select("+emailVerificationTokenHash +emailVerificationTokenExpiresAt")
+      .exec();
+
+    return toVerificationState(user);
+  }
+
+  async markEmailVerifiedForToken(
+    id: string,
+    verifiedAt: Date,
+    expectedTokenHash: string
+  ): Promise<UserVerificationState | null> {
+    if (!isObjectIdString(id)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findOneAndUpdate(
+        {
+          _id: id,
+          emailVerificationTokenExpiresAt: { $gt: verifiedAt },
+          emailVerificationTokenHash: expectedTokenHash,
+        },
+        {
+          emailVerificationTokenExpiresAt: null,
+          emailVerificationTokenHash: null,
+          emailVerifiedAt: verifiedAt,
+        },
+        { returnDocument: "after" }
+      )
+      .select("+emailVerificationTokenHash +emailVerificationTokenExpiresAt")
+      .exec();
+
+    return toVerificationState(user);
   }
 }
 
@@ -73,3 +168,24 @@ function normalizeEmail(email: string): string {
 function isObjectIdString(value: string): boolean {
   return /^[0-9a-fA-F]{24}$/.test(value);
 }
+
+function toVerificationState(user: UserDocument | null): UserVerificationState | null {
+  if (user === null || typeof user.email !== "string" || typeof user.name !== "string") {
+    return null;
+  }
+
+  return {
+    email: user.email,
+    emailVerificationTokenExpiresAt:
+      user.emailVerificationTokenExpiresAt instanceof Date
+        ? user.emailVerificationTokenExpiresAt
+        : null,
+    emailVerificationTokenHash:
+      typeof user.emailVerificationTokenHash === "string" ? user.emailVerificationTokenHash : null,
+    emailVerifiedAt: user.emailVerifiedAt instanceof Date ? user.emailVerifiedAt : null,
+    id: user.id,
+    name: user.name,
+  };
+}
+
+type UserDocument = User & { id: string };

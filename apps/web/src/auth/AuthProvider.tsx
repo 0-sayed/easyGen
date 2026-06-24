@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { isApiClientError } from "../api/client";
 import {
   getCurrentUser,
+  logout as logoutRequest,
   signin as signinRequest,
   signup as signupRequest,
   type PublicUser,
@@ -15,7 +16,7 @@ interface AuthContextValue {
   user: PublicUser | null;
   signin: (input: SigninFormValues) => Promise<void>;
   signup: (input: SignupFormValues) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -75,9 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccessToken(response.accessToken);
         setUser(response.user);
       },
-      logout: () => {
-        clearAccessToken();
-        setUser(null);
+      logout: async () => {
+        const accessToken = getAccessToken();
+
+        try {
+          if (accessToken !== null) {
+            await logoutRequest(accessToken);
+          }
+        } finally {
+          clearAccessToken();
+          setUser(null);
+        }
       },
     }),
     [isLoading, user]
