@@ -38,7 +38,8 @@ export function getApiUrl(env: ImportMetaEnv): string {
 
 export async function apiRequest(path: string, init: RequestInit = {}): Promise<unknown> {
   try {
-    const response = await fetch(`${getApiUrl(import.meta.env)}${path}`, init);
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const response = await fetch(`${getApiUrl(import.meta.env)}${normalizedPath}`, init);
 
     if (!response.ok) {
       throw new ApiClientError(
@@ -48,8 +49,13 @@ export async function apiRequest(path: string, init: RequestInit = {}): Promise<
       );
     }
 
+    const text = await response.text();
+    if (text.length === 0) {
+      return null;
+    }
+
     try {
-      return await response.json();
+      return JSON.parse(text) as unknown;
     } catch {
       throw new ApiClientError(FALLBACK_MESSAGE, "unexpected", response.status);
     }
@@ -92,8 +98,14 @@ function isApiErrorCategory(value: unknown): value is ApiErrorCategory {
 
 async function readErrorMessage(response: Response): Promise<string> {
   try {
-    const body: unknown = await response.json();
-    return isObject(body) ? normalizeMessage(body.message) : FALLBACK_MESSAGE;
+    const contentType = response.headers.get("Content-Type");
+    if (contentType?.includes("application/json")) {
+      const body: unknown = await response.json();
+      return isObject(body) ? normalizeMessage(body.message) : FALLBACK_MESSAGE;
+    }
+
+    const text = await response.text();
+    return text.trim() || FALLBACK_MESSAGE;
   } catch {
     return FALLBACK_MESSAGE;
   }

@@ -24,12 +24,29 @@ describe("api client", () => {
   });
 
   it("returns parsed JSON for successful responses", async () => {
+    vi.stubEnv("VITE_API_URL", "");
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse({ ok: true }));
 
     await expect(apiRequest("/status")).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/status", {});
+  });
+
+  it("normalizes request paths without a leading slash", async () => {
+    vi.stubEnv("VITE_API_URL", "");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    await expect(apiRequest("status")).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/status", {});
+  });
+
+  it("returns null for successful responses without a body", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await expect(apiRequest("/status")).resolves.toBeNull();
   });
 
   it.each([
@@ -68,6 +85,21 @@ describe("api client", () => {
     await expect(apiRequest("/auth/signin")).rejects.toMatchObject({
       category: "validation",
       message: fallbackMessage,
+    });
+  });
+
+  it("preserves non-JSON error response text", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response("Service temporarily unavailable.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain" },
+      })
+    );
+
+    await expect(apiRequest("/status")).rejects.toMatchObject({
+      category: "unavailable",
+      message: "Service temporarily unavailable.",
+      status: 503,
     });
   });
 
