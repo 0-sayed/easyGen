@@ -130,6 +130,78 @@ describe("UsersRepository persistence contract", () => {
     expect(defaultRead).not.toHaveProperty("passwordHash");
   });
 
+  it("updates only supported public profile fields", async () => {
+    const createdUser = await getRepository().create({
+      email: "profile@example.com",
+      name: "Original Name",
+      passwordHash: "profile-hash",
+    });
+
+    await expect(
+      getRepository().updateProfile(createdUser.id, { name: "Updated Name" })
+    ).resolves.toEqual({
+      email: "profile@example.com",
+      emailVerified: false,
+      id: createdUser.id,
+      name: "Updated Name",
+    });
+
+    await expect(getRepository().findByEmail("profile@example.com")).resolves.toMatchObject({
+      email: "profile@example.com",
+      name: "Updated Name",
+      passwordHash: "profile-hash",
+    });
+  });
+
+  it("loads and updates password hashes without exposing them publicly", async () => {
+    const createdUser = await getRepository().create({
+      email: "password-change@example.com",
+      name: "Password Change",
+      passwordHash: "old-hash",
+    });
+
+    await expect(getRepository().findByIdWithPasswordHash(createdUser.id)).resolves.toEqual({
+      email: "password-change@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: createdUser.id,
+      name: "Password Change",
+      passwordHash: "old-hash",
+    });
+
+    await expect(
+      getRepository().updatePasswordHash(createdUser.id, "new-hash", "old-hash")
+    ).resolves.toBe(true);
+
+    await expect(getRepository().findByIdWithPasswordHash(createdUser.id)).resolves.toMatchObject({
+      id: createdUser.id,
+      passwordHash: "new-hash",
+    });
+    await expect(getRepository().findPublicById(createdUser.id)).resolves.not.toHaveProperty(
+      "passwordHash"
+    );
+  });
+
+  it("does not overwrite password hashes when the expected current hash is stale", async () => {
+    const createdUser = await getRepository().create({
+      email: "stale-password-change@example.com",
+      name: "Stale Password Change",
+      passwordHash: "old-hash",
+    });
+
+    await expect(
+      getRepository().updatePasswordHash(createdUser.id, "newer-hash", "old-hash")
+    ).resolves.toBe(true);
+    await expect(
+      getRepository().updatePasswordHash(createdUser.id, "stale-hash", "old-hash")
+    ).resolves.toBe(false);
+
+    await expect(getRepository().findByIdWithPasswordHash(createdUser.id)).resolves.toMatchObject({
+      id: createdUser.id,
+      passwordHash: "newer-hash",
+    });
+  });
+
   it("stores and clears email verification token fields without exposing token hashes publicly", async () => {
     const createdUser = await getRepository().create({
       email: "verify@example.com",

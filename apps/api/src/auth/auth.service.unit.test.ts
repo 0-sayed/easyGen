@@ -1,7 +1,7 @@
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
-import { verify } from "argon2";
+import { hash, verify } from "argon2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UsersService } from "../users/users.service";
@@ -15,30 +15,48 @@ vi.mock("argon2", async (importOriginal) => {
 
   return {
     ...actual,
+    hash: vi.fn(),
     verify: vi.fn(),
   };
 });
 
 describe("AuthService", () => {
   let authService: AuthService;
-  let authSessionService: Pick<AuthSessionService, "createSession" | "revokeCurrentSession">;
+  let authSessionService: Pick<
+    AuthSessionService,
+    "createSession" | "revokeCurrentSession" | "revokeOtherSessions"
+  >;
   let jwtService: {
     decode: ReturnType<typeof vi.fn>;
     signAsync: ReturnType<typeof vi.fn>;
   };
-  let usersService: Pick<UsersService, "create" | "findByEmail" | "findPublicById">;
+  let usersService: Pick<
+    UsersService,
+    | "create"
+    | "findByEmail"
+    | "findByIdWithPasswordHash"
+    | "findPublicById"
+    | "updatePasswordHash"
+    | "updateProfile"
+  >;
 
   beforeEach(async () => {
+    vi.mocked(hash).mockReset();
+    vi.mocked(hash).mockResolvedValue("hashed-new-password");
     vi.mocked(verify).mockReset();
 
     usersService = {
       create: vi.fn(),
       findByEmail: vi.fn(),
+      findByIdWithPasswordHash: vi.fn(),
       findPublicById: vi.fn(),
+      updatePasswordHash: vi.fn(),
+      updateProfile: vi.fn(),
     };
     authSessionService = {
       createSession: vi.fn(),
       revokeCurrentSession: vi.fn(),
+      revokeOtherSessions: vi.fn(),
     };
     jwtService = {
       decode: vi.fn(() => ({ exp: 1_700_000_000 })),
@@ -187,6 +205,172 @@ describe("AuthService", () => {
     await authService.logout(payload);
 
     expect(authSessionService.revokeCurrentSession).toHaveBeenCalledWith(payload);
+  });
+
+  it("updates the current user's supported profile fields", async () => {
+    vi.mocked(usersService.updateProfile).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      id: "user-id",
+      name: "Updated Person",
+    });
+
+    await expect(
+      authService.updateCurrentUserProfile("user-id", { name: "Updated Person" })
+    ).resolves.toEqual({
+      email: "person@example.com",
+      emailVerified: false,
+      id: "user-id",
+      name: "Updated Person",
+    });
+
+    expect(usersService.updateProfile).toHaveBeenCalledWith("user-id", {
+      name: "Updated Person",
+    });
+  });
+
+  it("rejects profile updates for unknown token subjects", async () => {
+    vi.mocked(usersService.updateProfile).mockResolvedValue(null);
+
+    const result = authService.updateCurrentUserProfile("missing-user", {
+      name: "Updated Person",
+    });
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid authentication token.",
+    });
+  });
+
+  it("changes password after verifying the current password and revokes other sessions", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+    vi.mocked(usersService.updatePasswordHash).mockResolvedValue(true);
+
+    await authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!", newPassword: "NewPassword1!" }
+    );
+
+    expect(verify).toHaveBeenCalledWith("old-hash", "Password1!");
+    expect(hash).toHaveBeenCalledWith("NewPassword1!", { type: expect.any(Number) });
+    expect(usersService.updatePasswordHash).toHaveBeenCalledWith(
+      "user-id",
+      "hashed-new-password",
+      "old-hash"
+    );
+    expect(authSessionService.revokeOtherSessions).toHaveBeenCalledWith({
+      email: "person@example.com",
+      jti: "current-token-id",
+      sub: "user-id",
+    });
+  });
+
+  it("rejects password changes for unknown token subjects without checking credentials", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue(null);
+
+    const result = authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "missing-user" },
+      { currentPassword: "Password1!", newPassword: "NewPassword1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid authentication token.",
+    });
+
+    expect(verify).not.toHaveBeenCalled();
+    expect(hash).not.toHaveBeenCalled();
+    expect(usersService.updatePasswordHash).not.toHaveBeenCalled();
+    expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
+  });
+
+  it("rejects password changes with the wrong current password", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(false);
+
+    const result = authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "WrongPassword1!", newPassword: "NewPassword1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid current password.",
+    });
+
+    expect(usersService.updatePasswordHash).not.toHaveBeenCalled();
+    expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
+  });
+
+  it("rejects password changes that reuse the current password", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+
+    const result = authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!", newPassword: "Password1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(BadRequestException);
+    await expect(result).rejects.toMatchObject({
+      message: "New password must be different from current password.",
+    });
+
+    expect(hash).not.toHaveBeenCalled();
+    expect(usersService.updatePasswordHash).not.toHaveBeenCalled();
+    expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale password changes without revoking sessions", async () => {
+    vi.mocked(usersService.findByIdWithPasswordHash).mockResolvedValue({
+      email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
+      id: "user-id",
+      name: "Person Name",
+      passwordHash: "old-hash",
+    });
+    vi.mocked(verify).mockResolvedValue(true);
+    vi.mocked(usersService.updatePasswordHash).mockResolvedValue(false);
+
+    const result = authService.changePassword(
+      { email: "person@example.com", jti: "current-token-id", sub: "user-id" },
+      { currentPassword: "Password1!", newPassword: "NewPassword1!" }
+    );
+
+    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toMatchObject({
+      message: "Invalid current password.",
+    });
+
+    expect(usersService.updatePasswordHash).toHaveBeenCalledWith(
+      "user-id",
+      "hashed-new-password",
+      "old-hash"
+    );
+    expect(authSessionService.revokeOtherSessions).not.toHaveBeenCalled();
   });
 });
 

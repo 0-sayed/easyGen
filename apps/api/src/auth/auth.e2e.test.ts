@@ -5,7 +5,7 @@ import { MongoDBContainer, type StartedMongoDBContainer } from "@testcontainers/
 import { MongoClient } from "mongodb";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
-import type { Response } from "supertest";
+import type { Response, Test as SupertestRequest } from "supertest";
 import type { App } from "supertest/types";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -17,15 +17,21 @@ import {
 } from "./email-verification.delivery";
 
 interface OpenApiOperation {
+  requestBody?: OpenApiRequestBodyObject;
   responses?: Record<string, OpenApiResponseObject>;
 }
 
 interface OpenApiPathItem {
   get?: OpenApiOperation;
+  patch?: OpenApiOperation;
   post?: OpenApiOperation;
 }
 
 interface OpenApiResponseObject {
+  content?: Record<string, OpenApiMediaTypeObject>;
+}
+
+interface OpenApiRequestBodyObject {
   content?: Record<string, OpenApiMediaTypeObject>;
 }
 
@@ -158,6 +164,95 @@ describe("Auth API", () => {
     });
   });
 
+  it("updates the authenticated user's supported profile fields", async () => {
+    const server = getServer(app);
+    const payload = testAccount("profile-update");
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    const updateResponse = await request(server)
+      .patch("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ name: "Updated Profile Name" })
+      .expect(200);
+
+    expect(updateResponse.body).toEqual({
+      user: {
+        email: payload.email,
+        emailVerified: false,
+        id: signupResponse.body.user.id,
+        name: "Updated Profile Name",
+      },
+    });
+    expect(updateResponse.body.user).not.toHaveProperty("passwordHash");
+
+    const meResponse = await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(meResponse.body).toEqual(updateResponse.body);
+  });
+
+  it("changes password, rejects the old password, and revokes other active sessions", async () => {
+    const server = getServer(app);
+    const payload = testAccount("password-change");
+    const newPassword = testPassword("password-change-new");
+
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const currentToken = getAccessToken(signupResponse);
+
+    const secondSigninResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(200);
+    const otherToken = getAccessToken(secondSigninResponse);
+
+    await request(server)
+      .post("/auth/password")
+      .set("Authorization", `Bearer ${currentToken}`)
+      .send({ currentPassword: payload.password, newPassword })
+      .expect(204);
+
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(401);
+
+    await withClientIp(app, request(server).post("/auth/signin"), "203.0.113.10")
+      .send({ email: payload.email, password: newPassword })
+      .expect(200);
+
+    await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${currentToken}`)
+      .expect(200);
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${otherToken}`).expect(401);
+  });
+
+  it("requires the correct current password and policy-compliant new password", async () => {
+    const server = getServer(app);
+    const payload = testAccount("password-validation");
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server)
+      .post("/auth/password")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        currentPassword: testPassword("wrong-current"),
+        newPassword: testPassword("valid-new"),
+      })
+      .expect(401);
+
+    await request(server)
+      .post("/auth/password")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ currentPassword: payload.password, newPassword: "weak" })
+      .expect(400);
+  });
+
   it("revokes the current bearer token on logout", async () => {
     const server = getServer(app);
 
@@ -218,6 +313,8 @@ describe("Auth API", () => {
     );
     const logoutOperation = expectPostOperation(document, "/auth/logout");
     const meOperation = expectGetOperation(document, "/auth/me");
+    const updateMeOperation = expectPatchOperation(document, "/auth/me");
+    const changePasswordOperation = expectPostOperation(document, "/auth/password");
 
     expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
     expectJsonSchemaReference(signinOperation, "200", "AuthResponse");
@@ -233,6 +330,10 @@ describe("Auth API", () => {
     );
     expect(logoutOperation.responses?.["204"]).toBeDefined();
     expectJsonSchemaReference(meOperation, "200", "CurrentUserResponse");
+    expectJsonSchemaReference(updateMeOperation, "200", "CurrentUserResponse");
+    expectJsonRequestSchemaReference(updateMeOperation, "UpdateProfileDto");
+    expectJsonRequestSchemaReference(changePasswordOperation, "ChangePasswordDto");
+    expect(changePasswordOperation.responses?.["204"]).toBeDefined();
 
     const authSchema = expectSchema(document, "AuthResponse");
     expect(authSchema.properties?.accessToken).toMatchObject({ type: "string" });
@@ -240,6 +341,13 @@ describe("Auth API", () => {
 
     const currentUserSchema = expectSchema(document, "CurrentUserResponse");
     expectSchemaPropertyReference(currentUserSchema, "user", "PublicUserResponse");
+
+    const updateProfileSchema = expectSchema(document, "UpdateProfileDto");
+    expect(updateProfileSchema.properties?.name).toMatchObject({ type: "string" });
+
+    const changePasswordSchema = expectSchema(document, "ChangePasswordDto");
+    expect(changePasswordSchema.properties?.currentPassword).toMatchObject({ type: "string" });
+    expect(changePasswordSchema.properties?.newPassword).toMatchObject({ type: "string" });
 
     const emailVerificationSchema = expectSchema(document, "EmailVerificationResponse");
     expect(emailVerificationSchema.properties?.message).toMatchObject({ type: "string" });
@@ -552,6 +660,15 @@ function getServer(app: INestApplication | undefined): App {
   return app.getHttpServer();
 }
 
+function withClientIp(
+  app: INestApplication | undefined,
+  test: SupertestRequest,
+  ip: string
+): SupertestRequest {
+  enableTrustedProxy(app);
+  return test.set("X-Forwarded-For", ip);
+}
+
 function getAccessToken(response: Response): string {
   const body: unknown = response.body;
 
@@ -581,6 +698,14 @@ function getThrottleService(app: INestApplication | undefined): AuthThrottleServ
   }
 
   return app.get(AuthThrottleService);
+}
+
+function enableTrustedProxy(app: INestApplication | undefined): void {
+  if (app === undefined) {
+    throw new Error("Nest app was not initialized.");
+  }
+
+  app.getHttpAdapter().getInstance().set("trust proxy", true);
 }
 
 function getEmailVerificationDelivery(
@@ -639,6 +764,17 @@ function expectGetOperation(document: unknown, path: string): OpenApiOperation {
   return operation;
 }
 
+function expectPatchOperation(document: unknown, path: string): OpenApiOperation {
+  const operation = (document as OpenApiDocument).paths?.[path]?.patch;
+  expect(operation).toBeDefined();
+
+  if (operation === undefined) {
+    throw new Error(`Expected OpenAPI PATCH operation for ${path}.`);
+  }
+
+  return operation;
+}
+
 function expectSchema(document: unknown, schemaName: string): OpenApiSchemaObject {
   const schema = (document as OpenApiDocument).components?.schemas?.[schemaName];
   expect(schema).toBeDefined();
@@ -656,6 +792,12 @@ function expectJsonSchemaReference(
   schemaName: string
 ): void {
   const schema = operation.responses?.[statusCode]?.content?.["application/json"]?.schema;
+
+  expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
+}
+
+function expectJsonRequestSchemaReference(operation: OpenApiOperation, schemaName: string): void {
+  const schema = operation.requestBody?.content?.["application/json"]?.schema;
 
   expect(schema).toEqual({ $ref: `#/components/schemas/${schemaName}` });
 }
