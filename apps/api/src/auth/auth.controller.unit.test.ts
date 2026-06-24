@@ -1,4 +1,5 @@
 import { UnauthorizedException } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import { AccountActivityService } from "./account-activity.service";
@@ -8,6 +9,15 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { AuthThrottleService } from "./auth-throttle.service";
 import { EmailVerificationService } from "./email-verification.service";
+
+const TEST_FIXTURE = {
+  accessToken: testToken("access"),
+  email: testEmail("person"),
+  password: testPassword(),
+  tokenId: testToken("session"),
+  userId: `user-${randomUUID()}`,
+  userName: `Person ${randomUUID()}`,
+};
 
 describe("AuthController", () => {
   it("returns recent activity for the authenticated user", async () => {
@@ -36,30 +46,30 @@ describe("AuthController", () => {
       ],
       limit: 20,
     });
-    expect(accountActivityService.listRecentForUser).toHaveBeenCalledWith("user-123");
+    expect(accountActivityService.listRecentForUser).toHaveBeenCalledWith(TEST_FIXTURE.userId);
   });
 
   it("records account creation activity after successful signup", async () => {
     const { accountActivityService, authController } = createController();
 
     await authController.signup(createPlainRequest(), {
-      email: "person@example.com",
-      name: "Person Name",
-      password: "Password1!",
+      email: TEST_FIXTURE.email,
+      name: TEST_FIXTURE.userName,
+      password: TEST_FIXTURE.password,
     });
 
-    expect(accountActivityService.recordAccountCreated).toHaveBeenCalledWith("user-123");
+    expect(accountActivityService.recordAccountCreated).toHaveBeenCalledWith(TEST_FIXTURE.userId);
   });
 
   it("records signin activity after successful signin", async () => {
     const { accountActivityService, authController } = createController();
 
     await authController.signin(createPlainRequest(), {
-      email: "person@example.com",
-      password: "Password1!",
+      email: TEST_FIXTURE.email,
+      password: TEST_FIXTURE.password,
     });
 
-    expect(accountActivityService.recordSignedIn).toHaveBeenCalledWith("user-123");
+    expect(accountActivityService.recordSignedIn).toHaveBeenCalledWith(TEST_FIXTURE.userId);
   });
 
   it("logs out the current token and records logout success", async () => {
@@ -74,9 +84,9 @@ describe("AuthController", () => {
       correlationId: "trace-123",
       ip: "203.0.113.10",
       userAgent: "Vitest",
-      userId: "user-123",
+      userId: TEST_FIXTURE.userId,
     });
-    expect(accountActivityService.recordSignedOut).toHaveBeenCalledWith("user-123");
+    expect(accountActivityService.recordSignedOut).toHaveBeenCalledWith(TEST_FIXTURE.userId);
     expect(authAuditLogger.logLogoutFailure).not.toHaveBeenCalled();
   });
 
@@ -93,7 +103,7 @@ describe("AuthController", () => {
       correlationId: "trace-123",
       ip: "203.0.113.10",
       userAgent: "Vitest",
-      userId: "user-123",
+      userId: TEST_FIXTURE.userId,
     });
     expect(authAuditLogger.logLogoutSuccess).not.toHaveBeenCalled();
   });
@@ -139,23 +149,23 @@ function createController(): {
     logout: vi.fn(() => Promise.resolve()),
     signin: vi.fn(() =>
       Promise.resolve({
-        accessToken: "access-token",
+        accessToken: TEST_FIXTURE.accessToken,
         user: {
-          email: "person@example.com",
+          email: TEST_FIXTURE.email,
           emailVerified: false,
-          id: "user-123",
-          name: "Person Name",
+          id: TEST_FIXTURE.userId,
+          name: TEST_FIXTURE.userName,
         },
       })
     ),
     signup: vi.fn(() =>
       Promise.resolve({
-        accessToken: "access-token",
+        accessToken: TEST_FIXTURE.accessToken,
         user: {
-          email: "person@example.com",
+          email: TEST_FIXTURE.email,
           emailVerified: false,
-          id: "user-123",
-          name: "Person Name",
+          id: TEST_FIXTURE.userId,
+          name: TEST_FIXTURE.userName,
         },
       })
     ),
@@ -217,9 +227,21 @@ function createAuthenticatedRequest(): AuthenticatedRequest {
     id: "trace-123",
     ip: "203.0.113.10",
     user: {
-      email: "person@example.com",
-      jti: "token-id",
-      sub: "user-123",
+      email: TEST_FIXTURE.email,
+      jti: TEST_FIXTURE.tokenId,
+      sub: TEST_FIXTURE.userId,
     },
   } as unknown as AuthenticatedRequest;
+}
+
+function testEmail(label: string): string {
+  return `${label}-${randomUUID()}@example.test`;
+}
+
+function testPassword(): string {
+  return `Password-${randomUUID()}!1`;
+}
+
+function testToken(label: string): string {
+  return `${label}-${randomUUID()}`;
 }
