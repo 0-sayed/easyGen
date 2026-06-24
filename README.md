@@ -81,6 +81,7 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 - `POST /auth/password-reset/request`
 - `POST /auth/password-reset/confirm`
 - `POST /auth/logout` - revokes the current bearer token; requires a bearer token.
+- `DELETE /auth/me` - deletes the current account after current-password confirmation; requires a bearer token.
 - `GET /auth/me` - requires a bearer token.
 - `GET /docs`
 - `GET /docs-json`
@@ -96,8 +97,15 @@ Use `/health` for process liveness probes and `/ready` for traffic readiness pro
 - `POST /auth/password-reset/request` prepares a password reset token and logs delivery metadata as `auth.password_reset.token`; the raw token is not logged.
 - `POST /auth/password-reset/confirm` consumes that token once for the matching email address, updates the password, and revokes active sessions for the user.
 - `POST /auth/logout` revokes the stored token on the backend; a revoked token is rejected by protected endpoints.
+- `DELETE /auth/me` verifies the current password, anonymizes the user row, clears pending account tokens, and revokes active sessions. Deleted accounts cannot sign in or use protected endpoints.
 - `GET /auth/me` verifies the stored token and powers the protected application page.
 - The React app provides `/signup`, `/signin`, and `/app`.
+
+## Account Data Lifecycle
+
+Account deletion uses soft deletion with anonymization. The API keeps the user document id and timestamps for lifecycle consistency, sets `deletedAt`, replaces the stored email with `deleted+<userId>@deleted.local`, replaces the display name with `Deleted Account`, clears email verification and password reset token fields, replaces the password hash with a fresh random Argon2 hash, and revokes active sessions.
+
+Deleted users are excluded from signin, current-user lookup, profile update, password change, email verification, and password reset flows.
 
 ## Validation
 

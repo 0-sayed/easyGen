@@ -21,6 +21,7 @@ interface OpenApiOperation {
 }
 
 interface OpenApiPathItem {
+  delete?: OpenApiOperation;
   get?: OpenApiOperation;
   patch?: OpenApiOperation;
   post?: OpenApiOperation;
@@ -252,6 +253,64 @@ describe("Auth API", () => {
       .expect(400);
   });
 
+  it("deletes the current account only with the correct current password", async () => {
+    const server = getServer(app);
+    const payload = testAccount("delete-account");
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const accessToken = getAccessToken(signupResponse);
+
+    await request(server)
+      .delete("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ currentPassword: testPassword("wrong-delete") })
+      .expect(401);
+
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+
+    const deleteResponse = await request(server)
+      .delete("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ currentPassword: payload.password })
+      .expect(204);
+
+    expect(deleteResponse.text).toBe("");
+    expect(deleteResponse.body).toEqual({});
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${accessToken}`).expect(401);
+    await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(401);
+  });
+
+  it("revokes every active session after account deletion and rejects repeated deletion", async () => {
+    const server = getServer(app);
+    const payload = testAccount("delete-sessions");
+    const signupResponse = await request(server).post("/auth/signup").send(payload).expect(201);
+    const currentToken = getAccessToken(signupResponse);
+    const otherSigninResponse = await request(server)
+      .post("/auth/signin")
+      .send({ email: payload.email, password: payload.password })
+      .expect(200);
+    const otherToken = getAccessToken(otherSigninResponse);
+
+    await request(server)
+      .delete("/auth/me")
+      .set("Authorization", `Bearer ${currentToken}`)
+      .send({ currentPassword: payload.password })
+      .expect(204);
+
+    await request(server)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${currentToken}`)
+      .expect(401);
+    await request(server).get("/auth/me").set("Authorization", `Bearer ${otherToken}`).expect(401);
+    await request(server)
+      .delete("/auth/me")
+      .set("Authorization", `Bearer ${otherToken}`)
+      .send({ currentPassword: payload.password })
+      .expect(401);
+  });
+
   it("revokes the current bearer token on logout", async () => {
     const server = getServer(app);
 
@@ -322,6 +381,7 @@ describe("Auth API", () => {
     const meOperation = expectGetOperation(document, "/auth/me");
     const activityOperation = expectGetOperation(document, "/auth/activity");
     const updateMeOperation = expectPatchOperation(document, "/auth/me");
+    const deleteMeOperation = expectDeleteOperation(document, "/auth/me");
     const changePasswordOperation = expectPostOperation(document, "/auth/password");
 
     expectJsonSchemaReference(signupOperation, "201", "AuthResponse");
@@ -343,6 +403,8 @@ describe("Auth API", () => {
     expectJsonSchemaReference(activityOperation, "200", "AccountActivityResponse");
     expectJsonSchemaReference(updateMeOperation, "200", "CurrentUserResponse");
     expectJsonRequestSchemaReference(updateMeOperation, "UpdateProfileDto");
+    expectJsonRequestSchemaReference(deleteMeOperation, "DeleteAccountDto");
+    expect(deleteMeOperation.responses?.["204"]).toBeDefined();
     expectJsonRequestSchemaReference(changePasswordOperation, "ChangePasswordDto");
     expect(changePasswordOperation.responses?.["204"]).toBeDefined();
 
@@ -369,6 +431,9 @@ describe("Auth API", () => {
     const changePasswordSchema = expectSchema(document, "ChangePasswordDto");
     expect(changePasswordSchema.properties?.currentPassword).toMatchObject({ type: "string" });
     expect(changePasswordSchema.properties?.newPassword).toMatchObject({ type: "string" });
+
+    const deleteAccountSchema = expectSchema(document, "DeleteAccountDto");
+    expect(deleteAccountSchema.properties?.currentPassword).toMatchObject({ type: "string" });
 
     const emailVerificationSchema = expectSchema(document, "EmailVerificationResponse");
     expect(emailVerificationSchema.properties?.message).toMatchObject({ type: "string" });
@@ -1114,6 +1179,17 @@ function expectPatchOperation(document: unknown, path: string): OpenApiOperation
 
   if (operation === undefined) {
     throw new Error(`Expected OpenAPI PATCH operation for ${path}.`);
+  }
+
+  return operation;
+}
+
+function expectDeleteOperation(document: unknown, path: string): OpenApiOperation {
+  const operation = (document as OpenApiDocument).paths?.[path]?.delete;
+  expect(operation).toBeDefined();
+
+  if (operation === undefined) {
+    throw new Error(`Expected OpenAPI DELETE operation for ${path}.`);
   }
 
   return operation;

@@ -40,7 +40,7 @@ Sizing:
 | [x]  | M    | `T020` — User-facing account activity API        | `T012`, `T015`         | `feat/t020-account-activity-api`       | `planning/context/technical/account-activity-api.md`                                                                       |
 | [ ]  | M    | `T021` — Account settings frontend               | `T017`, `T018`         | `feat/t021-account-settings-frontend`  | `planning/context/business/account-settings-frontend.md`                                                                   |
 | [ ]  | M    | `T022` — Account activity frontend               | `T017`, `T020`         | `feat/t022-account-activity-frontend`  | `planning/context/business/account-activity-frontend.md`                                                                   |
-| [ ]  | L    | `T023` — Account deletion and data lifecycle     | `T015`, `T018`         | `feat/t023-account-data-lifecycle`     | `planning/context/technical/account-data-lifecycle.md`                                                                     |
+| [x]  | L    | `T023` — Account deletion and data lifecycle     | `T015`, `T018`         | `feat/t023-account-data-lifecycle`     | `planning/context/technical/account-data-lifecycle.md`                                                                     |
 
 ## Execution Waves
 
@@ -56,5 +56,5 @@ Sizing:
 | 8    | [x]  | `T011`, `T012`, `T013`, `T014` | `chore/t011-deployment-readiness`, `feat/t012-auth-guardrails-audit`, `test/t013-browser-qa-matrix`, `feat/t014-reviewer-demo-polish` |
 | 9    | [x]  | `T015`, `T016`, `T017`         | `feat/t015-token-revocation-logout`, `feat/t016-email-verification-flow`, `feat/t017-typed-frontend-api-client`                       |
 | 10   | [ ]  | `T018`, `T019`, `T020`         | `feat/t018-account-security-api`, `feat/t019-password-reset-flow`, `feat/t020-account-activity-api`                                   |
-| 11   | [ ]  | `T021`, `T022`, `T023`         | `feat/t021-account-settings-frontend`, `feat/t022-account-activity-frontend`, `feat/t023-account-data-lifecycle`                      |
+| 11   | [x]  | `T021`, `T022`, `T023`         | `feat/t021-account-settings-frontend`, `feat/t022-account-activity-frontend`, `feat/t023-account-data-lifecycle`                      |
 | 12   | [ ]  | `T006`                         | `chore/t006-submission-readiness`                                                                                                     |

@@ -15,6 +15,7 @@ import { UsersService } from "../users/users.service";
 import { AuthSessionService } from "./auth-session.service";
 import type { AuthResponse } from "./dto/auth-response.dto";
 import type { ChangePasswordDto } from "./dto/change-password.dto";
+import type { DeleteAccountDto } from "./dto/delete-account.dto";
 import type { SigninDto } from "./dto/signin.dto";
 import type { SignupDto } from "./dto/signup.dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
@@ -111,6 +112,33 @@ export class AuthService {
     }
 
     await this.authSessionService.revokeOtherSessions(payload);
+  }
+
+  async deleteCurrentAccount(payload: JwtPayload, dto: DeleteAccountDto): Promise<void> {
+    const user = await this.usersService.findByIdWithPasswordHash(payload.sub);
+
+    if (user === null) {
+      throw new UnauthorizedException("Invalid authentication token.");
+    }
+
+    const passwordMatches = await verify(user.passwordHash, dto.currentPassword);
+
+    if (!passwordMatches) {
+      throw new UnauthorizedException(INVALID_CURRENT_PASSWORD_MESSAGE);
+    }
+
+    const deletedPasswordHash = await hash(randomUUID(), { type: argon2id });
+    const deleted = await this.usersService.softDelete(user.id, {
+      deletedAt: new Date(),
+      passwordHash: deletedPasswordHash,
+      previousPasswordHash: user.passwordHash,
+    });
+
+    if (!deleted) {
+      throw new UnauthorizedException(INVALID_CURRENT_PASSWORD_MESSAGE);
+    }
+
+    await this.authSessionService.revokeActiveSessionsForUser(user.id);
   }
 
   async logout(payload: JwtPayload): Promise<void> {

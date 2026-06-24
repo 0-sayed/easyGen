@@ -202,6 +202,73 @@ describe("UsersRepository persistence contract", () => {
     });
   });
 
+  it("soft deletes users by anonymizing auth fields and excluding them from auth lookups", async () => {
+    const createdUser = await getRepository().create({
+      email: "delete-me@example.com",
+      name: "Delete Me",
+      passwordHash: "old-hash",
+    });
+    const deletedAt = new Date("2026-06-24T10:00:00.000Z");
+
+    await expect(
+      getRepository().softDelete(createdUser.id, {
+        deletedAt,
+        passwordHash: "deleted-hash",
+        previousPasswordHash: "old-hash",
+      })
+    ).resolves.toBe(true);
+
+    await expect(getRepository().findByEmail("delete-me@example.com")).resolves.toBeNull();
+    await expect(getRepository().findPublicById(createdUser.id)).resolves.toBeNull();
+    await expect(getRepository().findByIdWithPasswordHash(createdUser.id)).resolves.toBeNull();
+    await expect(
+      getRepository().updateProfile(createdUser.id, { name: "Should Not Update" })
+    ).resolves.toBeNull();
+    await expect(
+      getRepository().updatePasswordHash(createdUser.id, "new-hash", "deleted-hash")
+    ).resolves.toBe(false);
+
+    const storedUser = await getUserModel()
+      .findById(createdUser.id)
+      .select(
+        "+passwordHash +emailVerificationTokenHash +emailVerificationTokenExpiresAt +passwordResetTokenHash +passwordResetTokenExpiresAt"
+      )
+      .lean()
+      .exec();
+
+    expect(storedUser).toMatchObject({
+      deletedAt,
+      email: `deleted+${createdUser.id}@deleted.local`,
+      name: "Deleted Account",
+      passwordHash: "deleted-hash",
+      emailVerificationTokenHash: null,
+      emailVerificationTokenExpiresAt: null,
+      passwordResetTokenHash: null,
+      passwordResetTokenExpiresAt: null,
+    });
+  });
+
+  it("does not soft delete when the expected current password hash is stale", async () => {
+    const createdUser = await getRepository().create({
+      email: "stale-delete@example.com",
+      name: "Stale Delete",
+      passwordHash: "current-hash",
+    });
+
+    await expect(
+      getRepository().softDelete(createdUser.id, {
+        deletedAt: new Date("2026-06-24T10:00:00.000Z"),
+        passwordHash: "deleted-hash",
+        previousPasswordHash: "stale-hash",
+      })
+    ).resolves.toBe(false);
+
+    await expect(getRepository().findByEmail("stale-delete@example.com")).resolves.toMatchObject({
+      id: createdUser.id,
+      passwordHash: "current-hash",
+    });
+  });
+
   it("stores and clears email verification token fields without exposing token hashes publicly", async () => {
     const createdUser = await getRepository().create({
       email: "verify@example.com",

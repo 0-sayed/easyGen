@@ -162,6 +162,16 @@ describe("AuthController", () => {
     expect(authAuditLogger.logLogoutFailure).not.toHaveBeenCalled();
     expect(authAuditLogger.logLogoutSuccess).not.toHaveBeenCalled();
   });
+
+  it("deletes the current account through the authenticated payload", async () => {
+    const { authController, authService } = createController();
+    const request = createAuthenticatedRequest();
+    const dto = { currentPassword: TEST_FIXTURE.password };
+
+    await authController.deleteMe(request, dto);
+
+    expect(authService.deleteCurrentAccount).toHaveBeenCalledWith(request.user, dto);
+  });
 });
 
 function createController(): {
@@ -182,6 +192,7 @@ function createController(): {
   };
   authController: AuthController;
   authService: {
+    deleteCurrentAccount: ReturnType<typeof vi.fn>;
     logout: ReturnType<typeof vi.fn>;
     signin: ReturnType<typeof vi.fn>;
     signup: ReturnType<typeof vi.fn>;
@@ -195,6 +206,7 @@ function createController(): {
   };
 } {
   const authService = {
+    deleteCurrentAccount: vi.fn(() => Promise.resolve()),
     logout: vi.fn(() => Promise.resolve()),
     signin: vi.fn(() =>
       Promise.resolve({

@@ -25,6 +25,9 @@ export class User {
 
   @Prop({ default: null, select: false, type: Date })
   passwordResetTokenExpiresAt!: Date | null;
+
+  @Prop({ default: null, index: true, type: Date })
+  deletedAt!: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
