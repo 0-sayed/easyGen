@@ -231,6 +231,10 @@ describe("App routes", () => {
           resolveCurrentUser = resolve;
         })
     );
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
@@ -281,6 +285,17 @@ describe("App routes", () => {
 
   it("restores a valid stored token without a fresh signin", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [
+        {
+          id: "activity-1",
+          type: "auth.signed_in",
+          description: "Signed in",
+          occurredAt: "2026-06-24T12:00:00.000Z",
+        },
+      ],
+      limit: 20,
+    });
     vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce({
       service: "easygen-api",
       version: "0.1.0",
@@ -301,16 +316,25 @@ describe("App routes", () => {
     expect(screen.getByText("Person Name")).toBeInTheDocument();
     expect(screen.getByText("person@example.com")).toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
+    expect(screen.getByText("Signed in")).toBeInTheDocument();
+    expect(screen.queryByText("activity-1")).not.toBeInTheDocument();
+    expect(screen.queryByText("auth.signed_in")).not.toBeInTheDocument();
     expect(await screen.findByRole("status", { name: "API connection" })).toHaveTextContent(
       "API connected"
     );
     expect(api.getCurrentUser).toHaveBeenCalledWith("token-123");
+    expect(api.getAccountActivity).toHaveBeenCalledWith("token-123");
     expect(statusApi.getBuildInfo).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 
   it("keeps the application usable when the in-page status request fails", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
@@ -336,8 +360,35 @@ describe("App routes", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the application usable when account activity fails", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockRejectedValueOnce(new Error("activity unavailable"));
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("token-123");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
+    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Account activity unavailable" })).toHaveTextContent(
+      "Recent account activity is unavailable."
+    );
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+  });
+
   it("renders the authenticated app heading and logs out clearing localStorage", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
     const logout = vi.spyOn(api, "logout").mockResolvedValueOnce(undefined);
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
@@ -365,6 +416,10 @@ describe("App routes", () => {
   it("keeps signin usable when the status request fails", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "token-123", user });
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
 
     render(
       <MemoryRouter initialEntries={["/signin"]}>
@@ -389,6 +444,10 @@ describe("App routes", () => {
   it("keeps signup usable when the status request fails", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
     vi.spyOn(api, "signup").mockResolvedValueOnce({ accessToken: "token-123", user });
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
 
     render(
       <MemoryRouter initialEntries={["/signup"]}>

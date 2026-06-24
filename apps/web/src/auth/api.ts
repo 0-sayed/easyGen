@@ -12,6 +12,24 @@ export interface AuthResponse {
   user: PublicUser;
 }
 
+export type AccountActivityType =
+  | "account.created"
+  | "auth.signed_in"
+  | "auth.signed_out"
+  | "email.verified";
+
+export interface AccountActivityEntry {
+  id: string;
+  type: AccountActivityType;
+  description: string;
+  occurredAt: string;
+}
+
+export interface AccountActivityResponse {
+  activities: AccountActivityEntry[];
+  limit: number;
+}
+
 export async function signup(input: SignupFormValues): Promise<AuthResponse> {
   return readAuthResponse(
     await apiRequest("/auth/signup", {
@@ -47,6 +65,16 @@ export async function logout(accessToken: string): Promise<void> {
   });
 }
 
+export async function getAccountActivity(
+  accessToken: string
+): Promise<AccountActivityResponse> {
+  return readAccountActivityResponse(
+    await apiRequest("/auth/activity", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
 function readAuthResponse(body: unknown): AuthResponse {
   if (!isObject(body) || typeof body.accessToken !== "string" || !isPublicUser(body.user)) {
     throw new ApiClientError("Unexpected authentication response.", "unexpected");
@@ -61,6 +89,41 @@ function readCurrentUser(body: unknown): PublicUser {
   }
 
   return body.user;
+}
+
+function readAccountActivityResponse(body: unknown): AccountActivityResponse {
+  if (
+    !isObject(body) ||
+    !Array.isArray(body.activities) ||
+    !body.activities.every(isAccountActivityEntry) ||
+    typeof body.limit !== "number"
+  ) {
+    throw new ApiClientError("Unexpected account activity response.", "unexpected");
+  }
+
+  return {
+    activities: body.activities,
+    limit: body.limit,
+  };
+}
+
+function isAccountActivityEntry(value: unknown): value is AccountActivityEntry {
+  return (
+    isObject(value) &&
+    typeof value.id === "string" &&
+    isAccountActivityType(value.type) &&
+    typeof value.description === "string" &&
+    typeof value.occurredAt === "string"
+  );
+}
+
+function isAccountActivityType(value: unknown): value is AccountActivityType {
+  return (
+    value === "account.created" ||
+    value === "auth.signed_in" ||
+    value === "auth.signed_out" ||
+    value === "email.verified"
+  );
 }
 
 function isPublicUser(value: unknown): value is PublicUser {
