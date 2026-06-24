@@ -135,14 +135,24 @@ describe("PasswordResetService", () => {
     }
   );
 
-  it("returns generic response without delivery for unknown emails or failed storage", async () => {
-    vi.mocked(usersService.findPasswordResetStateByEmail).mockResolvedValueOnce(null);
+  it("performs comparable token storage work without delivery for unknown emails", async () => {
+    vi.mocked(usersService.findPasswordResetStateByEmail).mockResolvedValue(null);
+
     await expect(service.requestReset({ email: TEST_FIXTURE.email })).resolves.toEqual({
       message: REQUEST_MESSAGE,
     });
 
-    vi.mocked(usersService.findPasswordResetStateByEmail).mockResolvedValueOnce(resetUser());
+    expect(usersService.setPasswordResetToken).toHaveBeenCalledWith("000000000000000000000000", {
+      expiresAt: new Date("2026-06-24T10:15:00.000Z"),
+      tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(sentMessages).toHaveLength(0);
+  });
+
+  it("returns generic response without delivery when reset token storage fails", async () => {
+    vi.mocked(usersService.findPasswordResetStateByEmail).mockResolvedValue(resetUser());
     vi.mocked(usersService.setPasswordResetToken).mockResolvedValueOnce(null);
+
     await expect(service.requestReset({ email: TEST_FIXTURE.email })).resolves.toEqual({
       message: REQUEST_MESSAGE,
     });

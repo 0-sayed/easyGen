@@ -42,7 +42,7 @@ describe("InMemoryAuthTokenDelivery", () => {
 });
 
 describe("LogAuthTokenDelivery", () => {
-  it("writes verification metadata without exposing the raw token", async () => {
+  it("writes verification metadata without exposing the raw token or raw email", async () => {
     const info = vi.fn();
     const delivery = new LogAuthTokenDelivery({ info });
     const message = testMessage("verification");
@@ -51,16 +51,17 @@ describe("LogAuthTokenDelivery", () => {
 
     expect(info).toHaveBeenCalledWith(
       {
-        email: message.email,
+        email: expect.stringMatching(/^v\*+@example\.test$/),
         event: "auth.email_verification.token",
         expiresAt: "2026-06-21T10:15:00.000Z",
       },
       "email verification token prepared"
     );
     expect(JSON.stringify(info.mock.calls)).not.toContain(message.token);
+    expect(JSON.stringify(info.mock.calls)).not.toContain(message.email);
   });
 
-  it("writes password reset metadata without exposing the raw token", async () => {
+  it("writes password reset metadata without exposing the raw token or raw email", async () => {
     const info = vi.fn();
     const delivery = new LogAuthTokenDelivery({ info });
     const message = testMessage("password-reset");
@@ -69,13 +70,14 @@ describe("LogAuthTokenDelivery", () => {
 
     expect(info).toHaveBeenCalledWith(
       {
-        email: message.email,
+        email: expect.stringMatching(/^p\*+@example\.test$/),
         event: "auth.password_reset.token",
         expiresAt: "2026-06-21T10:15:00.000Z",
       },
       "password reset token prepared"
     );
     expect(JSON.stringify(info.mock.calls)).not.toContain(message.token);
+    expect(JSON.stringify(info.mock.calls)).not.toContain(message.email);
   });
 });
 

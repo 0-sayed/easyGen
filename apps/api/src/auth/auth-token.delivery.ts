@@ -98,7 +98,7 @@ export class LogAuthTokenDelivery implements AuthTokenDelivery {
   ): void {
     this.getLogSink().info(
       {
-        email: message.email,
+        email: maskEmail(message.email),
         event,
         expiresAt: message.expiresAt.toISOString(),
       },
@@ -118,6 +118,20 @@ function copyMessage(message: AuthTokenDeliveryMessage): AuthTokenDeliveryMessag
     expiresAt: new Date(message.expiresAt),
     token: message.token,
   };
+}
+
+function maskEmail(email: string): string {
+  const [localPart, domain, ...extraParts] = email.split("@");
+
+  if (localPart === undefined || domain === undefined || extraParts.length > 0) {
+    return "[redacted]";
+  }
+
+  if (localPart.length === 0 || domain.length === 0) {
+    return "[redacted]";
+  }
+
+  return `${localPart.charAt(0)}${"*".repeat(Math.max(localPart.length - 1, 1))}@${domain}`;
 }
 
 interface EncryptedAuthTokenDeliveryMessage {

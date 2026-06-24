@@ -11,6 +11,7 @@ import { AUTH_TOKEN_DELIVERY, type AuthTokenDelivery } from "./auth-token.delive
 import { PASSWORD_PATTERN, PASSWORD_REQUIREMENTS } from "./password-policy";
 
 const DEFAULT_PASSWORD_RESET_TOKEN_TTL_MS = 900_000;
+const DUMMY_PASSWORD_RESET_USER_ID = "000000000000000000000000";
 const PASSWORD_RESET_REQUEST_MESSAGE =
   "If an account exists for that email, a password reset link has been prepared.";
 const PASSWORD_RESET_CONFIRM_MESSAGE = "Password has been reset.";
@@ -44,6 +45,7 @@ export class PasswordResetService {
     const user = await this.usersService.findPasswordResetStateByEmail(dto.email);
 
     if (user === null) {
+      await this.performDummyPasswordResetTokenWrite();
       return { message: PASSWORD_RESET_REQUEST_MESSAGE };
     }
 
@@ -113,6 +115,16 @@ export class PasswordResetService {
     const ttlMs = typeof configuredTtl === "number" ? configuredTtl : Number(configuredTtl);
 
     return Number.isInteger(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_PASSWORD_RESET_TOKEN_TTL_MS;
+  }
+
+  private async performDummyPasswordResetTokenWrite(): Promise<void> {
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + this.getTokenTtlMs());
+
+    await this.usersService.setPasswordResetToken(DUMMY_PASSWORD_RESET_USER_ID, {
+      expiresAt,
+      tokenHash: hashToken(token),
+    });
   }
 }
 
