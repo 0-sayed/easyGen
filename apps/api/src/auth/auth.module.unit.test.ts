@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { AuthModule } from "./auth.module";
-import {
-  AUTH_TOKEN_DELIVERY,
-  InMemoryAuthTokenDelivery,
-  LogAuthTokenDelivery,
-} from "./auth-token.delivery";
+import { AUTH_TOKEN_DELIVERY, LogAuthTokenDelivery } from "./auth-token.delivery";
 
 describe("AuthModule", () => {
-  it("binds runtime auth token delivery to the local usable delivery implementation", () => {
+  it("binds runtime auth token delivery to the documented logging implementation", () => {
     const providersMetadata: unknown = Reflect.getMetadata("providers", AuthModule);
     if (!Array.isArray(providersMetadata)) {
       throw new Error("Expected AuthModule providers metadata.");
@@ -19,9 +15,6 @@ describe("AuthModule", () => {
 
     expect(deliveryProvider).toEqual({
       provide: AUTH_TOKEN_DELIVERY,
-      useExisting: InMemoryAuthTokenDelivery,
-    });
-    expect(deliveryProvider).not.toMatchObject({
       useExisting: LogAuthTokenDelivery,
     });
   });
