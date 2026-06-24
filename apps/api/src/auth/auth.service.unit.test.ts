@@ -120,6 +120,19 @@ describe("AuthService", () => {
     expect(usersService.create).not.toHaveBeenCalled();
   });
 
+  it("rejects signup emails in the deleted-account tombstone namespace", async () => {
+    vi.mocked(usersService.findByEmail).mockResolvedValue(null);
+
+    const result = authService.signup({
+      email: "Deleted+507f1f77bcf86cd799439011@deleted.local",
+      name: "Person Name",
+      password: "Password1!",
+    });
+
+    await expectSanitizedSignupConflict(result);
+    expect(usersService.create).not.toHaveBeenCalled();
+  });
+
   it("runs a dummy password verification when signin email is unknown", async () => {
     vi.mocked(usersService.findByEmail).mockResolvedValue(null);
     vi.mocked(verify).mockResolvedValue(false);
@@ -464,6 +477,11 @@ describe("AuthService", () => {
     await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(result).rejects.toMatchObject({
       message: "Invalid current password.",
+    });
+    expect(usersService.softDelete).toHaveBeenCalledWith("user-id", {
+      deletedAt: expect.any(Date),
+      passwordHash: "hashed-new-password",
+      previousPasswordHash: "old-hash",
     });
     expect(authSessionService.revokeActiveSessionsForUser).not.toHaveBeenCalled();
   });

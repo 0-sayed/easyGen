@@ -35,6 +35,10 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupDto): Promise<AuthResponse> {
+    if (isDeletedAccountTombstoneEmail(dto.email)) {
+      throw new ConflictException(DUPLICATE_SIGNUP_MESSAGE);
+    }
+
     const existingUser = await this.usersService.findByEmail(dto.email);
 
     if (existingUser !== null) {
@@ -179,6 +183,10 @@ export class AuthService {
 
 function isDuplicateKeyError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
+}
+
+function isDeletedAccountTombstoneEmail(email: string): boolean {
+  return /^deleted\+.+@deleted\.local$/.test(email.trim().toLowerCase());
 }
 
 function readTokenExpiration(decodedToken: unknown): Date {
