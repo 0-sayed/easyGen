@@ -6,6 +6,12 @@ import { AuthSessionService } from "./auth-session.service";
 import type { JwtPayload } from "./jwt-payload";
 
 describe("AuthSessionService", () => {
+  it("declares its repository dependency for runtime injection", () => {
+    expect(Reflect.getMetadata("self:paramtypes", AuthSessionService)).toEqual([
+      { index: 0, param: AuthSessionRepository },
+    ]);
+  });
+
   it("rejects legacy payloads without a token id before querying sessions", async () => {
     const repository = createRepository({ existsActive: vi.fn(() => Promise.resolve(true)) });
     const service = new AuthSessionService(repository as AuthSessionRepository);

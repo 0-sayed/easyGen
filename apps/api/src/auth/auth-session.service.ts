@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 
 import { AuthSessionRepository } from "./auth-session.repository";
 import type { JwtPayload } from "./jwt-payload";
@@ -11,7 +11,9 @@ interface CreateAuthSessionInput {
 
 @Injectable()
 export class AuthSessionService {
-  constructor(private readonly authSessionRepository: AuthSessionRepository) {}
+  constructor(
+    @Inject(AuthSessionRepository) private readonly authSessionRepository: AuthSessionRepository
+  ) {}
 
   async createSession(input: CreateAuthSessionInput): Promise<void> {
     await this.authSessionRepository.create(input);

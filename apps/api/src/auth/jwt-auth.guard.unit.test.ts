@@ -27,6 +27,16 @@ describe("JwtAuthGuard", () => {
     sub: "user-id",
   };
 
+  it("declares every constructor dependency for runtime injection", () => {
+    expect(Reflect.getMetadata("self:paramtypes", JwtAuthGuard)).toEqual(
+      expect.arrayContaining([
+        { index: 0, param: JwtService },
+        { index: 1, param: AuthAuditLogger },
+        { index: 2, param: AuthSessionService },
+      ])
+    );
+  });
+
   beforeEach(() => {
     authAuditLogger = {
       logTokenFailure: vi.fn(),

@@ -17,8 +17,8 @@ import type { JwtPayload } from "./jwt-payload";
 export class JwtAuthGuard implements CanActivate {
   constructor(
     @Inject(JwtService) private readonly jwtService: JwtService,
-    private readonly authAuditLogger: AuthAuditLogger,
-    private readonly authSessionService: AuthSessionService
+    @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger,
+    @Inject(AuthSessionService) private readonly authSessionService: AuthSessionService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

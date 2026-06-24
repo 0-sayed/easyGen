@@ -7,6 +7,7 @@ describe("validateAppConfig", () => {
     const config = validateAppConfig({ JWT_SECRET: "local-test-secret" });
 
     expect(config).toMatchObject({
+      EMAIL_VERIFICATION_TOKEN_TTL_MS: "900000",
       JWT_EXPIRES_IN: "15m",
       JWT_SECRET: "local-test-secret",
       LOG_LEVEL: "info",
@@ -20,6 +21,7 @@ describe("validateAppConfig", () => {
   it("accepts valid deployment-style overrides", () => {
     const config = validateAppConfig({
       JWT_EXPIRES_IN: "1h",
+      EMAIL_VERIFICATION_TOKEN_TTL_MS: "120000",
       JWT_SECRET: "deployment-secret",
       LOG_LEVEL: "warn",
       MONGODB_PORT: "37018",
@@ -29,6 +31,7 @@ describe("validateAppConfig", () => {
     });
 
     expect(config).toMatchObject({
+      EMAIL_VERIFICATION_TOKEN_TTL_MS: "120000",
       JWT_EXPIRES_IN: "1h",
       JWT_SECRET: "deployment-secret",
       LOG_LEVEL: "warn",
@@ -69,6 +72,10 @@ describe("validateAppConfig", () => {
     [
       { JWT_SECRET: "secret", JWT_EXPIRES_IN: "soon" },
       "JWT_EXPIRES_IN must be a duration such as 15m, 1h, or 7d.",
+    ],
+    [
+      { JWT_SECRET: "secret", EMAIL_VERIFICATION_TOKEN_TTL_MS: "0" },
+      "EMAIL_VERIFICATION_TOKEN_TTL_MS must be a positive integer.",
     ],
     [
       { JWT_SECRET: "secret", MONGODB_URI: "https://example.test" },

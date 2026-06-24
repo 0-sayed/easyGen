@@ -10,6 +10,15 @@ export class User {
 
   @Prop({ required: true, select: false, type: String })
   passwordHash!: string;
+
+  @Prop({ default: null, type: Date })
+  emailVerifiedAt!: Date | null;
+
+  @Prop({ default: null, select: false, type: String })
+  emailVerificationTokenHash!: string | null;
+
+  @Prop({ default: null, select: false, type: Date })
+  emailVerificationTokenExpiresAt!: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

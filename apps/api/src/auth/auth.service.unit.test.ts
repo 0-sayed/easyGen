@@ -82,6 +82,8 @@ describe("AuthService", () => {
   it("maps duplicate email prechecks during signup to sanitized conflict responses", async () => {
     vi.mocked(usersService.findByEmail).mockResolvedValue({
       email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: "user-id",
       name: "Person Name",
       passwordHash: "hash",
@@ -115,6 +117,8 @@ describe("AuthService", () => {
   it("issues signin tokens with a session-backed token id and expiration", async () => {
     vi.mocked(usersService.findByEmail).mockResolvedValue({
       email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: "user-id",
       name: "Person Name",
       passwordHash: "hash",
@@ -130,6 +134,7 @@ describe("AuthService", () => {
       accessToken: "token",
       user: {
         email: "person@example.com",
+        emailVerified: false,
         id: "user-id",
         name: "Person Name",
       },
@@ -153,6 +158,8 @@ describe("AuthService", () => {
   it("rejects signin token issuance without a finite expiration and does not persist a session", async () => {
     vi.mocked(usersService.findByEmail).mockResolvedValue({
       email: "person@example.com",
+      emailVerified: false,
+      emailVerifiedAt: null,
       id: "user-id",
       name: "Person Name",
       passwordHash: "hash",

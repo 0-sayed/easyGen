@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
+  ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
@@ -32,8 +33,13 @@ import { AuthService } from "./auth.service";
 import { AuthThrottleScope, AuthThrottleService } from "./auth-throttle.service";
 import { AuthResponse } from "./dto/auth-response.dto";
 import { CurrentUserResponse } from "./dto/current-user.response";
+import { EmailVerificationConfirmResponse } from "./dto/email-verification-confirm-response.dto";
+import { EmailVerificationConfirmDto } from "./dto/email-verification-confirm.dto";
+import { EmailVerificationRequestDto } from "./dto/email-verification-request.dto";
+import { EmailVerificationResponse } from "./dto/email-verification-response.dto";
 import { SigninDto } from "./dto/signin.dto";
 import { SignupDto } from "./dto/signup.dto";
+import { EmailVerificationService } from "./email-verification.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 class TooManyRequestsException extends HttpException {
@@ -50,6 +56,8 @@ class TooManyRequestsException extends HttpException {
 export class AuthController {
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(EmailVerificationService)
+    private readonly emailVerificationService: EmailVerificationService,
     @Inject(AuthThrottleService) private readonly authThrottleService: AuthThrottleService,
     @Inject(AuthAuditLogger) private readonly authAuditLogger: AuthAuditLogger
   ) {}
@@ -108,6 +116,50 @@ export class AuthController {
 
       throw error;
     }
+  }
+
+  @Post("email-verification/request")
+  @HttpCode(202)
+  @ApiAcceptedResponse({
+    description: "Verification delivery prepared when an account exists.",
+    type: EmailVerificationResponse,
+  })
+  @ApiBadRequestResponse({ description: "Email verification request input failed validation." })
+  @ApiTooManyRequestsResponse({
+    description: "Too many authentication attempts. Please try again later.",
+  })
+  requestEmailVerification(
+    @Req() request: Request,
+    @Body() dto: EmailVerificationRequestDto
+  ): Promise<EmailVerificationResponse> {
+    const context = buildAuthRequestContext(request, dto.email) as AuthRequestContext & {
+      email: string;
+    };
+    this.enforceThrottle("email-verification-request", context);
+
+    return this.emailVerificationService.requestVerification(dto);
+  }
+
+  @Post("email-verification/confirm")
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: "Email verified for a valid single-use token.",
+    type: EmailVerificationConfirmResponse,
+  })
+  @ApiBadRequestResponse({ description: "Verification token is invalid or expired." })
+  @ApiTooManyRequestsResponse({
+    description: "Too many authentication attempts. Please try again later.",
+  })
+  confirmEmailVerification(
+    @Req() request: Request,
+    @Body() dto: EmailVerificationConfirmDto
+  ): Promise<EmailVerificationConfirmResponse> {
+    const context = buildAuthRequestContext(request, dto.email) as AuthRequestContext & {
+      email: string;
+    };
+    this.enforceThrottle("email-verification-confirm", context);
+
+    return this.emailVerificationService.confirmVerification(dto);
   }
 
   @Get("me")
