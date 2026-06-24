@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { Logger } from "@nestjs/common";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AccountActivityRepository } from "./account-activity.repository";
 import { AccountActivityService } from "./account-activity.service";
 
 describe("AccountActivityService", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("records user-safe account activity types", async () => {
     const { repository, service } = createService();
     const occurredAt = new Date("2026-06-24T10:00:00.000Z");
@@ -73,6 +78,26 @@ describe("AccountActivityService", () => {
     });
     expect(repository.listRecentForUser).toHaveBeenCalledWith("user-123", 20);
     expect(JSON.stringify(response)).not.toContain("user-123");
+  });
+
+  it("logs and suppresses account activity persistence failures", async () => {
+    const { repository, service } = createService();
+    const occurredAt = new Date("2026-06-24T10:00:00.000Z");
+    const error = new Error("activity store unavailable");
+    const loggerError = vi.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+    repository.create.mockRejectedValue(error);
+
+    await expect(service.recordSignedIn("user-123", occurredAt)).resolves.toBeUndefined();
+
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to record account activity event "auth.signed_in" for user "user-123".',
+      error.stack
+    );
+    expect(repository.create).toHaveBeenCalledWith({
+      occurredAt,
+      type: "auth.signed_in",
+      userId: "user-123",
+    });
   });
 });
 

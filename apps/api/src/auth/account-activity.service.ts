@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 
 import { AccountActivityRepository } from "./account-activity.repository";
 import type { AccountActivityType } from "./account-activity.types";
@@ -18,6 +18,8 @@ const ACTIVITY_DESCRIPTIONS: Record<AccountActivityType, string> = {
 
 @Injectable()
 export class AccountActivityService {
+  private readonly logger = new Logger(AccountActivityService.name);
+
   constructor(
     @Inject(AccountActivityRepository)
     private readonly accountActivityRepository: AccountActivityRepository
@@ -58,7 +60,14 @@ export class AccountActivityService {
     };
   }
 
-  private record(userId: string, type: AccountActivityType, occurredAt: Date): Promise<void> {
-    return this.accountActivityRepository.create({ occurredAt, type, userId });
+  private async record(userId: string, type: AccountActivityType, occurredAt: Date): Promise<void> {
+    try {
+      await this.accountActivityRepository.create({ occurredAt, type, userId });
+    } catch (error) {
+      this.logger.error(
+        `Failed to record account activity event "${type}" for user "${userId}".`,
+        error instanceof Error ? error.stack : error
+      );
+    }
   }
 }
