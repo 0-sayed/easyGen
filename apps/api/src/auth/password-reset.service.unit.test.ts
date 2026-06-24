@@ -170,12 +170,14 @@ describe("PasswordResetService", () => {
 
     expect(authAuditLogger.logPasswordResetDeliveryFailure).toHaveBeenCalledWith({
       email: TEST_FIXTURE.email,
-      error: expect.any(Error),
+      errorName: "Error",
       userId: TEST_FIXTURE.userId,
     });
-    expect(
-      JSON.stringify(authAuditLogger.logPasswordResetDeliveryFailure.mock.calls)
-    ).not.toContain("delivery failed");
+    const [failurePayload] = authAuditLogger.logPasswordResetDeliveryFailure.mock.calls[0] ?? [];
+    expect(failurePayload).toBeDefined();
+    expect(failurePayload).not.toMatchObject({
+      error: expect.objectContaining({ message: "delivery failed" }),
+    });
   });
 
   it("confirms a valid token once, hashes the password, and revokes active sessions", async () => {

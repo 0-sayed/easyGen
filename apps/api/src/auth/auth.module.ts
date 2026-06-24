@@ -62,7 +62,7 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
     LogAuthTokenDelivery,
     {
       provide: AUTH_TOKEN_DELIVERY,
-      useExisting: LogAuthTokenDelivery,
+      useExisting: InMemoryAuthTokenDelivery,
     },
     AuthSessionRepository,
     AuthSessionService,

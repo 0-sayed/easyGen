@@ -69,7 +69,7 @@ export class PasswordResetService {
     } catch (error) {
       this.authAuditLogger.logPasswordResetDeliveryFailure({
         email: storedUser.email,
-        error,
+        errorName: getErrorName(error),
         userId: storedUser.id,
       });
     }
@@ -152,4 +152,8 @@ function hashToken(token: string): string {
 
 function invalidPasswordResetToken(): BadRequestException {
   return new BadRequestException(INVALID_PASSWORD_RESET_TOKEN_MESSAGE);
+}
+
+function getErrorName(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
 }
