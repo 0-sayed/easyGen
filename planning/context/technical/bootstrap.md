@@ -19,19 +19,13 @@ planning/
     tasks.md
 ```
 
-`planning/roadmap/tasks.md` is the feature roadmap. It should be DAG-like: one row per task, with dependencies and context references, so agents can pick the next unblocked task. Add a dedicated execution waves table below the task graph; tasks in the same wave must not depend on each other and are the parallel work candidates for that stage. Include `Wave`, `Done`, `Parallel Tasks`, and `Branches` columns so each parallel task has an obvious branch name and completed waves can be tracked separately from individual task rows.
+`planning/roadmap/tasks.md` is the feature roadmap. It should be a DAG: one row per task, with priority, dependencies, branch, and context references, so agents can pick the next unblocked task up to the configured concurrency limit. Dependencies and priority are the source of truth.
 
 Example task row:
 
-| Task                                | Depends On | Context                                                |
-| ----------------------------------- | ---------- | ------------------------------------------------------ |
-| [ ] `T001` — Create customer record | —          | `context/domain-model.md`, `context/api-boundaries.md` |
-
-Example execution waves row:
-
-| Wave | Done | Parallel Tasks | Branches                                              |
-| ---- | ---- | -------------- | ----------------------------------------------------- |
-| 2    | [ ]  | `T002`, `T003` | `feat/t002-api-routes`, `feat/t003-worker-processing` |
+| Done | Priority | Task                                | Depends On | Branch                       | Context                                                |
+| ---- | -------- | ----------------------------------- | ---------- | ---------------------------- | ------------------------------------------------------ |
+| [ ]  | 10       | `T001` — Create customer record     | —          | `feat/t001-customer-record`  | `context/domain-model.md`, `context/api-boundaries.md` |
 
 Bootstrap may create empty apps, shared libs, health checks, docs endpoints, and local infrastructure, but it must not implement business behavior.
 
