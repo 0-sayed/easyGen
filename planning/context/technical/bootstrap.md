@@ -23,9 +23,9 @@ planning/
 
 Example task row:
 
-| Done | Priority | Task                                | Depends On | Branch                       | Context                                                |
-| ---- | -------- | ----------------------------------- | ---------- | ---------------------------- | ------------------------------------------------------ |
-| [ ]  | 10       | `T001` — Create customer record     | —          | `feat/t001-customer-record`  | `context/domain-model.md`, `context/api-boundaries.md` |
+| Done | Priority | Size | Task                            | Depends On | Branch                      | Context                                                |
+| ---- | -------- | ---- | ------------------------------- | ---------- | --------------------------- | ------------------------------------------------------ |
+| [ ]  | 10       | L    | `T001` — Create customer record | —          | `feat/t001-customer-record` | `context/domain-model.md`, `context/api-boundaries.md` |
 
 Bootstrap may create empty apps, shared libs, health checks, docs endpoints, and local infrastructure, but it must not implement business behavior.
 

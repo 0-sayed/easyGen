@@ -14,5 +14,6 @@ Add browser-level confidence for account settings, activity, and deletion flows.
 ## Acceptance Criteria
 
 - Browser QA covers one successful account settings flow.
+- Browser QA verifies account activity is visible where supported by the API.
 - Browser QA covers account deletion confirmation and post-delete unauthenticated state.
 - Tests remain focused and do not duplicate the full auth QA matrix.

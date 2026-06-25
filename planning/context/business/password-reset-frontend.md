@@ -14,6 +14,7 @@ Let users request and complete password reset from the browser.
 ## Acceptance Criteria
 
 - A user can request a reset email from the signin surface.
+- Reset request success messaging does not reveal whether the email belongs to an existing account.
 - A valid reset token lets the user set a new password.
 - Invalid or expired tokens show a recovery path.
 - Frontend tests cover success and failure states.

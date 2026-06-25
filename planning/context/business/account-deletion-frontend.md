@@ -13,7 +13,7 @@ Expose account deletion in the UI with deliberate confirmation and safe feedback
 
 ## Acceptance Criteria
 
-- A signed-in user can delete the account only after confirmation.
+- A signed-in user can delete the account only after confirming the current password.
 - API errors are visible and do not leave the UI in a stuck state.
 - Successful deletion clears auth state and returns the user to a public route.
 - Focused frontend tests cover confirmation, cancellation, success, and API failure states.
