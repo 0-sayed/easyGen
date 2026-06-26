@@ -1,11 +1,31 @@
-import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 
 const PASSWORD = "Password1!";
+const NEW_PASSWORD = "NewPassword1!";
 const suiteRunId = sanitizeForEmail(process.env.GITHUB_RUN_ID ?? `local-${String(Date.now())}`);
+const DEFAULT_API_PORT = 3000;
+const apiBaseUrl = `http://127.0.0.1:${String(resolvePort(process.env.PORT, DEFAULT_API_PORT))}`;
 
 interface BrowserAccount {
   email: string;
   name: string;
+}
+
+interface DeliveredAuthTokenMessage {
+  email: string;
+  expiresAt: string;
+  token: string;
+}
+
+interface DeliveredAuthTokenResponse {
+  messages: DeliveredAuthTokenMessage[];
 }
 
 test.describe("full-stack auth browser matrix", () => {
@@ -104,6 +124,92 @@ test.describe("full-stack auth browser matrix", () => {
     ).not.toBeVisible();
   });
 
+  test("verifies email recovery links and explains invalid verification tokens", async ({
+    page,
+    request,
+  }, testInfo) => {
+    const account = buildAccount(testInfo, "email-recovery");
+
+    await createAccount(page, account);
+    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+
+    await page.goto(buildRecoveryUrl("/verify-email", account.email, "invalid-verification-token"));
+
+    await expect(
+      page.getByRole("heading", { name: "Verification link invalid or expired" })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "This verification link is invalid or expired. Request a new verification email to continue."
+      )
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Request verification email" }).click();
+    await expect(
+      page.getByText("If an account exists for that email, a verification link has been prepared.")
+    ).toBeVisible();
+
+    const token = await drainDeliveredToken(
+      request,
+      "/__test/auth-tokens/verification",
+      account.email,
+      "email verification"
+    );
+
+    await page.goto(buildRecoveryUrl("/verify-email", account.email, token));
+
+    await expect(page.getByRole("heading", { name: "Email verified" })).toBeVisible();
+    await expect(page.getByText("Your email address has been verified.")).toBeVisible();
+    await expect(page.getByText(account.email, { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
+  });
+
+  test("requests a password reset link and signs in with the new password", async ({
+    page,
+    request,
+  }, testInfo) => {
+    const account = buildAccount(testInfo, "password-recovery");
+
+    await createAccount(page, account);
+    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+
+    await page.goto("/forgot-password");
+    await fillInput(page.getByLabel("Email"), account.email);
+    await page.getByRole("button", { name: "Send reset link" }).click();
+    await expect(
+      page.getByText(
+        "If an account exists for that email, a password reset link has been prepared."
+      )
+    ).toBeVisible();
+
+    const token = await drainDeliveredToken(
+      request,
+      "/__test/auth-tokens/password-reset",
+      account.email,
+      "password reset"
+    );
+
+    await page.goto(buildRecoveryUrl("/reset-password", account.email, token));
+    await fillInput(page.getByLabel("New password", { exact: true }), NEW_PASSWORD);
+    await fillInput(page.getByLabel("Confirm new password"), NEW_PASSWORD);
+    await page.getByRole("button", { name: "Reset password" }).click();
+
+    await expect(page.getByRole("heading", { name: "Password updated" })).toBeVisible();
+    await expect(page.getByText("Password has been reset.")).toBeVisible();
+
+    await page.getByRole("link", { name: "Sign in" }).click();
+    await fillSignin(page, account.email, PASSWORD);
+    await expect(page.getByText("Invalid email or password.")).toBeVisible();
+
+    await fillSignin(page, account.email, NEW_PASSWORD);
+    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
+  });
+
   test("stale session redirects to signin and clears browser token", async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem("easygen.accessToken", "stale-browser-token");
@@ -160,6 +266,83 @@ async function fillSignin(page: Page, email: string, password: string): Promise<
 async function fillInput(locator: Locator, value: string): Promise<void> {
   await locator.click();
   await locator.fill(value);
+}
+
+async function drainDeliveredToken(
+  request: APIRequestContext,
+  path: "/__test/auth-tokens/verification" | "/__test/auth-tokens/password-reset",
+  email: string,
+  tokenType: string
+): Promise<string> {
+  const response = await request.get(`${apiBaseUrl}${path}`);
+  expect(response.ok(), `${tokenType} token drain endpoint should respond successfully`).toBe(true);
+
+  const body = await parseDeliveredAuthTokenResponse(response);
+  const message = body.messages.find((candidate) => candidate.email === email);
+  const drainedEmails = body.messages.map((candidate) => candidate.email).join(", ");
+
+  expect(
+    message,
+    `Expected ${tokenType} token for ${email}. Drained token emails: ${drainedEmails || "none"}.`
+  ).toBeDefined();
+  if (message === undefined) {
+    throw new Error(
+      `Expected ${tokenType} token for ${email}. Drained token emails: ${drainedEmails || "none"}.`
+    );
+  }
+
+  return message.token;
+}
+
+async function parseDeliveredAuthTokenResponse(
+  response: Awaited<ReturnType<APIRequestContext["get"]>>
+): Promise<DeliveredAuthTokenResponse> {
+  const body: unknown = await response.json();
+
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("messages" in body) ||
+    !Array.isArray(body.messages) ||
+    !body.messages.every(isDeliveredAuthTokenMessage)
+  ) {
+    throw new Error("Unexpected auth token drain response.");
+  }
+
+  return { messages: body.messages };
+}
+
+function isDeliveredAuthTokenMessage(value: unknown): value is DeliveredAuthTokenMessage {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "email" in value &&
+    typeof value.email === "string" &&
+    "expiresAt" in value &&
+    typeof value.expiresAt === "string" &&
+    "token" in value &&
+    typeof value.token === "string"
+  );
+}
+
+function buildRecoveryUrl(
+  path: "/verify-email" | "/reset-password",
+  email: string,
+  token: string
+): string {
+  const params = new URLSearchParams({ email, token });
+  return `${path}?${params.toString()}`;
+}
+
+function resolvePort(value: string | undefined, fallback: number): number {
+  const candidate = value?.trim();
+
+  if (candidate === undefined || !/^\d+$/.test(candidate)) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(candidate, 10);
+  return parsed > 0 && parsed <= 65_535 ? parsed : fallback;
 }
 
 function sanitizeForEmail(value: string): string {
