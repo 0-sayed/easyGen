@@ -262,6 +262,36 @@ describe("App routes", () => {
     expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
   });
 
+  it("clears the reauth message after leaving signin", async () => {
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("revoked-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Create one" }));
+    expect(await screen.findByRole("heading", { name: "Create account" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Sign in" }));
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session expired. Please sign in again.")
+    ).not.toBeInTheDocument();
+  });
+
   it("shows saved-token loading status before opening the app", async () => {
     let resolveCurrentUser: ((currentUser: typeof user) => void) | undefined;
     vi.spyOn(api, "getCurrentUser").mockImplementationOnce(

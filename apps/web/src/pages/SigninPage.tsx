@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -22,6 +22,12 @@ export function SigninPage() {
     resolver: zodResolver(signinSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  useEffect(() => {
+    return () => {
+      clearReauthMessage();
+    };
+  }, [clearReauthMessage]);
 
   async function onSubmit(values: SigninFormValues) {
     setSubmitError(null);
@@ -105,7 +111,7 @@ export function SigninPage() {
         </div>
 
         <p
-          className={`${submitError ?? reauthMessage ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
+          className={`${(submitError ?? reauthMessage) ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
           aria-live="polite"
         >
           {submitError ?? reauthMessage ?? "Your session stays on this device."}
