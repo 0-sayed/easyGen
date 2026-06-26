@@ -31,10 +31,7 @@ export function isApiClientError(error: unknown): error is ApiClientError {
   );
 }
 
-type AppLocation = Pick<Location | URL, "hostname" | "port" | "protocol">;
-
-export function getApiUrl(env: ImportMetaEnv, appLocation?: AppLocation): string {
-  void appLocation;
+export function getApiUrl(env: ImportMetaEnv): string {
   const apiUrl = env.VITE_API_URL?.trim();
   return apiUrl === undefined || apiUrl.length === 0 ? DEFAULT_API_URL : apiUrl;
 }
