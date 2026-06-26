@@ -16,8 +16,12 @@ export const authStyles = {
   messageSlotTall: "min-h-10",
   primaryLink:
     "min-h-11 rounded-control bg-brand px-4 py-2.5 text-center text-base font-bold text-white shadow-sm transition hover:bg-brand-strong focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
+  secondaryButton:
+    "min-h-11 rounded-control border border-input bg-white px-4 py-2.5 text-base font-bold text-brand shadow-sm transition hover:border-brand hover:bg-field focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25 disabled:cursor-wait disabled:opacity-70",
   secondaryLink:
     "min-h-11 rounded-control border border-input bg-white px-4 py-2.5 text-center text-base font-bold text-brand shadow-sm transition hover:border-brand hover:bg-field focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
+  dangerButton:
+    "min-h-11 rounded-control bg-danger px-4 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-danger/90 focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-danger/25 disabled:cursor-wait disabled:opacity-70",
   statusText: "text-base leading-relaxed text-muted",
   switchText: "mt-4 text-center text-base leading-relaxed text-muted",
   title: "m-0 text-[1.85rem] font-semibold leading-tight text-ink sm:text-[2.25rem]",

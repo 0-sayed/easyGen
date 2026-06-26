@@ -174,6 +174,30 @@ describe("AuthProvider", () => {
     expect(screen.getByText("guest")).toBeInTheDocument();
   });
 
+  it("deletes the account before clearing authenticated state", async () => {
+    setAccessToken("token-123");
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    const deleteAccount = vi.spyOn(api, "deleteAccount").mockResolvedValueOnce(undefined);
+
+    render(
+      <AuthProvider>
+        <DeleteAccountButton />
+        <Probe />
+      </AuthProvider>
+    );
+
+    await screen.findByText("Person Name");
+    await userEvent.click(screen.getByRole("button", { name: "Delete account" }));
+
+    await waitFor(() => {
+      expect(deleteAccount).toHaveBeenCalledWith("token-123", {
+        currentPassword: "Password1!",
+      });
+    });
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+    expect(screen.getByText("guest")).toBeInTheDocument();
+  });
+
   it("does not let a stale bootstrap request replace a new signin session", async () => {
     const staleUser = {
       id: "user-old",
@@ -277,6 +301,21 @@ function LogoutButton() {
       }}
     >
       Log out
+    </button>
+  );
+}
+
+function DeleteAccountButton() {
+  const { deleteAccount } = useAuth();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void deleteAccount("Password1!");
+      }}
+    >
+      Delete account
     </button>
   );
 }

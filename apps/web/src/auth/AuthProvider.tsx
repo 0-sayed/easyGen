@@ -10,6 +10,7 @@ import {
 
 import { isApiClientError } from "../api/client";
 import {
+  deleteAccount as deleteAccountRequest,
   getCurrentUser,
   logout as logoutRequest,
   signin as signinRequest,
@@ -28,6 +29,7 @@ interface AuthContextValue {
   handleRevokedSession: () => void;
   signin: (input: SigninFormValues) => Promise<void>;
   signup: (input: SignupFormValues) => Promise<void>;
+  deleteAccount: (currentPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   replaceUser: (user: PublicUser) => void;
 }
@@ -114,6 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCurrentAccessToken(response.accessToken);
         setUser(response.user);
         setReauthMessage(null);
+      },
+      deleteAccount: async (currentPassword) => {
+        const accessToken = getAccessToken();
+
+        if (accessToken === null) {
+          clearAuthenticatedState(null);
+          return;
+        }
+
+        await deleteAccountRequest(accessToken, { currentPassword });
+        clearAuthenticatedState(null);
       },
       logout: async () => {
         const accessToken = getAccessToken();

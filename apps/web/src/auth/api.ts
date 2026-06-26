@@ -1,7 +1,8 @@
 import { ApiClientError, apiRequest } from "../api/client";
 import type {
-  PasswordResetRequestFormValues,
   ChangePasswordRequest,
+  DeleteAccountRequest,
+  PasswordResetRequestFormValues,
   ProfileUpdateFormValues,
   SigninFormValues,
   SignupFormValues,
@@ -162,6 +163,20 @@ export async function changePassword(
 ): Promise<void> {
   await apiRequest("/auth/password", {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteAccount(
+  accessToken: string,
+  input: DeleteAccountRequest
+): Promise<void> {
+  await apiRequest("/auth/me", {
+    method: "DELETE",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",

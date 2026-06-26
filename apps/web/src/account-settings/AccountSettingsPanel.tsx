@@ -6,8 +6,10 @@ import { isApiClientError } from "../api/client";
 import { changePassword, updateProfile, type PublicUser } from "../auth/api";
 import {
   PASSWORD_HELPER_MESSAGE,
+  accountDeletionSchema,
   passwordChangeSchema,
   profileUpdateSchema,
+  type AccountDeletionFormValues,
   type PasswordChangeFormValues,
   type ProfileUpdateFormValues,
 } from "../auth/validation";
@@ -17,17 +19,22 @@ interface AccountSettingsPanelProps {
   accessToken: string | null;
   user: PublicUser | null;
   onUserUpdated: (user: PublicUser) => void;
+  onAccountDeleted: (currentPassword: string) => Promise<void>;
 }
 
 export function AccountSettingsPanel({
   accessToken,
   user,
   onUserUpdated,
+  onAccountDeleted,
 }: AccountSettingsPanelProps) {
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileFailed, setProfileFailed] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordFailed, setPasswordFailed] = useState(false);
+  const [deletionOpen, setDeletionOpen] = useState(false);
+  const [deletionMessage, setDeletionMessage] = useState<string | null>(null);
+  const [deletionFailed, setDeletionFailed] = useState(false);
   const {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
@@ -45,6 +52,15 @@ export function AccountSettingsPanel({
   } = useForm<PasswordChangeFormValues>({
     resolver: zodResolver(passwordChangeSchema),
     defaultValues: { currentPassword: "", newPassword: "", confirmNewPassword: "" },
+  });
+  const {
+    register: registerDeletion,
+    handleSubmit: handleDeletionSubmit,
+    reset: resetDeletion,
+    formState: { errors: deletionErrors, isSubmitting: isDeletionSubmitting },
+  } = useForm<AccountDeletionFormValues>({
+    resolver: zodResolver(accountDeletionSchema),
+    defaultValues: { currentPassword: "", confirmDeletion: false },
   });
 
   useEffect(() => {
@@ -92,6 +108,26 @@ export function AccountSettingsPanel({
     } catch (error) {
       setPasswordFailed(true);
       setPasswordMessage(isApiClientError(error) ? error.message : "Unable to change password.");
+    }
+  }
+
+  function closeDeletionForm() {
+    setDeletionOpen(false);
+    setDeletionMessage(null);
+    setDeletionFailed(false);
+    resetDeletion({ currentPassword: "", confirmDeletion: false });
+  }
+
+  async function onDeletionSubmit(values: AccountDeletionFormValues) {
+    setDeletionMessage(null);
+    setDeletionFailed(false);
+
+    try {
+      await onAccountDeleted(values.currentPassword);
+      resetDeletion({ currentPassword: "", confirmDeletion: false });
+    } catch (error) {
+      setDeletionFailed(true);
+      setDeletionMessage(isApiClientError(error) ? error.message : "Unable to delete account.");
     }
   }
 
@@ -236,6 +272,109 @@ export function AccountSettingsPanel({
           {isPasswordSubmitting ? "Changing..." : "Change password"}
         </button>
       </form>
+
+      <section
+        className="grid gap-4 border-t border-line pt-5"
+        aria-labelledby="delete-account-title"
+      >
+        <div>
+          <h3
+            id="delete-account-title"
+            className="m-0 text-lg font-semibold leading-tight text-ink"
+          >
+            Delete account
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-muted">
+            This permanently removes your account and signs you out.
+          </p>
+        </div>
+
+        {deletionOpen ? (
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
+              void handleDeletionSubmit(onDeletionSubmit)(event);
+            }}
+            noValidate
+          >
+            <div className={authStyles.field}>
+              <label className={authStyles.label} htmlFor="settings-delete-current-password">
+                Current password for account deletion
+              </label>
+              <input
+                id="settings-delete-current-password"
+                className={authStyles.input}
+                type="password"
+                autoComplete="current-password"
+                aria-describedby="settings-delete-current-password-message"
+                aria-invalid={deletionErrors.currentPassword ? "true" : "false"}
+                {...registerDeletion("currentPassword")}
+              />
+              <p
+                id="settings-delete-current-password-message"
+                className={`${deletionErrors.currentPassword ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
+                aria-live="polite"
+              >
+                {deletionErrors.currentPassword?.message ?? "Enter your current password."}
+              </p>
+            </div>
+
+            <label className="flex items-start gap-3 text-sm font-semibold leading-5 text-label">
+              <input
+                className="mt-1 h-4 w-4 accent-danger"
+                type="checkbox"
+                aria-describedby="settings-delete-confirmation-message"
+                {...registerDeletion("confirmDeletion")}
+              />
+              <span>I understand this permanently deletes my account.</span>
+            </label>
+            <p
+              id="settings-delete-confirmation-message"
+              className={`${deletionErrors.confirmDeletion ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
+              aria-live="polite"
+            >
+              {deletionErrors.confirmDeletion?.message ?? ""}
+            </p>
+
+            <p
+              className={`${deletionFailed ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
+              aria-live="polite"
+            >
+              {deletionMessage ?? ""}
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                className={authStyles.dangerButton}
+                type="submit"
+                disabled={isDeletionSubmitting}
+              >
+                {isDeletionSubmitting ? "Deleting..." : "Delete account"}
+              </button>
+              <button
+                className={authStyles.secondaryButton}
+                type="button"
+                onClick={closeDeletionForm}
+                disabled={isDeletionSubmitting}
+              >
+                Cancel account deletion
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            className={authStyles.dangerButton}
+            type="button"
+            onClick={() => {
+              setDeletionOpen(true);
+              setDeletionMessage(null);
+              setDeletionFailed(false);
+            }}
+          >
+            Delete account...
+          </button>
+        )}
+      </section>
     </section>
   );
 }

@@ -57,6 +57,13 @@ export const passwordChangeSchema = z
     path: ["confirmNewPassword"],
   });
 
+export const accountDeletionSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+  confirmDeletion: z.boolean().refine((value) => value, {
+    message: "Confirm account deletion before continuing.",
+  }),
+});
+
 export type SignupFormValues = z.infer<typeof signupSchema>;
 export type SigninFormValues = z.infer<typeof signinSchema>;
 export type PasswordResetRequestFormValues = z.infer<typeof passwordResetRequestSchema>;
@@ -64,8 +71,13 @@ export type PasswordResetConfirmFormValues = z.infer<typeof passwordResetConfirm
 export type EmailVerificationRequestFormValues = z.infer<typeof emailVerificationRequestSchema>;
 export type ProfileUpdateFormValues = z.infer<typeof profileUpdateSchema>;
 export type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
+export type AccountDeletionFormValues = z.infer<typeof accountDeletionSchema>;
 
 export interface ChangePasswordRequest {
   currentPassword: string;
   newPassword: string;
+}
+
+export interface DeleteAccountRequest {
+  currentPassword: string;
 }
