@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/client";
-import { getAccountActivity, getCurrentUser, logout, signin, signup } from "./api";
+import {
+  confirmEmailVerification,
+  getAccountActivity,
+  getCurrentUser,
+  logout,
+  requestEmailVerification,
+  signin,
+  signup,
+} from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const expectedApiUrl =
@@ -40,6 +48,38 @@ describe("auth api", () => {
     await expect(signin(input)).resolves.toEqual(authResponse);
 
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/signin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("requests an email verification link", async () => {
+    const response = {
+      message: "If an account exists for that email, a verification link has been prepared.",
+    };
+    const input = { email: buildEmail() };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(response, 202));
+
+    await expect(requestEmailVerification(input)).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/email-verification/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("confirms an email verification token", async () => {
+    const user = buildAuthResponse().user;
+    const input = { email: user.email, token: buildToken() };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ user }));
+
+    await expect(confirmEmailVerification(input)).resolves.toEqual({ user });
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/email-verification/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -153,6 +193,22 @@ describe("auth api", () => {
       new ApiClientError("Unexpected authentication response.", "unexpected")
     );
   });
+
+  it("rejects malformed email verification confirm responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        user: {
+          id: "user-1",
+          email: "person@example.test",
+          name: "Person Name",
+        },
+      })
+    );
+
+    await expect(
+      confirmEmailVerification({ email: "person@example.test", token: "token-123" })
+    ).rejects.toEqual(new ApiClientError("Unexpected email verification response.", "unexpected"));
+  });
 });
 
 function buildAuthResponse() {
@@ -162,6 +218,7 @@ function buildAuthResponse() {
       id: `user-${crypto.randomUUID()}`,
       email: buildEmail(),
       name: "Person Name",
+      emailVerified: true,
     },
   };
 }

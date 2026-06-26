@@ -4,6 +4,7 @@ import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth } from "./auth/RequireAuth";
 import { ApplicationPage } from "./pages/ApplicationPage";
+import { EmailVerificationPage } from "./pages/EmailVerificationPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SigninPage } from "./pages/SigninPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -30,6 +31,7 @@ function AppShell() {
           <Route path="/" element={<Navigate to="/signin" replace />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signin" element={<SigninPage />} />
+          <Route path="/verify-email" element={<EmailVerificationPage />} />
           <Route element={<RequireAuth />}>
             <Route path="/app" element={<ApplicationPage />} />
           </Route>

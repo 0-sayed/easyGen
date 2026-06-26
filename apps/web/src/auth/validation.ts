@@ -18,5 +18,10 @@ export const signinSchema = z.object({
   password: z.string().min(1, "Password is required."),
 });
 
+export const emailVerificationRequestSchema = z.object({
+  email: z.email("Enter a valid email address."),
+});
+
 export type SignupFormValues = z.infer<typeof signupSchema>;
 export type SigninFormValues = z.infer<typeof signinSchema>;
+export type EmailVerificationRequestFormValues = z.infer<typeof emailVerificationRequestSchema>;
