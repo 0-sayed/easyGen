@@ -162,7 +162,7 @@ describe("AccountSettingsPanel", () => {
 
   it("shows password API errors", async () => {
     vi.spyOn(api, "changePassword").mockRejectedValueOnce(
-      new ApiClientError("Invalid current password.", "unauthorized", 401)
+      new ApiClientError("Current password is incorrect.", "validation", 400)
     );
 
     const onUnauthorized = vi.fn();
@@ -180,7 +180,7 @@ describe("AccountSettingsPanel", () => {
     await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
 
-    expect(await screen.findByText("Invalid current password.")).toBeInTheDocument();
+    expect(await screen.findByText("Current password is incorrect.")).toBeInTheDocument();
     expect(onUnauthorized).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Current password")).toHaveValue("WrongPassword1!");
     expect(screen.getByLabelText("New password")).toHaveValue("NewPassword1!");

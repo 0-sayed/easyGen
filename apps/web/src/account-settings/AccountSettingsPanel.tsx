@@ -13,8 +13,6 @@ import {
 } from "../auth/validation";
 import { authStyles } from "../pages/authStyles";
 
-const INVALID_CURRENT_PASSWORD_MESSAGE = "Invalid current password.";
-
 interface AccountSettingsPanelProps {
   accessToken: string | null;
   user: PublicUser | null;
@@ -257,9 +255,5 @@ export function AccountSettingsPanel({
 }
 
 function shouldRouteSettingsErrorToReauth(error: unknown): boolean {
-  return (
-    isApiClientError(error) &&
-    error.category === "unauthorized" &&
-    error.message !== INVALID_CURRENT_PASSWORD_MESSAGE
-  );
+  return isApiClientError(error) && error.category === "unauthorized";
 }
