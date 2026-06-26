@@ -8,7 +8,7 @@ import { authStyles } from "./authStyles";
 
 export function ApplicationPage() {
   const navigate = useNavigate();
-  const { accessToken, handleRevokedSession, logout, replaceUser, user } = useAuth();
+  const { accessToken, deleteAccount, handleRevokedSession, logout, replaceUser, user } = useAuth();
 
   function handleLogout() {
     void logout()
@@ -16,6 +16,11 @@ export function ApplicationPage() {
       .then(() => {
         void navigate("/signin", { replace: true });
       });
+  }
+
+  async function handleAccountDeleted(currentPassword: string) {
+    await deleteAccount(currentPassword);
+    void navigate("/signin", { replace: true });
   }
 
   return (
@@ -53,6 +58,7 @@ export function ApplicationPage() {
         user={user}
         onUnauthorized={handleRevokedSession}
         onUserUpdated={replaceUser}
+        onAccountDeleted={handleAccountDeleted}
       />
 
       <ApplicationStatusPanel />

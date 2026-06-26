@@ -25,6 +25,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -40,6 +41,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -68,6 +70,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={vi.fn()}
         onUserUpdated={onUserUpdated}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -92,6 +95,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -114,6 +118,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={onUnauthorized}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -136,6 +141,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -172,6 +178,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={onUnauthorized}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -199,6 +206,7 @@ describe("AccountSettingsPanel", () => {
         user={user}
         onUnauthorized={onUnauthorized}
         onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
       />
     );
 
@@ -211,5 +219,124 @@ describe("AccountSettingsPanel", () => {
       expect(onUnauthorized).toHaveBeenCalledTimes(1);
     });
     expect(screen.queryByText("Invalid authentication token.")).not.toBeInTheDocument();
+  });
+
+  it("reveals and cancels account deletion without calling the API", async () => {
+    const onAccountDeleted = vi.fn();
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+        onAccountDeleted={onAccountDeleted}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete account..." }));
+    await userEvent.type(
+      screen.getByLabelText("Current password for account deletion"),
+      "Password1!"
+    );
+    await userEvent.click(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Cancel account deletion" }));
+
+    expect(onAccountDeleted).not.toHaveBeenCalled();
+    expect(
+      screen.queryByLabelText("Current password for account deletion")
+    ).not.toBeInTheDocument();
+  });
+
+  it("requires password and explicit confirmation before deleting the account", async () => {
+    const onAccountDeleted = vi.fn();
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+        onAccountDeleted={onAccountDeleted}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete account..." }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete account" }));
+
+    expect(await screen.findByText("Current password is required.")).toBeInTheDocument();
+    expect(screen.getByText("Confirm account deletion before continuing.")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    ).toHaveAttribute("aria-invalid", "true");
+    expect(onAccountDeleted).not.toHaveBeenCalled();
+  });
+
+  it("submits account deletion and leaves routing to the parent", async () => {
+    const onAccountDeleted = vi.fn().mockResolvedValueOnce(undefined);
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+        onAccountDeleted={onAccountDeleted}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete account..." }));
+    await userEvent.type(
+      screen.getByLabelText("Current password for account deletion"),
+      "Password1!"
+    );
+    await userEvent.click(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Delete account" }));
+
+    await waitFor(() => {
+      expect(onAccountDeleted).toHaveBeenCalledWith("Password1!");
+    });
+    expect(screen.getByLabelText("Current password for account deletion")).toHaveValue(
+      "Password1!"
+    );
+    expect(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    ).toBeChecked();
+  });
+
+  it("shows account deletion API errors and keeps the form usable", async () => {
+    const onAccountDeleted = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiClientError("Invalid current password.", "unauthorized", 401));
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+        onAccountDeleted={onAccountDeleted}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete account..." }));
+    await userEvent.type(
+      screen.getByLabelText("Current password for account deletion"),
+      "WrongPassword1!"
+    );
+    await userEvent.click(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Delete account" }));
+
+    expect(await screen.findByText("Invalid current password.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Current password for account deletion")).toHaveValue(
+      "WrongPassword1!"
+    );
+    expect(screen.getByRole("button", { name: "Delete account" })).toBeEnabled();
   });
 });

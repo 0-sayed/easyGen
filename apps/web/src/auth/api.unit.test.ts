@@ -5,6 +5,7 @@ import {
   changePassword,
   confirmEmailVerification,
   confirmPasswordReset,
+  deleteAccount,
   getAccountActivity,
   getCurrentUser,
   logout,
@@ -135,6 +136,26 @@ describe("auth api", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/password`, {
       method: "POST",
+      headers: {
+        Authorization: "Bearer token-123",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("deletes the account with bearer auth and the current password", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(null, {
+        status: 204,
+      })
+    );
+    const input = { currentPassword: "Password1!" };
+
+    await expect(deleteAccount("token-123", input)).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
+      method: "DELETE",
       headers: {
         Authorization: "Bearer token-123",
         "Content-Type": "application/json",
