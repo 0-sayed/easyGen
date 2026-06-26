@@ -298,9 +298,7 @@ describe("ResetPasswordPage", () => {
           <button
             type="button"
             onClick={() => {
-              void navigate(
-                "/reset-password?email=second%40example.com&token=reset-token-456"
-              );
+              void navigate("/reset-password?email=second%40example.com&token=reset-token-456");
             }}
           >
             Load another reset link
@@ -346,9 +344,7 @@ describe("ResetPasswordPage", () => {
           <button
             type="button"
             onClick={() => {
-              void navigate(
-                "/reset-password?email=second%40example.com&token=reset-token-456"
-              );
+              void navigate("/reset-password?email=second%40example.com&token=reset-token-456");
             }}
           >
             Load another reset link
@@ -406,9 +402,7 @@ describe("ResetPasswordPage", () => {
       "/reset-password?token=reset-token-123"
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Reset link needs a refresh" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reset link needs a refresh" })).toBeInTheDocument();
     expect(
       screen.getByText("This reset link is missing required reset details.")
     ).toBeInTheDocument();
@@ -509,9 +503,7 @@ describe("ResetPasswordPage", () => {
       "/reset-password?email=not-an-email&token=reset-token-123"
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Reset link needs a refresh" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reset link needs a refresh" })).toBeInTheDocument();
     expect(
       screen.getByText("This reset link is missing required reset details.")
     ).toBeInTheDocument();
@@ -581,9 +573,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Reset your password" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Reset your password" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send reset link" })).toBeInTheDocument();
   });
 

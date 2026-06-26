@@ -100,7 +100,9 @@ describe("auth api", () => {
       message: "If an account exists for that email, a password reset link has been prepared.",
     };
     const input = { email: "person@example.com" };
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(response, 202));
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(response, 202));
 
     await expect(requestPasswordReset(input)).resolves.toEqual(response);
 

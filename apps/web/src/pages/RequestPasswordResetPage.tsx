@@ -32,9 +32,7 @@ export function RequestPasswordResetPage() {
       setSubmitMessage(response.message);
     } catch (error) {
       setIsError(true);
-      setSubmitMessage(
-        isApiClientError(error) ? error.message : "Unable to request a reset link."
-      );
+      setSubmitMessage(isApiClientError(error) ? error.message : "Unable to request a reset link.");
     }
   }
 

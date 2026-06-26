@@ -16,10 +16,10 @@ const INVALID_OR_EXPIRED_TOKEN_MESSAGE = "Password reset token is invalid or exp
 const INVALID_OR_EXPIRED_RECOVERY_MESSAGE =
   "This reset link is invalid or expired. Request a new reset link.";
 
-type ResetLinkIdentity = {
+interface ResetLinkIdentity {
   email: string;
   token: string;
-};
+}
 
 function isSameResetLinkIdentity(left: ResetLinkIdentity, right: ResetLinkIdentity) {
   return left.email === right.email && left.token === right.token;
@@ -30,9 +30,7 @@ export function ResetPasswordPage() {
   const email = searchParams.get("email") ?? "";
   const token = searchParams.get("token") ?? "";
   const hasValidResetLink =
-    email.length > 0 &&
-    token.length > 0 &&
-    passwordResetRequestSchema.safeParse({ email }).success;
+    email.length > 0 && token.length > 0 && passwordResetRequestSchema.safeParse({ email }).success;
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -72,9 +70,7 @@ export function ResetPasswordPage() {
         <h1 id="reset-link-refresh-title" className={authStyles.title}>
           Reset link needs a refresh
         </h1>
-        <p className={authStyles.statusText}>
-          This reset link is missing required reset details.
-        </p>
+        <p className={authStyles.statusText}>This reset link is missing required reset details.</p>
         <p className={authStyles.switchText}>
           <Link to="/forgot-password">Request a new link</Link>
         </p>
@@ -112,10 +108,7 @@ export function ResetPasswordPage() {
         newPassword: values.newPassword,
       });
       if (
-        !isSameResetLinkIdentity(
-          currentResetLinkIdentityRef.current,
-          submittedResetLinkIdentity
-        )
+        !isSameResetLinkIdentity(currentResetLinkIdentityRef.current, submittedResetLinkIdentity)
       ) {
         return;
       }
@@ -124,10 +117,7 @@ export function ResetPasswordPage() {
       setIsComplete(true);
     } catch (error) {
       if (
-        !isSameResetLinkIdentity(
-          currentResetLinkIdentityRef.current,
-          submittedResetLinkIdentity
-        )
+        !isSameResetLinkIdentity(currentResetLinkIdentityRef.current, submittedResetLinkIdentity)
       ) {
         return;
       }
@@ -176,8 +166,7 @@ export function ResetPasswordPage() {
             className={`${errors.newPassword ? authStyles.error : authStyles.helper} ${authStyles.messageSlotTall}`}
             aria-live="polite"
           >
-            {errors.newPassword?.message ??
-              "Use 8+ characters with a letter, number, and symbol."}
+            {errors.newPassword?.message ?? "Use 8+ characters with a letter, number, and symbol."}
           </p>
         </div>
 
