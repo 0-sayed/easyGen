@@ -5,6 +5,8 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth } from "./auth/RequireAuth";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { RequestPasswordResetPage } from "./pages/RequestPasswordResetPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { SigninPage } from "./pages/SigninPage";
 import { SignupPage } from "./pages/SignupPage";
 import { BuildInfoBadge } from "./status/BuildInfoBadge";
@@ -29,6 +31,8 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Navigate to="/signin" replace />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<RequestPasswordResetPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/signin" element={<SigninPage />} />
           <Route element={<RequireAuth />}>
             <Route path="/app" element={<ApplicationPage />} />

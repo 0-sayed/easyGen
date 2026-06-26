@@ -115,6 +115,9 @@ export function SigninPage() {
         </button>
       </form>
       <p className={authStyles.switchText}>
+        <Link to="/forgot-password">Forgot password?</Link>
+      </p>
+      <p className={authStyles.switchText}>
         Need an account? <Link to="/signup">Create one</Link>
       </p>
     </section>

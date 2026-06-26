@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -11,6 +11,8 @@ import * as api from "../auth/api";
 import { setAccessToken } from "../auth/session";
 import * as statusApi from "../status/api";
 import { resetBuildInfoForTests } from "../status/BuildInfoProvider";
+import { RequestPasswordResetPage } from "./RequestPasswordResetPage";
+import { ResetPasswordPage } from "./ResetPasswordPage";
 import { SigninPage } from "./SigninPage";
 import { SignupPage } from "./SignupPage";
 
@@ -195,6 +197,353 @@ describe("SigninPage", () => {
   });
 });
 
+describe("RequestPasswordResetPage", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("is reachable from the signin page", () => {
+    renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
+
+    expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute(
+      "href",
+      "/forgot-password"
+    );
+  });
+
+  it("requests a reset link and shows generic success copy", async () => {
+    vi.spyOn(api, "requestPasswordReset").mockResolvedValueOnce({
+      message: "If an account exists for that email, a password reset link has been prepared.",
+    });
+    renderAuthRoutes(
+      <>
+        <Route path="/forgot-password" element={<RequestPasswordResetPage />} />
+        <Route path="/signin" element={<SigninPage />} />
+      </>,
+      "/forgot-password"
+    );
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    expect(
+      await screen.findByText(
+        "If an account exists for that email, a password reset link has been prepared."
+      )
+    ).toBeInTheDocument();
+    expect(api.requestPasswordReset).toHaveBeenCalledWith({ email: "person@example.com" });
+    expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
+      "href",
+      "/signin"
+    );
+  });
+
+  it("shows request validation and fallback errors", async () => {
+    vi.spyOn(api, "requestPasswordReset").mockRejectedValueOnce(new Error("offline"));
+    renderAuthRoutes(
+      <Route path="/forgot-password" element={<RequestPasswordResetPage />} />,
+      "/forgot-password"
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(await screen.findByText("Enter a valid email address.")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    expect(await screen.findByText("Unable to request a reset link.")).toBeInTheDocument();
+  });
+});
+
+describe("ResetPasswordPage", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("resets the password with email and token query parameters", async () => {
+    vi.spyOn(api, "confirmPasswordReset").mockResolvedValueOnce({
+      message: "Password has been reset.",
+    });
+    renderAuthRoutes(
+      <>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/signin" element={<SigninPage />} />
+      </>,
+      "/reset-password?email=person%40example.com&token=reset-token-123"
+    );
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(await screen.findByText("Password has been reset.")).toBeInTheDocument();
+    expect(api.confirmPasswordReset).toHaveBeenCalledWith({
+      email: "person@example.com",
+      token: "reset-token-123",
+      newPassword: "NewPassword1!",
+    });
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
+  });
+
+  it("submits the latest email and token after the reset link changes while mounted", async () => {
+    vi.spyOn(api, "confirmPasswordReset").mockResolvedValueOnce({
+      message: "Password has been reset.",
+    });
+
+    function ResetPasswordLinkSwitcher() {
+      const navigate = useNavigate();
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              void navigate(
+                "/reset-password?email=second%40example.com&token=reset-token-456"
+              );
+            }}
+          >
+            Load another reset link
+          </button>
+          <ResetPasswordPage />
+        </>
+      );
+    }
+
+    renderAuthRoutes(
+      <>
+        <Route path="/reset-password" element={<ResetPasswordLinkSwitcher />} />
+        <Route path="/signin" element={<SigninPage />} />
+      </>,
+      "/reset-password?email=first%40example.com&token=reset-token-123"
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Load another reset link" }));
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(await screen.findByText("Password has been reset.")).toBeInTheDocument();
+    expect(api.confirmPasswordReset).toHaveBeenCalledWith({
+      email: "second@example.com",
+      token: "reset-token-456",
+      newPassword: "NewPassword1!",
+    });
+  });
+
+  it("keeps the new reset-link state unchanged when an old confirm request settles", async () => {
+    let resolveConfirmReset: ((response: { message: string }) => void) | undefined;
+    const confirmResetPromise = new Promise<{ message: string }>((resolve) => {
+      resolveConfirmReset = resolve;
+    });
+    vi.spyOn(api, "confirmPasswordReset").mockReturnValueOnce(confirmResetPromise);
+
+    function ResetPasswordLinkSwitcher() {
+      const navigate = useNavigate();
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              void navigate(
+                "/reset-password?email=second%40example.com&token=reset-token-456"
+              );
+            }}
+          >
+            Load another reset link
+          </button>
+          <ResetPasswordPage />
+        </>
+      );
+    }
+
+    renderAuthRoutes(
+      <Route path="/reset-password" element={<ResetPasswordLinkSwitcher />} />,
+      "/reset-password?email=first%40example.com&token=reset-token-123"
+    );
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    await waitFor(() => {
+      expect(api.confirmPasswordReset).toHaveBeenCalledWith({
+        email: "first@example.com",
+        token: "reset-token-123",
+        newPassword: "NewPassword1!",
+      });
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Load another reset link" }));
+
+    expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeInTheDocument();
+    expect(screen.getByLabelText("New password")).toHaveValue("");
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue("");
+
+    if (resolveConfirmReset === undefined) {
+      throw new Error("Expected confirmPasswordReset resolver to be initialized.");
+    }
+    const resolveSettledConfirmReset = resolveConfirmReset;
+
+    await act(async () => {
+      resolveSettledConfirmReset({ message: "Password has been reset." });
+      await confirmResetPromise;
+    });
+
+    expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeInTheDocument();
+    expect(screen.queryByText("Password has been reset.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("New password")).toHaveValue("");
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue("");
+  });
+
+  it("shows recovery copy when the reset link is incomplete", () => {
+    renderAuthRoutes(
+      <>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/forgot-password" element={<RequestPasswordResetPage />} />
+      </>,
+      "/reset-password?token=reset-token-123"
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Reset link needs a refresh" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This reset link is missing required reset details.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Request a new link" })).toHaveAttribute(
+      "href",
+      "/forgot-password"
+    );
+  });
+
+  it("shows invalid-or-expired token recovery from API validation errors", async () => {
+    vi.spyOn(api, "confirmPasswordReset").mockRejectedValueOnce(
+      new ApiClientError("Password reset token is invalid or expired.", "validation", 400)
+    );
+    renderAuthRoutes(
+      <Route path="/reset-password" element={<ResetPasswordPage />} />,
+      "/reset-password?email=person%40example.com&token=expired-token"
+    );
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(
+      await screen.findByText("This reset link is invalid or expired. Request a new reset link.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Request a new link" })).toHaveAttribute(
+      "href",
+      "/forgot-password"
+    );
+  });
+
+  it("resets completion state and clears typed passwords when reset-link query params change", async () => {
+    vi.spyOn(api, "confirmPasswordReset")
+      .mockResolvedValueOnce({
+        message: "Password has been reset.",
+      })
+      .mockRejectedValueOnce(
+        new ApiClientError("Password reset token is invalid or expired.", "validation", 400)
+      );
+
+    function ResetPasswordResultSwitcher() {
+      const navigate = useNavigate();
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              void navigate("/reset-password?email=next%40example.com&token=expired-token");
+            }}
+          >
+            Load replacement reset link
+          </button>
+          <ResetPasswordPage />
+        </>
+      );
+    }
+
+    renderAuthRoutes(
+      <>
+        <Route path="/reset-password" element={<ResetPasswordResultSwitcher />} />
+        <Route path="/signin" element={<SigninPage />} />
+        <Route path="/forgot-password" element={<RequestPasswordResetPage />} />
+      </>,
+      "/reset-password?email=person%40example.com&token=reset-token-123"
+    );
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(await screen.findByText("Password has been reset.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Load replacement reset link" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Choose a new password" })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Password has been reset.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("New password")).toHaveValue("");
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue("");
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(
+      await screen.findByText("This reset link is invalid or expired. Request a new reset link.")
+    ).toBeInTheDocument();
+  });
+
+  it("shows reset-link recovery when the email query param is invalid", () => {
+    renderAuthRoutes(
+      <>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/forgot-password" element={<RequestPasswordResetPage />} />
+      </>,
+      "/reset-password?email=not-an-email&token=reset-token-123"
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Reset link needs a refresh" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This reset link is missing required reset details.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Request a new link" })).toHaveAttribute(
+      "href",
+      "/forgot-password"
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Choose a new password" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows confirm validation and fallback errors", async () => {
+    vi.spyOn(api, "confirmPasswordReset").mockRejectedValueOnce(new Error("offline"));
+    renderAuthRoutes(
+      <Route path="/reset-password" element={<ResetPasswordPage />} />,
+      "/reset-password?email=person%40example.com&token=reset-token-123"
+    );
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "Different1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+    expect(await screen.findByText("Passwords must match.")).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Confirm new password"));
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(await screen.findByText("Unable to reset password.")).toBeInTheDocument();
+  });
+});
+
 describe("App routes", () => {
   afterEach(() => {
     localStorage.clear();
@@ -221,6 +570,38 @@ describe("App routes", () => {
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
+  });
+
+  it("renders the forgot-password route as a public page", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+
+    render(
+      <MemoryRouter initialEntries={["/forgot-password"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Reset your password" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send reset link" })).toBeInTheDocument();
+  });
+
+  it("renders the reset-password route as a public page", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+
+    render(
+      <MemoryRouter
+        initialEntries={["/reset-password?email=person%40example.com&token=reset-token-123"]}
+      >
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Choose a new password" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset password" })).toBeInTheDocument();
   });
 
   it("shows saved-token loading status before opening the app", async () => {
