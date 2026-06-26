@@ -274,7 +274,7 @@ async function drainDeliveredToken(
   email: string,
   tokenType: string
 ): Promise<string> {
-  const response = await request.get(`${apiBaseUrl}${path}`);
+  const response = await request.get(`${apiBaseUrl}${path}`, { params: { email } });
   expect(response.ok(), `${tokenType} token drain endpoint should respond successfully`).toBe(true);
 
   const body = await parseDeliveredAuthTokenResponse(response);

@@ -54,6 +54,83 @@ describe("AuthTestSupportController", () => {
     expect(controller.drainPasswordResetMessages()).toEqual({ messages: [] });
   });
 
+  it("returns only the requested verification message without discarding other emails", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.AUTH_TEST_SUPPORT = "1";
+    const delivery = new InMemoryAuthTokenDelivery();
+    const controller = new AuthTestSupportController(delivery);
+
+    await delivery.sendVerificationToken({
+      email: "first@example.com",
+      expiresAt: new Date("2026-06-26T10:00:00.000Z"),
+      token: "first-verification-token",
+    });
+    await delivery.sendVerificationToken({
+      email: "second@example.com",
+      expiresAt: new Date("2026-06-26T10:05:00.000Z"),
+      token: "second-verification-token",
+    });
+
+    expect(controller.drainVerificationMessages("missing@example.com")).toEqual({ messages: [] });
+    expect(controller.drainVerificationMessages("first@example.com")).toEqual({
+      messages: [
+        {
+          email: "first@example.com",
+          expiresAt: "2026-06-26T10:00:00.000Z",
+          token: "first-verification-token",
+        },
+      ],
+    });
+    expect(controller.drainVerificationMessages("second@example.com")).toEqual({
+      messages: [
+        {
+          email: "second@example.com",
+          expiresAt: "2026-06-26T10:05:00.000Z",
+          token: "second-verification-token",
+        },
+      ],
+    });
+    expect(controller.drainVerificationMessages("second@example.com")).toEqual({ messages: [] });
+  });
+
+  it("returns only the requested password reset message without discarding other emails", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.AUTH_TEST_SUPPORT = "1";
+    const delivery = new InMemoryAuthTokenDelivery();
+    const controller = new AuthTestSupportController(delivery);
+
+    await delivery.sendPasswordResetToken({
+      email: "first@example.com",
+      expiresAt: new Date("2026-06-26T10:10:00.000Z"),
+      token: "first-reset-token",
+    });
+    await delivery.sendPasswordResetToken({
+      email: "second@example.com",
+      expiresAt: new Date("2026-06-26T10:15:00.000Z"),
+      token: "second-reset-token",
+    });
+
+    expect(controller.drainPasswordResetMessages("first@example.com")).toEqual({
+      messages: [
+        {
+          email: "first@example.com",
+          expiresAt: "2026-06-26T10:10:00.000Z",
+          token: "first-reset-token",
+        },
+      ],
+    });
+    expect(controller.drainPasswordResetMessages("second@example.com")).toEqual({
+      messages: [
+        {
+          email: "second@example.com",
+          expiresAt: "2026-06-26T10:15:00.000Z",
+          token: "second-reset-token",
+        },
+      ],
+    });
+    expect(controller.drainPasswordResetMessages("first@example.com")).toEqual({ messages: [] });
+  });
+
   it("returns 404 when test support is not explicitly enabled", () => {
     process.env.NODE_ENV = "test";
     delete process.env.AUTH_TEST_SUPPORT;

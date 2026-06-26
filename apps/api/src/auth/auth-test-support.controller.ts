@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, NotFoundException } from "@nestjs/common";
+import { Controller, Get, Inject, NotFoundException, Query } from "@nestjs/common";
 import { ApiExcludeController } from "@nestjs/swagger";
 
 import {
@@ -21,20 +21,27 @@ interface AuthTestTokenDeliveryResponse {
 @ApiExcludeController()
 @Controller("__test/auth-tokens")
 export class AuthTestSupportController {
+  private readonly passwordResetCache: AuthTestTokenMessageResponse[] = [];
+  private readonly verificationCache: AuthTestTokenMessageResponse[] = [];
+
   constructor(@Inject(AUTH_TOKEN_DELIVERY) private readonly delivery: AuthTokenDelivery) {}
 
   @Get("verification")
-  drainVerificationMessages(): AuthTestTokenDeliveryResponse {
-    return {
-      messages: this.getInMemoryDelivery().drainVerificationMessages().map(toResponseMessage),
-    };
+  drainVerificationMessages(@Query("email") email?: string): AuthTestTokenDeliveryResponse {
+    return drainCachedMessages(
+      this.verificationCache,
+      this.getInMemoryDelivery().drainVerificationMessages().map(toResponseMessage),
+      email
+    );
   }
 
   @Get("password-reset")
-  drainPasswordResetMessages(): AuthTestTokenDeliveryResponse {
-    return {
-      messages: this.getInMemoryDelivery().drainPasswordResetMessages().map(toResponseMessage),
-    };
+  drainPasswordResetMessages(@Query("email") email?: string): AuthTestTokenDeliveryResponse {
+    return drainCachedMessages(
+      this.passwordResetCache,
+      this.getInMemoryDelivery().drainPasswordResetMessages().map(toResponseMessage),
+      email
+    );
   }
 
   private getInMemoryDelivery(): InMemoryAuthTokenDelivery {
@@ -56,4 +63,29 @@ function toResponseMessage(message: AuthTokenDeliveryMessage): AuthTestTokenMess
     expiresAt: message.expiresAt.toISOString(),
     token: message.token,
   };
+}
+
+function drainCachedMessages(
+  cache: AuthTestTokenMessageResponse[],
+  freshMessages: AuthTestTokenMessageResponse[],
+  email?: string
+): AuthTestTokenDeliveryResponse {
+  cache.push(...freshMessages);
+
+  if (email !== undefined) {
+    const index = cache.findIndex((message) => message.email === email);
+    if (index === -1) {
+      return { messages: [] };
+    }
+
+    const message = cache[index];
+    if (message === undefined) {
+      return { messages: [] };
+    }
+
+    cache.splice(index, 1);
+    return { messages: [message] };
+  }
+
+  return { messages: cache.splice(0) };
 }
