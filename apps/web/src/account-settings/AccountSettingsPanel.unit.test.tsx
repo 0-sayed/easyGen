@@ -23,6 +23,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={vi.fn()}
       />
@@ -38,6 +39,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={vi.fn()}
       />
@@ -66,6 +68,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={onUserUpdated}
         onAccountDeleted={vi.fn()}
       />
@@ -90,6 +93,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={vi.fn()}
       />
@@ -102,6 +106,32 @@ describe("AccountSettingsPanel", () => {
     expect(await screen.findByText("Profile update input failed validation.")).toBeInTheDocument();
   });
 
+  it("routes unauthorized profile saves through the reauth handler", async () => {
+    const onUnauthorized = vi.fn();
+    vi.spyOn(api, "updateProfile").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication session.", "unauthorized", 401)
+    );
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={onUnauthorized}
+        onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
+      />
+    );
+
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+
+    await waitFor(() => {
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText("Invalid authentication session.")).not.toBeInTheDocument();
+  });
+
   it("changes the password and clears password fields", async () => {
     vi.spyOn(api, "changePassword").mockResolvedValueOnce(undefined);
 
@@ -109,6 +139,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={vi.fn()}
       />
@@ -119,7 +150,11 @@ describe("AccountSettingsPanel", () => {
     await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
 
-    expect(await screen.findByText("Password changed.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Password changed. You can keep using this tab; other sessions may need to sign in again."
+      )
+    ).toBeInTheDocument();
     expect(api.changePassword).toHaveBeenCalledWith("token-123", {
       currentPassword: "Password1!",
       newPassword: "NewPassword1!",
@@ -133,13 +168,15 @@ describe("AccountSettingsPanel", () => {
 
   it("shows password API errors", async () => {
     vi.spyOn(api, "changePassword").mockRejectedValueOnce(
-      new ApiClientError("Invalid current password.", "unauthorized", 401)
+      new ApiClientError("Current password is incorrect.", "validation", 400)
     );
 
+    const onUnauthorized = vi.fn();
     render(
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={onUnauthorized}
         onUserUpdated={vi.fn()}
         onAccountDeleted={vi.fn()}
       />
@@ -150,7 +187,38 @@ describe("AccountSettingsPanel", () => {
     await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
 
-    expect(await screen.findByText("Invalid current password.")).toBeInTheDocument();
+    expect(await screen.findByText("Current password is incorrect.")).toBeInTheDocument();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Current password")).toHaveValue("WrongPassword1!");
+    expect(screen.getByLabelText("New password")).toHaveValue("NewPassword1!");
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue("NewPassword1!");
+  });
+
+  it("routes revoked password changes through the reauth handler", async () => {
+    const onUnauthorized = vi.fn();
+    vi.spyOn(api, "changePassword").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={onUnauthorized}
+        onUserUpdated={vi.fn()}
+        onAccountDeleted={vi.fn()}
+      />
+    );
+
+    await userEvent.type(screen.getByLabelText("Current password"), "Password1!");
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Change password" }));
+
+    await waitFor(() => {
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText("Invalid authentication token.")).not.toBeInTheDocument();
   });
 
   it("reveals and cancels account deletion without calling the API", async () => {
@@ -160,6 +228,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={onAccountDeleted}
       />
@@ -188,6 +257,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={onAccountDeleted}
       />
@@ -211,6 +281,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={onAccountDeleted}
       />
@@ -246,6 +317,7 @@ describe("AccountSettingsPanel", () => {
       <AccountSettingsPanel
         accessToken="token-123"
         user={user}
+        onUnauthorized={vi.fn()}
         onUserUpdated={vi.fn()}
         onAccountDeleted={onAccountDeleted}
       />

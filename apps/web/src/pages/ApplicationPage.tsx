@@ -56,6 +56,7 @@ export function ApplicationPage() {
       <AccountSettingsPanel
         accessToken={accessToken}
         user={user}
+        onUnauthorized={handleRevokedSession}
         onUserUpdated={replaceUser}
         onAccountDeleted={handleAccountDeleted}
       />

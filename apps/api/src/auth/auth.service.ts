@@ -97,7 +97,7 @@ export class AuthService {
     const passwordMatches = await verify(user.passwordHash, dto.currentPassword);
 
     if (!passwordMatches) {
-      throw new UnauthorizedException(INVALID_CURRENT_PASSWORD_MESSAGE);
+      throw new BadRequestException(INVALID_CURRENT_PASSWORD_MESSAGE);
     }
 
     if (dto.currentPassword === dto.newPassword) {
@@ -112,7 +112,7 @@ export class AuthService {
     );
 
     if (!passwordUpdated) {
-      throw new UnauthorizedException(INVALID_CURRENT_PASSWORD_MESSAGE);
+      throw new BadRequestException(INVALID_CURRENT_PASSWORD_MESSAGE);
     }
 
     await this.authSessionService.revokeOtherSessions(payload);
