@@ -324,7 +324,7 @@ describe("AuthService", () => {
       { currentPassword: "WrongPassword1!", newPassword: "NewPassword1!" }
     );
 
-    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toBeInstanceOf(BadRequestException);
     await expect(result).rejects.toMatchObject({
       message: "Invalid current password.",
     });
@@ -376,7 +376,7 @@ describe("AuthService", () => {
       { currentPassword: "Password1!", newPassword: "NewPassword1!" }
     );
 
-    await expect(result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(result).rejects.toBeInstanceOf(BadRequestException);
     await expect(result).rejects.toMatchObject({
       message: "Invalid current password.",
     });

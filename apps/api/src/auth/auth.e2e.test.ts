@@ -244,7 +244,7 @@ describe("Auth API", () => {
         currentPassword: testPassword("wrong-current"),
         newPassword: testPassword("valid-new"),
       })
-      .expect(401);
+      .expect(400);
 
     await request(server)
       .post("/auth/password")

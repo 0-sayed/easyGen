@@ -287,10 +287,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiNoContentResponse({ description: "Password changed and other active sessions revoked." })
-  @ApiBadRequestResponse({ description: "Password change input failed validation." })
+  @ApiBadRequestResponse({
+    description: "Password change input failed validation or current password is invalid.",
+  })
   @ApiUnauthorizedResponse({
-    description:
-      "Missing, malformed, expired, invalid, revoked token, or invalid current password.",
+    description: "Missing, malformed, expired, invalid, or revoked token.",
   })
   async changePassword(
     @Req() request: AuthenticatedRequest,

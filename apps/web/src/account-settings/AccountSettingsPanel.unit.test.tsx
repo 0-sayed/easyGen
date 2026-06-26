@@ -19,7 +19,14 @@ describe("AccountSettingsPanel", () => {
   });
 
   it("renders current account settings", () => {
-    render(<AccountSettingsPanel accessToken="token-123" user={user} onUserUpdated={vi.fn()} />);
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+      />
+    );
 
     expect(screen.getByRole("heading", { name: "Account settings" })).toBeInTheDocument();
     expect(screen.getByLabelText("Name")).toHaveValue("Person Name");
@@ -27,7 +34,14 @@ describe("AccountSettingsPanel", () => {
   });
 
   it("validates profile and password fields before submitting", async () => {
-    render(<AccountSettingsPanel accessToken="token-123" user={user} onUserUpdated={vi.fn()} />);
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+      />
+    );
 
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Al");
@@ -49,7 +63,12 @@ describe("AccountSettingsPanel", () => {
     vi.spyOn(api, "updateProfile").mockResolvedValueOnce(updatedUser);
 
     render(
-      <AccountSettingsPanel accessToken="token-123" user={user} onUserUpdated={onUserUpdated} />
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={onUserUpdated}
+      />
     );
 
     await userEvent.clear(screen.getByLabelText("Name"));
@@ -67,7 +86,14 @@ describe("AccountSettingsPanel", () => {
       new ApiClientError("Profile update input failed validation.", "validation", 400)
     );
 
-    render(<AccountSettingsPanel accessToken="token-123" user={user} onUserUpdated={vi.fn()} />);
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+      />
+    );
 
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
@@ -76,17 +102,53 @@ describe("AccountSettingsPanel", () => {
     expect(await screen.findByText("Profile update input failed validation.")).toBeInTheDocument();
   });
 
+  it("routes unauthorized profile saves through the reauth handler", async () => {
+    const onUnauthorized = vi.fn();
+    vi.spyOn(api, "updateProfile").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication session.", "unauthorized", 401)
+    );
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={onUnauthorized}
+        onUserUpdated={vi.fn()}
+      />
+    );
+
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+
+    await waitFor(() => {
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText("Invalid authentication session.")).not.toBeInTheDocument();
+  });
+
   it("changes the password and clears password fields", async () => {
     vi.spyOn(api, "changePassword").mockResolvedValueOnce(undefined);
 
-    render(<AccountSettingsPanel accessToken="token-123" user={user} onUserUpdated={vi.fn()} />);
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={vi.fn()}
+        onUserUpdated={vi.fn()}
+      />
+    );
 
     await userEvent.type(screen.getByLabelText("Current password"), "Password1!");
     await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
     await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
 
-    expect(await screen.findByText("Password changed.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Password changed. You can keep using this tab; other sessions may need to sign in again."
+      )
+    ).toBeInTheDocument();
     expect(api.changePassword).toHaveBeenCalledWith("token-123", {
       currentPassword: "Password1!",
       newPassword: "NewPassword1!",
@@ -100,16 +162,54 @@ describe("AccountSettingsPanel", () => {
 
   it("shows password API errors", async () => {
     vi.spyOn(api, "changePassword").mockRejectedValueOnce(
-      new ApiClientError("Invalid current password.", "unauthorized", 401)
+      new ApiClientError("Current password is incorrect.", "validation", 400)
     );
 
-    render(<AccountSettingsPanel accessToken="token-123" user={user} onUserUpdated={vi.fn()} />);
+    const onUnauthorized = vi.fn();
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={onUnauthorized}
+        onUserUpdated={vi.fn()}
+      />
+    );
 
     await userEvent.type(screen.getByLabelText("Current password"), "WrongPassword1!");
     await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
     await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
 
-    expect(await screen.findByText("Invalid current password.")).toBeInTheDocument();
+    expect(await screen.findByText("Current password is incorrect.")).toBeInTheDocument();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Current password")).toHaveValue("WrongPassword1!");
+    expect(screen.getByLabelText("New password")).toHaveValue("NewPassword1!");
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue("NewPassword1!");
+  });
+
+  it("routes revoked password changes through the reauth handler", async () => {
+    const onUnauthorized = vi.fn();
+    vi.spyOn(api, "changePassword").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+
+    render(
+      <AccountSettingsPanel
+        accessToken="token-123"
+        user={user}
+        onUnauthorized={onUnauthorized}
+        onUserUpdated={vi.fn()}
+      />
+    );
+
+    await userEvent.type(screen.getByLabelText("Current password"), "Password1!");
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Change password" }));
+
+    await waitFor(() => {
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText("Invalid authentication token.")).not.toBeInTheDocument();
   });
 });
