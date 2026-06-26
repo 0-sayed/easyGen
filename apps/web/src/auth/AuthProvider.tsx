@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { isApiClientError } from "../api/client";
 import {
@@ -118,7 +126,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [accessToken, clearAuthenticatedState, clearReauthMessage, handleRevokedSession, isLoading, reauthMessage, user]
+    [
+      accessToken,
+      clearAuthenticatedState,
+      clearReauthMessage,
+      handleRevokedSession,
+      isLoading,
+      reauthMessage,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

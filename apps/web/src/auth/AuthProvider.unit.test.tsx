@@ -81,7 +81,9 @@ describe("AuthProvider", () => {
       </AuthProvider>
     );
 
-    expect(await screen.findByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Your session expired. Please sign in again.")
+    ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
