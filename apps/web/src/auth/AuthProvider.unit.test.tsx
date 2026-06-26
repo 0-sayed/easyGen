@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/client";
@@ -156,6 +157,29 @@ describe("AuthProvider", () => {
     });
     expect(screen.getByTestId("auth-user")).toHaveTextContent("New Session");
   });
+
+  it("does not let a stale user replacement restore user state after logout", async () => {
+    setAccessToken("token-123");
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "logout").mockResolvedValueOnce(undefined);
+
+    render(
+      <AuthProvider>
+        <StaleReplaceHarness />
+      </AuthProvider>
+    );
+
+    await screen.findByText("Person Name");
+    await userEvent.click(screen.getByRole("button", { name: "Capture replacement" }));
+    await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+
+    expect(await screen.findByText("guest")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply stale user" }));
+
+    expect(screen.getByText("guest")).toBeInTheDocument();
+    expect(screen.queryByText("Stale Session")).not.toBeInTheDocument();
+  });
 });
 
 function Probe() {
@@ -213,4 +237,45 @@ function TokenProbe() {
   const { accessToken } = useAuth();
 
   return <p>token:{accessToken ?? "none"}</p>;
+}
+
+function StaleReplaceHarness() {
+  const { logout, replaceUser } = useAuth();
+  const [capturedReplaceUser, setCapturedReplaceUser] = useState<
+    ReturnType<typeof useAuth>["replaceUser"] | null
+  >(null);
+
+  return (
+    <>
+      <Probe />
+      <button
+        type="button"
+        onClick={() => {
+          setCapturedReplaceUser(() => replaceUser);
+        }}
+      >
+        Capture replacement
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void logout();
+        }}
+      >
+        Log out
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          capturedReplaceUser?.({
+            id: "user-stale",
+            email: "stale@example.com",
+            name: "Stale Session",
+          });
+        }}
+      >
+        Apply stale user
+      </button>
+    </>
+  );
 }

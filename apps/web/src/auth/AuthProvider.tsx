@@ -97,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       replaceUser: (user) => {
+        if (accessToken === null || getAccessToken() !== accessToken) {
+          return;
+        }
+
         setUser(user);
       },
     }),

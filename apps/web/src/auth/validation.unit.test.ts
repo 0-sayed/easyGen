@@ -93,4 +93,23 @@ describe("account settings validation", () => {
       );
     }
   });
+
+  it("trims profile names before validating length", () => {
+    const whitespaceResult = profileUpdateSchema.safeParse({ name: "   " });
+    const paddedResult = profileUpdateSchema.safeParse({ name: "  Person Name  " });
+
+    expect(whitespaceResult.success).toBe(false);
+    if (!whitespaceResult.success) {
+      const profileErrors = z.treeifyError(whitespaceResult.error);
+
+      expect(profileErrors.properties?.name?.errors).toContain(
+        "Name must be at least 3 characters."
+      );
+    }
+
+    expect(paddedResult.success).toBe(true);
+    if (paddedResult.success) {
+      expect(paddedResult.data.name).toBe("Person Name");
+    }
+  });
 });

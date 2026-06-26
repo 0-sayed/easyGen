@@ -18,7 +18,7 @@ export const signinSchema = z.object({
 });
 
 export const profileUpdateSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters."),
+  name: z.string().trim().min(3, "Name must be at least 3 characters."),
 });
 
 export const passwordChangeSchema = z
