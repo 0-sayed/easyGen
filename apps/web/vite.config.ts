@@ -1,10 +1,13 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
 
-const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+const moduleUrl = import.meta.url.startsWith("file:")
+  ? import.meta.url
+  : pathToFileURL(import.meta.url).href;
+const repoRoot = fileURLToPath(new URL("../..", moduleUrl));
 const DEFAULT_API_PORT = 3000;
 const DEFAULT_API_URL = `http://127.0.0.1:${DEFAULT_API_PORT}`;
 const DEFAULT_WEB_PORT = 5173;
@@ -23,12 +26,16 @@ function parsePort(value: string | undefined, defaultPort: number): number {
 
 function resolveApiUrl(env: Record<string, string>): string | undefined {
   const configuredApiUrl = env.VITE_API_URL?.trim();
+  const effectiveApiUrl =
+    configuredApiUrl === undefined || configuredApiUrl.length === 0
+      ? DEFAULT_API_URL
+      : configuredApiUrl;
 
-  if (configuredApiUrl !== DEFAULT_API_URL) {
-    return configuredApiUrl;
+  if (effectiveApiUrl !== DEFAULT_API_URL) {
+    return effectiveApiUrl;
   }
 
-  const apiPort = parsePort(process.env.PORT, DEFAULT_API_PORT);
+  const apiPort = parsePort(env.PORT, DEFAULT_API_PORT);
   return apiPort === DEFAULT_API_PORT ? configuredApiUrl : `http://127.0.0.1:${apiPort}`;
 }
 
