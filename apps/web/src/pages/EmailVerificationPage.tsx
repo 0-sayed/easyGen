@@ -51,11 +51,16 @@ export function EmailVerificationPage() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<EmailVerificationRequestFormValues>({
     resolver: zodResolver(emailVerificationRequestSchema),
     defaultValues: { email },
   });
+
+  useEffect(() => {
+    reset({ email });
+  }, [email, reset]);
 
   useEffect(() => {
     if (!hasRequiredParams) {
@@ -122,15 +127,13 @@ export function EmailVerificationPage() {
           ? "Email verified"
           : status === "loading"
             ? "Verifying your email"
-            : "Verification link invalid or expired"}
+            : statusMessage === TEMPORARY_FAILURE_MESSAGE
+              ? "Verification failed"
+              : "Verification link invalid or expired"}
       </h1>
 
       {status === "loading" ? (
-        <p
-          className={`${authStyles.statusText} mt-4`}
-          role="status"
-          aria-label="Verifying your email"
-        >
+        <p className={`${authStyles.statusText} mt-4`} role="status">
           {statusMessage}
         </p>
       ) : null}

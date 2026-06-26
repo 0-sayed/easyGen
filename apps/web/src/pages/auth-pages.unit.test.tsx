@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode, type ReactNode } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -221,9 +221,8 @@ describe("EmailVerificationPage", () => {
       "/verify-email?email=person%40example.com&token=token-123"
     );
 
-    expect(screen.getByRole("status", { name: "Verifying your email" })).toHaveTextContent(
-      "We are checking this verification link."
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("We are checking this verification link.");
+    expect(screen.getByRole("status")).not.toHaveAccessibleName("Verifying your email");
     expect(await screen.findByRole("heading", { name: "Email verified" })).toBeInTheDocument();
     expect(screen.getByText("person@example.com")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
@@ -282,6 +281,58 @@ describe("EmailVerificationPage", () => {
       await screen.findByRole("heading", { name: "Verification link invalid or expired" })
     ).toBeInTheDocument();
     expect(screen.getByText("Request a new verification email.")).toBeInTheDocument();
+  });
+
+  it("uses a temporary failure title when verification cannot complete", async () => {
+    vi.spyOn(api, "confirmEmailVerification").mockRejectedValueOnce(new Error("Network failure"));
+    renderAuthRoutes(
+      <Route path="/verify-email" element={<EmailVerificationPage />} />,
+      "/verify-email?email=person%40example.com&token=token-123"
+    );
+
+    expect(await screen.findByRole("heading", { name: "Verification failed" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "We could not verify this link right now. Please try again or request a new link."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("updates the recovery email when the route email changes", async () => {
+    vi.spyOn(api, "confirmEmailVerification")
+      .mockRejectedValueOnce(
+        new ApiClientError("Verification token is invalid or expired.", "validation", 400)
+      )
+      .mockRejectedValueOnce(
+        new ApiClientError("Verification token is invalid or expired.", "validation", 400)
+      );
+
+    renderAuthRoutes(
+      <Route
+        path="/verify-email"
+        element={
+          <>
+            <EmailVerificationPage />
+            <Link to="/verify-email?email=second%40example.com&token=bad-token-2">
+              Load second link
+            </Link>
+          </>
+        }
+      />,
+      "/verify-email?email=first%40example.com&token=bad-token-1"
+    );
+
+    expect(await screen.findByLabelText("Email")).toHaveValue("first@example.com");
+
+    await userEvent.click(screen.getByRole("link", { name: "Load second link" }));
+
+    await waitFor(() => {
+      expect(api.confirmEmailVerification).toHaveBeenCalledWith({
+        email: "second@example.com",
+        token: "bad-token-2",
+      });
+    });
+    expect(screen.getByLabelText("Email")).toHaveValue("second@example.com");
   });
 
   it("requests a new verification email from the recovery form", async () => {
