@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { isApiClientError } from "../api/client";
 import {
@@ -14,18 +22,39 @@ import type { SigninFormValues, SignupFormValues } from "./validation";
 interface AuthContextValue {
   accessToken: string | null;
   isLoading: boolean;
+  reauthMessage: string | null;
   user: PublicUser | null;
+  clearReauthMessage: () => void;
+  handleRevokedSession: () => void;
   signin: (input: SigninFormValues) => Promise<void>;
   signup: (input: SignupFormValues) => Promise<void>;
   logout: () => Promise<void>;
 }
+
+const REAUTH_REQUIRED_MESSAGE = "Your session expired. Please sign in again.";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [accessToken, setCurrentAccessToken] = useState<string | null>(() => getAccessToken());
+  const [reauthMessage, setReauthMessage] = useState<string | null>(null);
   const [user, setUser] = useState<PublicUser | null>(null);
+
+  const clearAuthenticatedState = useCallback((message: string | null) => {
+    clearAccessToken();
+    setCurrentAccessToken(null);
+    setUser(null);
+    setReauthMessage(message);
+  }, []);
+
+  const clearReauthMessage = useCallback(() => {
+    setReauthMessage(null);
+  }, []);
+
+  const handleRevokedSession = useCallback(() => {
+    clearAuthenticatedState(REAUTH_REQUIRED_MESSAGE);
+  }, [clearAuthenticatedState]);
 
   useEffect(() => {
     let active = true;
@@ -49,9 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isApiClientError(error) &&
           error.category === "unauthorized"
         ) {
-          clearAccessToken();
-          setCurrentAccessToken(null);
-          setUser(null);
+          handleRevokedSession();
         }
       })
       .finally(() => {
@@ -63,24 +90,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [handleRevokedSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       accessToken,
       isLoading,
+      reauthMessage,
       user,
+      clearReauthMessage,
+      handleRevokedSession,
       signin: async (input) => {
         const response = await signinRequest(input);
         setAccessToken(response.accessToken);
         setCurrentAccessToken(response.accessToken);
         setUser(response.user);
+        setReauthMessage(null);
       },
       signup: async (input) => {
         const response = await signupRequest(input);
         setAccessToken(response.accessToken);
         setCurrentAccessToken(response.accessToken);
         setUser(response.user);
+        setReauthMessage(null);
       },
       logout: async () => {
         const accessToken = getAccessToken();
@@ -90,13 +122,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await logoutRequest(accessToken);
           }
         } finally {
-          clearAccessToken();
-          setCurrentAccessToken(null);
-          setUser(null);
+          clearAuthenticatedState(null);
         }
       },
     }),
-    [accessToken, isLoading, user]
+    [
+      accessToken,
+      clearAuthenticatedState,
+      clearReauthMessage,
+      handleRevokedSession,
+      isLoading,
+      reauthMessage,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
