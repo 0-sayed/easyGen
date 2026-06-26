@@ -4,6 +4,7 @@ import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth } from "./auth/RequireAuth";
 import { ApplicationPage } from "./pages/ApplicationPage";
+import { EmailVerificationPage } from "./pages/EmailVerificationPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequestPasswordResetPage } from "./pages/RequestPasswordResetPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -34,6 +35,7 @@ function AppShell() {
           <Route path="/forgot-password" element={<RequestPasswordResetPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/signin" element={<SigninPage />} />
+          <Route path="/verify-email" element={<EmailVerificationPage />} />
           <Route element={<RequireAuth />}>
             <Route path="/app" element={<ApplicationPage />} />
           </Route>

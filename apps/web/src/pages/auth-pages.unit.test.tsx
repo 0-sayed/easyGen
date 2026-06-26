@@ -1,7 +1,7 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { StrictMode, type ReactNode } from "react";
+import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -13,10 +13,16 @@ import * as statusApi from "../status/api";
 import { resetBuildInfoForTests } from "../status/BuildInfoProvider";
 import { RequestPasswordResetPage } from "./RequestPasswordResetPage";
 import { ResetPasswordPage } from "./ResetPasswordPage";
+import { EmailVerificationPage } from "./EmailVerificationPage";
 import { SigninPage } from "./SigninPage";
 import { SignupPage } from "./SignupPage";
 
-const user = { id: "user-1", email: "person@example.com", name: "Person Name" };
+const user = {
+  id: "user-1",
+  email: "person@example.com",
+  name: "Person Name",
+  emailVerified: true,
+};
 
 describe("SignupPage", () => {
   afterEach(() => {
@@ -536,6 +542,168 @@ describe("ResetPasswordPage", () => {
   });
 });
 
+describe("EmailVerificationPage", () => {
+  afterEach(() => {
+    localStorage.clear();
+    resetBuildInfoForTests();
+    vi.restoreAllMocks();
+  });
+
+  it("confirms a valid verification link and shows success actions", async () => {
+    vi.spyOn(api, "confirmEmailVerification").mockResolvedValueOnce({
+      user: { ...user, emailVerified: true },
+    });
+    vi.spyOn(api, "requestEmailVerification").mockResolvedValueOnce({
+      message: "If an account exists for that email, a verification link has been prepared.",
+    });
+
+    renderAuthRoutes(
+      <Route path="/verify-email" element={<EmailVerificationPage />} />,
+      "/verify-email?email=person%40example.com&token=token-123"
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("We are checking this verification link.");
+    expect(screen.getByRole("status")).not.toHaveAccessibleName("Verifying your email");
+    expect(await screen.findByRole("heading", { name: "Email verified" })).toBeInTheDocument();
+    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
+    expect(screen.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/app");
+    expect(api.confirmEmailVerification).toHaveBeenCalledWith({
+      email: "person@example.com",
+      token: "token-123",
+    });
+  });
+
+  it("shares the confirmation request across StrictMode remounts", async () => {
+    const confirmEmailVerification = vi.spyOn(api, "confirmEmailVerification").mockResolvedValue({
+      user: { ...user, emailVerified: true },
+    });
+
+    render(
+      <StrictMode>
+        <MemoryRouter initialEntries={["/verify-email?email=person%40example.com&token=token-123"]}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/verify-email" element={<EmailVerificationPage />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </StrictMode>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Email verified" })).toBeInTheDocument();
+    expect(confirmEmailVerification).toHaveBeenCalledOnce();
+  });
+
+  it("does not call the confirm API when the link is missing parameters", async () => {
+    const confirm = vi.spyOn(api, "confirmEmailVerification");
+    renderAuthRoutes(
+      <Route path="/verify-email" element={<EmailVerificationPage />} />,
+      "/verify-email?email=person%40example.com"
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Verification link invalid or expired" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Request a new verification email.")).toBeInTheDocument();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it("shows recovery copy when the token is rejected", async () => {
+    vi.spyOn(api, "confirmEmailVerification").mockRejectedValueOnce(
+      new ApiClientError("Verification token is invalid or expired.", "validation", 400)
+    );
+    renderAuthRoutes(
+      <Route path="/verify-email" element={<EmailVerificationPage />} />,
+      "/verify-email?email=person%40example.com&token=bad-token"
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Verification link invalid or expired" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Request a new verification email.")).toBeInTheDocument();
+  });
+
+  it("uses a temporary failure title when verification cannot complete", async () => {
+    vi.spyOn(api, "confirmEmailVerification").mockRejectedValueOnce(new Error("Network failure"));
+    renderAuthRoutes(
+      <Route path="/verify-email" element={<EmailVerificationPage />} />,
+      "/verify-email?email=person%40example.com&token=token-123"
+    );
+
+    expect(await screen.findByRole("heading", { name: "Verification failed" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "We could not verify this link right now. Please try again or request a new link."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("updates the recovery email when the route email changes", async () => {
+    vi.spyOn(api, "confirmEmailVerification")
+      .mockRejectedValueOnce(
+        new ApiClientError("Verification token is invalid or expired.", "validation", 400)
+      )
+      .mockRejectedValueOnce(
+        new ApiClientError("Verification token is invalid or expired.", "validation", 400)
+      );
+
+    renderAuthRoutes(
+      <Route
+        path="/verify-email"
+        element={
+          <>
+            <EmailVerificationPage />
+            <Link to="/verify-email?email=second%40example.com&token=bad-token-2">
+              Load second link
+            </Link>
+          </>
+        }
+      />,
+      "/verify-email?email=first%40example.com&token=bad-token-1"
+    );
+
+    expect(await screen.findByLabelText("Email")).toHaveValue("first@example.com");
+
+    await userEvent.click(screen.getByRole("link", { name: "Load second link" }));
+
+    await waitFor(() => {
+      expect(api.confirmEmailVerification).toHaveBeenCalledWith({
+        email: "second@example.com",
+        token: "bad-token-2",
+      });
+    });
+    expect(screen.getByLabelText("Email")).toHaveValue("second@example.com");
+  });
+
+  it("requests a new verification email from the recovery form", async () => {
+    vi.spyOn(api, "confirmEmailVerification").mockRejectedValueOnce(
+      new ApiClientError("Verification token is invalid or expired.", "validation", 400)
+    );
+    vi.spyOn(api, "requestEmailVerification").mockResolvedValueOnce({
+      message: "If an account exists for that email, a verification link has been prepared.",
+    });
+    renderAuthRoutes(
+      <Route path="/verify-email" element={<EmailVerificationPage />} />,
+      "/verify-email?email=person%40example.com&token=bad-token"
+    );
+
+    await screen.findByRole("heading", { name: "Verification link invalid or expired" });
+    await userEvent.clear(screen.getByLabelText("Email"));
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Request verification email" }));
+
+    expect(
+      await screen.findByText(
+        "If an account exists for that email, a verification link has been prepared."
+      )
+    ).toBeInTheDocument();
+    expect(api.requestEmailVerification).toHaveBeenCalledWith({
+      email: "person@example.com",
+    });
+  });
+});
+
 describe("App routes", () => {
   afterEach(() => {
     localStorage.clear();
@@ -592,6 +760,75 @@ describe("App routes", () => {
       await screen.findByRole("heading", { name: "Choose a new password" })
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reset password" })).toBeInTheDocument();
+  });
+
+  it("redirects to signin with a reauth message when protected activity rejects the session", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity")
+      .mockRejectedValueOnce(
+        new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+      )
+      .mockResolvedValueOnce({
+        activities: [],
+        limit: 20,
+      });
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "new-token", user });
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValue(new Error("status unavailable"));
+    setAccessToken("revoked-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session expired. Please sign in again.")
+    ).not.toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
+  });
+
+  it("clears the reauth message after leaving signin", async () => {
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("revoked-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Create one" }));
+    expect(await screen.findByRole("heading", { name: "Create account" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Sign in" }));
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session expired. Please sign in again.")
+    ).not.toBeInTheDocument();
   });
 
   it("shows saved-token loading status before opening the app", async () => {
@@ -683,10 +920,14 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
-    expect(screen.getByText("Person Name")).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
-    expect(screen.getByText("user-1")).toBeInTheDocument();
+    const accountSummary = screen.getByRole("region", { name: "Account summary" });
+    expect(accountSummary).toBeInTheDocument();
+    expect(within(accountSummary).getByText("Person Name")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("person@example.com")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("user-1")).toBeInTheDocument();
+    const accountSettings = screen.getByRole("region", { name: "Account settings" });
+    expect(accountSettings).toBeInTheDocument();
+    expect(within(accountSettings).getByLabelText("Name")).toHaveValue("Person Name");
     expect(await screen.findByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
     expect(screen.getByText("Signed in")).toBeInTheDocument();
     expect(screen.queryByText("activity-1")).not.toBeInTheDocument();
@@ -698,6 +939,41 @@ describe("App routes", () => {
     expect(api.getAccountActivity).toHaveBeenCalledWith("token-123");
     expect(statusApi.getBuildInfo).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+  });
+
+  it("updates the account summary after a profile settings save", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
+    vi.spyOn(api, "updateProfile").mockResolvedValueOnce({ ...user, name: "Updated Person" });
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("token-123");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+
+    expect(await screen.findByText("Profile updated.")).toBeInTheDocument();
+    expect(api.updateProfile).toHaveBeenCalledWith("token-123", { name: "Updated Person" });
+    expect(screen.getByText("Signed in as Updated Person.")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Account summary" })).getByText("Updated Person")
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Account settings" })).getByLabelText("Name")
+    ).toHaveValue("Updated Person");
   });
 
   it("keeps the application usable when the in-page status request fails", async () => {
@@ -718,10 +994,11 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
-    expect(screen.getByText("Person Name")).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
-    expect(screen.getByText("user-1")).toBeInTheDocument();
+    const accountSummary = screen.getByRole("region", { name: "Account summary" });
+    expect(accountSummary).toBeInTheDocument();
+    expect(within(accountSummary).getByText("Person Name")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("person@example.com")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("user-1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
     expect(
       await screen.findByRole("status", { name: "API connection unavailable" })
@@ -747,11 +1024,34 @@ describe("App routes", () => {
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Account summary" })).getByText(
+        "person@example.com"
+      )
+    ).toBeInTheDocument();
     expect(
       await screen.findByRole("status", { name: "Account activity unavailable" })
     ).toHaveTextContent("Recent account activity is unavailable.");
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+  });
+
+  it("renders the email verification route as a public page", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(api, "confirmEmailVerification").mockResolvedValueOnce({
+      user: { ...user, emailVerified: true },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/verify-email?email=person%40example.com&token=token-123"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Email verified" })).toBeInTheDocument();
+    expect(api.confirmEmailVerification).toHaveBeenCalledWith({
+      email: "person@example.com",
+      token: "token-123",
+    });
   });
 
   it("renders the authenticated app heading and logs out clearing localStorage", async () => {

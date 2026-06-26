@@ -23,21 +23,40 @@ test.describe("full-stack auth browser matrix", () => {
 
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
-    await expect(page.getByText(account.name, { exact: true })).toBeVisible();
-    await expect(page.getByText(account.email, { exact: true })).toBeVisible();
+    const accountSummary = page.getByRole("region", { name: "Account summary" });
+    await expect(accountSummary.getByText(account.name, { exact: true })).toBeVisible();
+    await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
     await expect(page.getByRole("status", { name: "API connection" })).toContainText(
       "API connected"
     );
+
+    const updatedName = `${account.name} Updated`;
+    const newPassword = "NewPassword1!";
+
+    await fillInput(page.getByLabel("Name"), updatedName);
+    await page.getByRole("button", { name: "Save profile" }).click();
+    await expect(page.getByText("Profile updated.")).toBeVisible();
+    await expect(page.getByText(`Signed in as ${updatedName}.`)).toBeVisible();
+    await expect(accountSummary.getByText(updatedName, { exact: true })).toBeVisible();
+
+    await fillInput(page.getByLabel("Current password"), PASSWORD);
+    await fillInput(page.getByLabel("New password", { exact: true }), newPassword);
+    await fillInput(page.getByLabel("Confirm new password"), newPassword);
+    await page.getByRole("button", { name: "Change password" }).click();
+    await expect(page.getByText("Password changed.")).toBeVisible();
 
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
 
     await fillSignin(page, account.email, PASSWORD);
+    await expect(page.getByText("Invalid email or password.")).toBeVisible();
+
+    await fillSignin(page, account.email, newPassword);
 
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
-    await expect(page.getByText(account.name, { exact: true })).toBeVisible();
-    await expect(page.getByText(account.email, { exact: true })).toBeVisible();
+    await expect(accountSummary.getByText(updatedName, { exact: true })).toBeVisible();
+    await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
     await expect(page.getByRole("status", { name: "API connection" })).toContainText(
       "API connected"
     );

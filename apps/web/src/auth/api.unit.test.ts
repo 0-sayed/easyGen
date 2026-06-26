@@ -2,13 +2,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/client";
 import {
+  changePassword,
+  confirmEmailVerification,
   confirmPasswordReset,
   getAccountActivity,
   getCurrentUser,
   logout,
+  requestEmailVerification,
   requestPasswordReset,
   signin,
   signup,
+  updateProfile,
 } from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
@@ -54,6 +58,38 @@ describe("auth api", () => {
     });
   });
 
+  it("requests an email verification link", async () => {
+    const response = {
+      message: "If an account exists for that email, a verification link has been prepared.",
+    };
+    const input = { email: buildEmail() };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(response, 202));
+
+    await expect(requestEmailVerification(input)).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/email-verification/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("confirms an email verification token", async () => {
+    const user = buildAuthResponse().user;
+    const input = { email: user.email, token: buildToken() };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ user }));
+
+    await expect(confirmEmailVerification(input)).resolves.toEqual({ user });
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/email-verification/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
   it("loads the current user with bearer auth", async () => {
     const authResponse = buildAuthResponse();
     const fetchMock = vi
@@ -65,6 +101,54 @@ describe("auth api", () => {
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${authResponse.accessToken}` },
     });
+  });
+
+  it("patches the current user profile with bearer auth", async () => {
+    const authResponse = buildAuthResponse();
+    const updatedUser = { ...authResponse.user, name: "Updated Person" };
+    const input = { name: updatedUser.name };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ user: updatedUser }));
+
+    await expect(updateProfile(authResponse.accessToken, input)).resolves.toEqual(updatedUser);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${authResponse.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("changes the password with bearer auth", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(null, {
+        status: 204,
+      })
+    );
+    const input = { currentPassword: "Password1!", newPassword: "NewPassword1!" };
+
+    await expect(changePassword("token-123", input)).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/password`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer token-123",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("rejects malformed profile update responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ user: { id: "user-1" } }));
+
+    await expect(updateProfile("token-123", { name: "Updated Person" })).rejects.toEqual(
+      new ApiClientError("Unexpected current user response.", "unexpected")
+    );
   });
 
   it("revokes the current token on logout", async () => {
@@ -205,6 +289,22 @@ describe("auth api", () => {
       new ApiClientError("Unexpected authentication response.", "unexpected")
     );
   });
+
+  it("rejects malformed email verification confirm responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        user: {
+          id: "user-1",
+          email: "person@example.test",
+          name: "Person Name",
+        },
+      })
+    );
+
+    await expect(
+      confirmEmailVerification({ email: "person@example.test", token: "token-123" })
+    ).rejects.toEqual(new ApiClientError("Unexpected email verification response.", "unexpected"));
+  });
 });
 
 function buildAuthResponse() {
@@ -214,6 +314,7 @@ function buildAuthResponse() {
       id: `user-${crypto.randomUUID()}`,
       email: buildEmail(),
       name: "Person Name",
+      emailVerified: true,
     },
   };
 }

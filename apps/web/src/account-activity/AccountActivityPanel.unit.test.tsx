@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiClientError } from "../api/client";
 import { AccountActivityPanel } from "./AccountActivityPanel";
 import * as authApi from "../auth/api";
 
@@ -34,7 +35,7 @@ describe("AccountActivityPanel", () => {
       () => new Promise(() => undefined)
     );
 
-    render(<AccountActivityPanel accessToken="token-123" />);
+    render(<AccountActivityPanel accessToken="token-123" onUnauthorized={() => undefined} />);
 
     expect(screen.getByRole("status", { name: "Loading account activity" })).toHaveTextContent(
       "Loading recent account activity..."
@@ -47,7 +48,7 @@ describe("AccountActivityPanel", () => {
       limit: 20,
     });
 
-    render(<AccountActivityPanel accessToken="token-123" />);
+    render(<AccountActivityPanel accessToken="token-123" onUnauthorized={() => undefined} />);
 
     expect(
       await screen.findByRole("list", { name: "Recent account activity" })
@@ -78,7 +79,7 @@ describe("AccountActivityPanel", () => {
       limit: 20,
     });
 
-    render(<AccountActivityPanel accessToken="token-123" />);
+    render(<AccountActivityPanel accessToken="token-123" onUnauthorized={() => undefined} />);
 
     expect(
       await screen.findByRole("list", { name: "Recent account activity" })
@@ -92,24 +93,43 @@ describe("AccountActivityPanel", () => {
       limit: 20,
     });
 
-    render(<AccountActivityPanel accessToken="token-123" />);
+    render(<AccountActivityPanel accessToken="token-123" onUnauthorized={() => undefined} />);
 
     expect(await screen.findByText("No recent account activity yet.")).toBeInTheDocument();
   });
 
-  it("renders a local failed state", async () => {
+  it("notifies the caller when account activity rejects with unauthorized", async () => {
+    const onUnauthorized = vi.fn();
+    vi.spyOn(authApi, "getAccountActivity").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+
+    render(<AccountActivityPanel accessToken="token-123" onUnauthorized={onUnauthorized} />);
+
+    await screen.findByRole("status", { name: "Loading account activity" });
+    await waitFor(() => {
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.queryByRole("status", { name: "Account activity unavailable" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a local failed state for non-authorization failures", async () => {
+    const onUnauthorized = vi.fn();
     vi.spyOn(authApi, "getAccountActivity").mockRejectedValueOnce(new Error("offline"));
 
-    render(<AccountActivityPanel accessToken="token-123" />);
+    render(<AccountActivityPanel accessToken="token-123" onUnauthorized={onUnauthorized} />);
 
     const status = await screen.findByRole("status", { name: "Account activity unavailable" });
     expect(status).toHaveTextContent("Recent account activity is unavailable.");
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 
   it("does not call the API without a token", () => {
     const getAccountActivity = vi.spyOn(authApi, "getAccountActivity");
 
-    render(<AccountActivityPanel accessToken={null} />);
+    render(<AccountActivityPanel accessToken={null} onUnauthorized={() => undefined} />);
 
     expect(screen.getByRole("status", { name: "Account activity unavailable" })).toHaveTextContent(
       "Recent account activity is unavailable."

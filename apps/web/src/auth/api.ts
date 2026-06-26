@@ -1,6 +1,8 @@
 import { ApiClientError, apiRequest } from "../api/client";
 import type {
   PasswordResetRequestFormValues,
+  ChangePasswordRequest,
+  ProfileUpdateFormValues,
   SigninFormValues,
   SignupFormValues,
 } from "./validation";
@@ -9,6 +11,7 @@ export interface PublicUser {
   id: string;
   email: string;
   name: string;
+  emailVerified: boolean;
 }
 
 export interface AuthResponse {
@@ -24,6 +27,23 @@ export interface PasswordResetConfirmRequest {
   email: string;
   token: string;
   newPassword: string;
+}
+
+export interface EmailVerificationRequestInput {
+  email: string;
+}
+
+export interface EmailVerificationConfirmInput {
+  email: string;
+  token: string;
+}
+
+export interface EmailVerificationResponse {
+  message: string;
+}
+
+export interface EmailVerificationConfirmResponse {
+  user: PublicUser;
 }
 
 type AccountActivityType =
@@ -76,11 +96,35 @@ export async function requestPasswordReset(
   );
 }
 
+export async function requestEmailVerification(
+  input: EmailVerificationRequestInput
+): Promise<EmailVerificationResponse> {
+  return readEmailVerificationResponse(
+    await apiRequest("/auth/email-verification/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
 export async function confirmPasswordReset(
   input: PasswordResetConfirmRequest
 ): Promise<PasswordResetResponse> {
   return readPasswordResetResponse(
     await apiRequest("/auth/password-reset/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function confirmEmailVerification(
+  input: EmailVerificationConfirmInput
+): Promise<EmailVerificationConfirmResponse> {
+  return readEmailVerificationConfirmResponse(
+    await apiRequest("/auth/email-verification/confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -94,6 +138,36 @@ export async function getCurrentUser(accessToken: string): Promise<PublicUser> {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
+}
+
+export async function updateProfile(
+  accessToken: string,
+  input: ProfileUpdateFormValues
+): Promise<PublicUser> {
+  return readCurrentUser(
+    await apiRequest("/auth/me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function changePassword(
+  accessToken: string,
+  input: ChangePasswordRequest
+): Promise<void> {
+  await apiRequest("/auth/password", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
 }
 
 export async function logout(accessToken: string): Promise<void> {
@@ -133,6 +207,22 @@ function readCurrentUser(body: unknown): PublicUser {
   }
 
   return body.user;
+}
+
+function readEmailVerificationResponse(body: unknown): EmailVerificationResponse {
+  if (!isObject(body) || typeof body.message !== "string") {
+    throw new ApiClientError("Unexpected email verification response.", "unexpected");
+  }
+
+  return { message: body.message };
+}
+
+function readEmailVerificationConfirmResponse(body: unknown): EmailVerificationConfirmResponse {
+  if (!isObject(body) || !isPublicUser(body.user)) {
+    throw new ApiClientError("Unexpected email verification response.", "unexpected");
+  }
+
+  return { user: body.user };
 }
 
 function readAccountActivityResponse(body: unknown): AccountActivityResponse {
@@ -175,7 +265,8 @@ function isPublicUser(value: unknown): value is PublicUser {
     isObject(value) &&
     typeof value.id === "string" &&
     typeof value.email === "string" &&
-    typeof value.name === "string"
+    typeof value.name === "string" &&
+    typeof value.emailVerified === "boolean"
   );
 }
 
