@@ -121,4 +121,6 @@ pnpm infra:down
 
 The matrix is defined in `apps/web/e2e/auth-flow.pw.ts`. Playwright starts MongoDB, the API, and the web app through `apps/web/playwright.config.ts`; Docker must be available for MongoDB. Override `PORT`, `WEB_PORT`, and `MONGODB_PORT` when running parallel worktrees.
 
+Playwright starts the API with `NODE_ENV=test` and `AUTH_TEST_SUPPORT=1` so recovery browser tests can drain tokens from the in-memory delivery test hook. The `GET /__test/auth-tokens/verification` and `GET /__test/auth-tokens/password-reset` routes are excluded from Swagger and return 404 unless both test-support variables are set.
+
 License: MIT
