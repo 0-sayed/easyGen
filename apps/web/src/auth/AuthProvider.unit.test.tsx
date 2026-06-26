@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -196,6 +196,55 @@ describe("AuthProvider", () => {
     });
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
     expect(screen.getByText("guest")).toBeInTheDocument();
+  });
+
+  it("does not let a stale account deletion clear a newer signin session", async () => {
+    const newUser = {
+      id: "user-new",
+      email: "new@example.com",
+      name: "New Session",
+      emailVerified: true,
+    };
+    let resolveDelete!: () => void;
+    const deleteRequest = new Promise<void>((resolve) => {
+      resolveDelete = resolve;
+    });
+
+    setAccessToken("old-token");
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    const deleteAccount = vi.spyOn(api, "deleteAccount").mockReturnValueOnce(deleteRequest);
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "new-token", user: newUser });
+
+    render(
+      <AuthProvider>
+        <DeleteAccountButton />
+        <SigninButton />
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await screen.findByText("Person Name");
+    await userEvent.click(screen.getByRole("button", { name: "Delete account" }));
+
+    await waitFor(() => {
+      expect(deleteAccount).toHaveBeenCalledWith("old-token", {
+        currentPassword: "Password1!",
+      });
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
+    });
+
+    await act(async () => {
+      resolveDelete();
+      await deleteRequest;
+    });
+
+    expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
+    expect(screen.getByTestId("auth-user")).toHaveTextContent("New Session");
   });
 
   it("does not let a stale bootstrap request replace a new signin session", async () => {

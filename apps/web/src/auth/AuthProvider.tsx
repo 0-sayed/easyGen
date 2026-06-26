@@ -126,7 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         await deleteAccountRequest(accessToken, { currentPassword });
-        clearAuthenticatedState(null);
+        if (getAccessToken() === accessToken) {
+          clearAuthenticatedState(null);
+        }
       },
       logout: async () => {
         const accessToken = getAccessToken();
