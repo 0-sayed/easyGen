@@ -223,6 +223,45 @@ describe("App routes", () => {
     expect(screen.getByText("test")).toBeInTheDocument();
   });
 
+  it("redirects to signin with a reauth message when protected activity rejects the session", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity")
+      .mockRejectedValueOnce(
+        new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+      )
+      .mockResolvedValueOnce({
+        activities: [],
+        limit: 20,
+      });
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "new-token", user });
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValue(new Error("status unavailable"));
+    setAccessToken("revoked-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session expired. Please sign in again.")
+    ).not.toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
+  });
+
   it("shows saved-token loading status before opening the app", async () => {
     let resolveCurrentUser: ((currentUser: typeof user) => void) | undefined;
     vi.spyOn(api, "getCurrentUser").mockImplementationOnce(

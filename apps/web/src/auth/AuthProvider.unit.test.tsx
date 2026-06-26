@@ -49,6 +49,48 @@ describe("AuthProvider", () => {
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
 
+  it("sets a reauth message when a stored token is rejected as unauthorized", async () => {
+    setAccessToken("revoked-token");
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+
+    render(
+      <AuthProvider>
+        <ReauthMessageProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    });
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+  });
+
+  it("clears the reauth message after a successful signin", async () => {
+    setAccessToken("revoked-token");
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "token-123", user });
+
+    render(
+      <AuthProvider>
+        <SigninButton />
+        <ReauthMessageProbe />
+      </AuthProvider>
+    );
+
+    expect(await screen.findByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("no-message")).toBeInTheDocument();
+    });
+    expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+  });
+
   it("keeps stored token when getCurrentUser rejects with unavailable while rendering guest after loading", async () => {
     setAccessToken("token-123");
     vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
@@ -213,4 +255,10 @@ function TokenProbe() {
   const { accessToken } = useAuth();
 
   return <p>token:{accessToken ?? "none"}</p>;
+}
+
+function ReauthMessageProbe() {
+  const { reauthMessage } = useAuth();
+
+  return <p>{reauthMessage ?? "no-message"}</p>;
 }

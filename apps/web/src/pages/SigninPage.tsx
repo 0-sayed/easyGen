@@ -11,7 +11,7 @@ import { authStyles } from "./authStyles";
 export function SigninPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signin } = useAuth();
+  const { clearReauthMessage, reauthMessage, signin } = useAuth();
   const [inputsLocked, setInputsLocked] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
@@ -25,6 +25,7 @@ export function SigninPage() {
 
   async function onSubmit(values: SigninFormValues) {
     setSubmitError(null);
+    clearReauthMessage();
     try {
       await signin(values);
       void navigate(getRedirectPath(location.state), { replace: true });
@@ -104,10 +105,10 @@ export function SigninPage() {
         </div>
 
         <p
-          className={`${submitError ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
+          className={`${submitError ?? reauthMessage ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
           aria-live="polite"
         >
-          {submitError ?? "Your session stays on this device."}
+          {submitError ?? reauthMessage ?? "Your session stays on this device."}
         </p>
 
         <button className={authStyles.button} type="submit" disabled={isSubmitting}>

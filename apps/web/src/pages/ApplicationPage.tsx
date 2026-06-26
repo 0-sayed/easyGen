@@ -7,7 +7,7 @@ import { authStyles } from "./authStyles";
 
 export function ApplicationPage() {
   const navigate = useNavigate();
-  const { accessToken, logout, user } = useAuth();
+  const { accessToken, handleRevokedSession, logout, user } = useAuth();
 
   function handleLogout() {
     void logout()
@@ -49,7 +49,7 @@ export function ApplicationPage() {
 
       <ApplicationStatusPanel />
 
-      <AccountActivityPanel accessToken={accessToken} />
+      <AccountActivityPanel accessToken={accessToken} onUnauthorized={handleRevokedSession} />
 
       <button className={authStyles.button} type="button" onClick={handleLogout}>
         Log out
