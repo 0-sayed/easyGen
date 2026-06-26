@@ -1,5 +1,6 @@
 import { ApiClientError, apiRequest } from "../api/client";
 import type {
+  PasswordResetRequestFormValues,
   ChangePasswordRequest,
   ProfileUpdateFormValues,
   SigninFormValues,
@@ -16,6 +17,16 @@ export interface PublicUser {
 export interface AuthResponse {
   accessToken: string;
   user: PublicUser;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  email: string;
+  token: string;
+  newPassword: string;
 }
 
 export interface EmailVerificationRequestInput {
@@ -73,11 +84,35 @@ export async function signin(input: SigninFormValues): Promise<AuthResponse> {
   );
 }
 
+export async function requestPasswordReset(
+  input: PasswordResetRequestFormValues
+): Promise<PasswordResetResponse> {
+  return readPasswordResetResponse(
+    await apiRequest("/auth/password-reset/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
 export async function requestEmailVerification(
   input: EmailVerificationRequestInput
 ): Promise<EmailVerificationResponse> {
   return readEmailVerificationResponse(
     await apiRequest("/auth/email-verification/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function confirmPasswordReset(
+  input: PasswordResetConfirmRequest
+): Promise<PasswordResetResponse> {
+  return readPasswordResetResponse(
+    await apiRequest("/auth/password-reset/confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -156,6 +191,14 @@ function readAuthResponse(body: unknown): AuthResponse {
   }
 
   return { accessToken: body.accessToken, user: body.user };
+}
+
+function readPasswordResetResponse(body: unknown): PasswordResetResponse {
+  if (!isObject(body) || typeof body.message !== "string") {
+    throw new ApiClientError("Unexpected password reset response.", "unexpected");
+  }
+
+  return { message: body.message };
 }
 
 function readCurrentUser(body: unknown): PublicUser {

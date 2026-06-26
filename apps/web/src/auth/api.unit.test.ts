@@ -4,10 +4,12 @@ import { ApiClientError } from "../api/client";
 import {
   changePassword,
   confirmEmailVerification,
+  confirmPasswordReset,
   getAccountActivity,
   getCurrentUser,
   logout,
   requestEmailVerification,
+  requestPasswordReset,
   signin,
   signup,
   updateProfile,
@@ -175,6 +177,50 @@ describe("auth api", () => {
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/activity`, {
       headers: { Authorization: "Bearer token-123" },
     });
+  });
+
+  it("posts password reset requests to /auth/password-reset/request", async () => {
+    const response = {
+      message: "If an account exists for that email, a password reset link has been prepared.",
+    };
+    const input = { email: "person@example.com" };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(response, 202));
+
+    await expect(requestPasswordReset(input)).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/password-reset/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("posts password reset confirmations without confirmPassword", async () => {
+    const response = { message: "Password has been reset." };
+    const input = {
+      email: "person@example.com",
+      token: "reset-token-123",
+      newPassword: "NewPassword1!",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(response));
+
+    await expect(confirmPasswordReset(input)).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/password-reset/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("rejects malformed password reset responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    await expect(requestPasswordReset({ email: "person@example.com" })).rejects.toEqual(
+      new ApiClientError("Unexpected password reset response.", "unexpected")
+    );
   });
 
   it("rejects malformed account activity responses", async () => {
