@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { isApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
-import { signupSchema, type SignupFormValues } from "../auth/validation";
+import { PASSWORD_HELPER_MESSAGE, signupSchema, type SignupFormValues } from "../auth/validation";
 import { authStyles } from "./authStyles";
 
 export function SignupPage() {
@@ -109,7 +109,7 @@ export function SignupPage() {
             className={`${errors.password ? authStyles.error : authStyles.helper} ${authStyles.messageSlotTall}`}
             aria-live="polite"
           >
-            {errors.password?.message ?? "Use 8+ characters with a letter, number, and symbol."}
+            {errors.password?.message ?? PASSWORD_HELPER_MESSAGE}
           </p>
         </div>
 

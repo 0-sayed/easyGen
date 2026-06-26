@@ -18,6 +18,7 @@ interface AuthContextValue {
   signin: (input: SigninFormValues) => Promise<void>;
   signup: (input: SignupFormValues) => Promise<void>;
   logout: () => Promise<void>;
+  replaceUser: (user: PublicUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -94,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setCurrentAccessToken(null);
           setUser(null);
         }
+      },
+      replaceUser: (user) => {
+        setUser(user);
       },
     }),
     [accessToken, isLoading, user]
