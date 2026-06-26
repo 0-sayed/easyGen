@@ -56,5 +56,5 @@ Sizing:
 | 8    | [x]  | `T011`, `T012`, `T013`, `T014` | `chore/t011-deployment-readiness`, `feat/t012-auth-guardrails-audit`, `test/t013-browser-qa-matrix`, `feat/t014-reviewer-demo-polish` |
 | 9    | [x]  | `T015`, `T016`, `T017`         | `feat/t015-token-revocation-logout`, `feat/t016-email-verification-flow`, `feat/t017-typed-frontend-api-client`                       |
 | 10   | [ ]  | `T018`, `T019`, `T020`         | `feat/t018-account-security-api`, `feat/t019-password-reset-flow`, `feat/t020-account-activity-api`                                   |
-| 11   | [ ]  | `T021`, `T022`, `T023`         | `feat/t021-account-settings-frontend`, `feat/t022-account-activity-frontend`, `feat/t023-account-data-lifecycle`                      |
+| 11   | [x]  | `T021`, `T022`, `T023`         | `feat/t021-account-settings-frontend`, `feat/t022-account-activity-frontend`, `feat/t023-account-data-lifecycle`                      |
 | 12   | [ ]  | `T006`                         | `chore/t006-submission-readiness`                                                                                                     |
