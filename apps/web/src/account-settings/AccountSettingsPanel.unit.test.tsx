@@ -198,6 +198,9 @@ describe("AccountSettingsPanel", () => {
 
     expect(await screen.findByText("Current password is required.")).toBeInTheDocument();
     expect(screen.getByText("Confirm account deletion before continuing.")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    ).toHaveAttribute("aria-invalid", "true");
     expect(onAccountDeleted).not.toHaveBeenCalled();
   });
 
@@ -226,6 +229,12 @@ describe("AccountSettingsPanel", () => {
     await waitFor(() => {
       expect(onAccountDeleted).toHaveBeenCalledWith("Password1!");
     });
+    expect(screen.getByLabelText("Current password for account deletion")).toHaveValue(
+      "Password1!"
+    );
+    expect(
+      screen.getByLabelText("I understand this permanently deletes my account.")
+    ).toBeChecked();
   });
 
   it("shows account deletion API errors and keeps the form usable", async () => {

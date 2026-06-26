@@ -124,7 +124,6 @@ export function AccountSettingsPanel({
 
     try {
       await onAccountDeleted(values.currentPassword);
-      resetDeletion({ currentPassword: "", confirmDeletion: false });
     } catch (error) {
       setDeletionFailed(true);
       setDeletionMessage(isApiClientError(error) ? error.message : "Unable to delete account.");
@@ -324,6 +323,7 @@ export function AccountSettingsPanel({
                 className="mt-1 h-4 w-4 accent-danger"
                 type="checkbox"
                 aria-describedby="settings-delete-confirmation-message"
+                aria-invalid={deletionErrors.confirmDeletion ? "true" : "false"}
                 {...registerDeletion("confirmDeletion")}
               />
               <span>I understand this permanently deletes my account.</span>
