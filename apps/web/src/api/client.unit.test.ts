@@ -23,11 +23,11 @@ describe("api client", () => {
     expect(getApiUrl(import.meta.env)).toBe("http://127.0.0.1:3010");
   });
 
-  it("derives the adjacent API port for isolated local worktree web ports", () => {
+  it("keeps the default API URL when the web app runs on a custom local port", () => {
     vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3000");
 
-    expect(getApiUrl(import.meta.env, new URL("http://127.0.0.1:59627/signin"))).toBe(
-      "http://127.0.0.1:59626"
+    expect(getApiUrl(import.meta.env, new URL("http://127.0.0.1:5174/signin"))).toBe(
+      "http://127.0.0.1:3000"
     );
   });
 

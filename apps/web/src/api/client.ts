@@ -1,5 +1,4 @@
 const DEFAULT_API_URL = "http://127.0.0.1:3000";
-const DEFAULT_WEB_PORT = 5173;
 const FALLBACK_MESSAGE = "Something went wrong. Please try again.";
 const NETWORK_MESSAGE = "Unable to reach the API. Please try again.";
 
@@ -35,18 +34,15 @@ export function isApiClientError(error: unknown): error is ApiClientError {
 type AppLocation = Pick<Location | URL, "hostname" | "port" | "protocol">;
 
 export function getApiUrl(env: ImportMetaEnv, appLocation?: AppLocation): string {
+  void appLocation;
   const apiUrl = env.VITE_API_URL?.trim();
-  const configuredApiUrl = apiUrl === undefined || apiUrl.length === 0 ? DEFAULT_API_URL : apiUrl;
-
-  return configuredApiUrl === DEFAULT_API_URL
-    ? (getAdjacentWorktreeApiUrl(appLocation) ?? configuredApiUrl)
-    : configuredApiUrl;
+  return apiUrl === undefined || apiUrl.length === 0 ? DEFAULT_API_URL : apiUrl;
 }
 
 export async function apiRequest(path: string, init: RequestInit = {}): Promise<unknown> {
   try {
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    const response = await fetch(`${getApiUrl(import.meta.env, globalThis.location)}${normalizedPath}`, init);
+    const response = await fetch(`${getApiUrl(import.meta.env)}${normalizedPath}`, init);
 
     if (!response.ok) {
       throw new ApiClientError(
@@ -73,23 +69,6 @@ export async function apiRequest(path: string, init: RequestInit = {}): Promise<
 
     throw new ApiClientError(NETWORK_MESSAGE, "unavailable");
   }
-}
-
-function getAdjacentWorktreeApiUrl(appLocation: AppLocation | undefined): string | null {
-  if (
-    appLocation === undefined ||
-    appLocation.protocol !== "http:" ||
-    (appLocation.hostname !== "127.0.0.1" && appLocation.hostname !== "localhost")
-  ) {
-    return null;
-  }
-
-  const webPort = Number.parseInt(appLocation.port, 10);
-  if (!Number.isInteger(webPort) || webPort <= DEFAULT_WEB_PORT) {
-    return null;
-  }
-
-  return `http://127.0.0.1:${webPort - 1}`;
 }
 
 function getErrorCategory(status: number): ApiErrorCategory {
