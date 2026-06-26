@@ -9,6 +9,10 @@ import { AccountActivityRepository } from "./account-activity.repository";
 import { AccountActivityService } from "./account-activity.service";
 import { AuthAuditLogger } from "./auth-audit.logger";
 import { AuthController } from "./auth.controller";
+import {
+  AuthTestSupportController,
+  isAuthTestSupportEnabled,
+} from "./auth-test-support.controller";
 import { AuthSessionRepository } from "./auth-session.repository";
 import { AuthSessionService } from "./auth-session.service";
 import { AuthService } from "./auth.service";
@@ -31,8 +35,17 @@ type JwtExpiresIn = NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"];
 
 const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
 
+export function selectAuthTokenDeliveryProvider() {
+  return {
+    provide: AUTH_TOKEN_DELIVERY,
+    inject: [InMemoryAuthTokenDelivery, LogAuthTokenDelivery],
+    useFactory: (inMemoryDelivery: InMemoryAuthTokenDelivery, logDelivery: LogAuthTokenDelivery) =>
+      isAuthTestSupportEnabled() ? inMemoryDelivery : logDelivery,
+  };
+}
+
 @Module({
-  controllers: [AuthController],
+  controllers: [AuthController, AuthTestSupportController],
   exports: [AuthService, JwtModule],
   imports: [
     UsersModule,
@@ -71,10 +84,7 @@ const DEFAULT_JWT_EXPIRES_IN: JwtExpiresIn = "15m";
     PasswordResetService,
     InMemoryAuthTokenDelivery,
     LogAuthTokenDelivery,
-    {
-      provide: AUTH_TOKEN_DELIVERY,
-      useExisting: LogAuthTokenDelivery,
-    },
+    selectAuthTokenDeliveryProvider(),
     AuthSessionRepository,
     AuthSessionService,
   ],

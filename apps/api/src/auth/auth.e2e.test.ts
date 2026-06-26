@@ -359,6 +359,9 @@ describe("Auth API", () => {
     const response = await request(getServer(app)).get("/docs-json").expect(200);
     const document = response.body;
 
+    expect(document.paths?.["/__test/auth-tokens/verification"]).toBeUndefined();
+    expect(document.paths?.["/__test/auth-tokens/password-reset"]).toBeUndefined();
+
     const signupOperation = expectPostOperation(document, "/auth/signup");
     const signinOperation = expectPostOperation(document, "/auth/signin");
     const emailVerificationRequestOperation = expectPostOperation(
