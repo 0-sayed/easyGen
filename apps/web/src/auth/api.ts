@@ -10,10 +10,28 @@ export interface PublicUser {
   id: string;
   email: string;
   name: string;
+  emailVerified: boolean;
 }
 
 export interface AuthResponse {
   accessToken: string;
+  user: PublicUser;
+}
+
+export interface EmailVerificationRequestInput {
+  email: string;
+}
+
+export interface EmailVerificationConfirmInput {
+  email: string;
+  token: string;
+}
+
+export interface EmailVerificationResponse {
+  message: string;
+}
+
+export interface EmailVerificationConfirmResponse {
   user: PublicUser;
 }
 
@@ -48,6 +66,30 @@ export async function signup(input: SignupFormValues): Promise<AuthResponse> {
 export async function signin(input: SigninFormValues): Promise<AuthResponse> {
   return readAuthResponse(
     await apiRequest("/auth/signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function requestEmailVerification(
+  input: EmailVerificationRequestInput
+): Promise<EmailVerificationResponse> {
+  return readEmailVerificationResponse(
+    await apiRequest("/auth/email-verification/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function confirmEmailVerification(
+  input: EmailVerificationConfirmInput
+): Promise<EmailVerificationConfirmResponse> {
+  return readEmailVerificationConfirmResponse(
+    await apiRequest("/auth/email-verification/confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -124,6 +166,22 @@ function readCurrentUser(body: unknown): PublicUser {
   return body.user;
 }
 
+function readEmailVerificationResponse(body: unknown): EmailVerificationResponse {
+  if (!isObject(body) || typeof body.message !== "string") {
+    throw new ApiClientError("Unexpected email verification response.", "unexpected");
+  }
+
+  return { message: body.message };
+}
+
+function readEmailVerificationConfirmResponse(body: unknown): EmailVerificationConfirmResponse {
+  if (!isObject(body) || !isPublicUser(body.user)) {
+    throw new ApiClientError("Unexpected email verification response.", "unexpected");
+  }
+
+  return { user: body.user };
+}
+
 function readAccountActivityResponse(body: unknown): AccountActivityResponse {
   if (
     !isObject(body) ||
@@ -164,7 +222,8 @@ function isPublicUser(value: unknown): value is PublicUser {
     isObject(value) &&
     typeof value.id === "string" &&
     typeof value.email === "string" &&
-    typeof value.name === "string"
+    typeof value.name === "string" &&
+    typeof value.emailVerified === "boolean"
   );
 }
 

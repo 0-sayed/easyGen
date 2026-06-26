@@ -8,7 +8,12 @@ import { AuthProvider, useAuth } from "./AuthProvider";
 import * as api from "./api";
 import { setAccessToken } from "./session";
 
-const user = { id: "user-1", email: "person@example.com", name: "Person Name" };
+const user = {
+  id: "user-1",
+  email: "person@example.com",
+  name: "Person Name",
+  emailVerified: true,
+};
 
 describe("AuthProvider", () => {
   afterEach(() => {
@@ -170,8 +175,18 @@ describe("AuthProvider", () => {
   });
 
   it("does not let a stale bootstrap request replace a new signin session", async () => {
-    const staleUser = { id: "user-old", email: "old@example.com", name: "Old Session" };
-    const newUser = { id: "user-new", email: "new@example.com", name: "New Session" };
+    const staleUser = {
+      id: "user-old",
+      email: "old@example.com",
+      name: "Old Session",
+      emailVerified: true,
+    };
+    const newUser = {
+      id: "user-new",
+      email: "new@example.com",
+      name: "New Session",
+      emailVerified: true,
+    };
     let resolveBootstrap!: (value: typeof staleUser) => void;
     const bootstrap = new Promise<typeof staleUser>((resolve) => {
       resolveBootstrap = resolve;
@@ -315,6 +330,7 @@ function StaleReplaceHarness() {
             id: "user-stale",
             email: "stale@example.com",
             name: "Stale Session",
+            emailVerified: true,
           });
         }}
       >

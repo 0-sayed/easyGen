@@ -6,7 +6,12 @@ import { ApiClientError } from "../api/client";
 import * as api from "../auth/api";
 import { AccountSettingsPanel } from "./AccountSettingsPanel";
 
-const user = { id: "user-1", email: "person@example.com", name: "Person Name" };
+const user = {
+  id: "user-1",
+  email: "person@example.com",
+  name: "Person Name",
+  emailVerified: true,
+};
 
 describe("AccountSettingsPanel", () => {
   afterEach(() => {
