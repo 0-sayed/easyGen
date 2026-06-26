@@ -1,5 +1,10 @@
 import { ApiClientError, apiRequest } from "../api/client";
-import type { SigninFormValues, SignupFormValues } from "./validation";
+import type {
+  ChangePasswordRequest,
+  ProfileUpdateFormValues,
+  SigninFormValues,
+  SignupFormValues,
+} from "./validation";
 
 export interface PublicUser {
   id: string;
@@ -98,6 +103,36 @@ export async function getCurrentUser(accessToken: string): Promise<PublicUser> {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
+}
+
+export async function updateProfile(
+  accessToken: string,
+  input: ProfileUpdateFormValues
+): Promise<PublicUser> {
+  return readCurrentUser(
+    await apiRequest("/auth/me", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function changePassword(
+  accessToken: string,
+  input: ChangePasswordRequest
+): Promise<void> {
+  await apiRequest("/auth/password", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
 }
 
 export async function logout(accessToken: string): Promise<void> {

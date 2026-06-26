@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode, type ReactNode } from "react";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
@@ -391,6 +391,75 @@ describe("App routes", () => {
     expect(screen.getByText("test")).toBeInTheDocument();
   });
 
+  it("redirects to signin with a reauth message when protected activity rejects the session", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity")
+      .mockRejectedValueOnce(
+        new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+      )
+      .mockResolvedValueOnce({
+        activities: [],
+        limit: 20,
+      });
+    vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "new-token", user });
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValue(new Error("status unavailable"));
+    setAccessToken("revoked-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+
+    await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "Password1!");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session expired. Please sign in again.")
+    ).not.toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBe("new-token");
+  });
+
+  it("clears the reauth message after leaving signin", async () => {
+    vi.spyOn(api, "getCurrentUser").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication token.", "unauthorized", 401)
+    );
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("revoked-token");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Create one" }));
+    expect(await screen.findByRole("heading", { name: "Create account" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Sign in" }));
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session expired. Please sign in again.")
+    ).not.toBeInTheDocument();
+  });
+
   it("shows saved-token loading status before opening the app", async () => {
     let resolveCurrentUser: ((currentUser: typeof user) => void) | undefined;
     vi.spyOn(api, "getCurrentUser").mockImplementationOnce(
@@ -480,10 +549,14 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
-    expect(screen.getByText("Person Name")).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
-    expect(screen.getByText("user-1")).toBeInTheDocument();
+    const accountSummary = screen.getByRole("region", { name: "Account summary" });
+    expect(accountSummary).toBeInTheDocument();
+    expect(within(accountSummary).getByText("Person Name")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("person@example.com")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("user-1")).toBeInTheDocument();
+    const accountSettings = screen.getByRole("region", { name: "Account settings" });
+    expect(accountSettings).toBeInTheDocument();
+    expect(within(accountSettings).getByLabelText("Name")).toHaveValue("Person Name");
     expect(await screen.findByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
     expect(screen.getByText("Signed in")).toBeInTheDocument();
     expect(screen.queryByText("activity-1")).not.toBeInTheDocument();
@@ -495,6 +568,41 @@ describe("App routes", () => {
     expect(api.getAccountActivity).toHaveBeenCalledWith("token-123");
     expect(statusApi.getBuildInfo).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
+  });
+
+  it("updates the account summary after a profile settings save", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
+    vi.spyOn(api, "updateProfile").mockResolvedValueOnce({ ...user, name: "Updated Person" });
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("token-123");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+
+    expect(await screen.findByText("Profile updated.")).toBeInTheDocument();
+    expect(api.updateProfile).toHaveBeenCalledWith("token-123", { name: "Updated Person" });
+    expect(screen.getByText("Signed in as Updated Person.")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Account summary" })).getByText("Updated Person")
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Account settings" })).getByLabelText("Name")
+    ).toHaveValue("Updated Person");
   });
 
   it("keeps the application usable when the in-page status request fails", async () => {
@@ -515,10 +623,11 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
-    expect(screen.getByText("Person Name")).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
-    expect(screen.getByText("user-1")).toBeInTheDocument();
+    const accountSummary = screen.getByRole("region", { name: "Account summary" });
+    expect(accountSummary).toBeInTheDocument();
+    expect(within(accountSummary).getByText("Person Name")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("person@example.com")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("user-1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
     expect(
       await screen.findByRole("status", { name: "API connection unavailable" })
@@ -544,7 +653,11 @@ describe("App routes", () => {
       await screen.findByRole("heading", { name: "Welcome to the application." })
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Account summary" })).getByText(
+        "person@example.com"
+      )
+    ).toBeInTheDocument();
     expect(
       await screen.findByRole("status", { name: "Account activity unavailable" })
     ).toHaveTextContent("Recent account activity is unavailable.");

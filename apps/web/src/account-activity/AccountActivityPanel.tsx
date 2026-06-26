@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { isApiClientError } from "../api/client";
 import { getAccountActivity, type AccountActivityEntry } from "../auth/api";
 
 type ActivityState =
@@ -12,7 +13,13 @@ const activityTimestampFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-export function AccountActivityPanel({ accessToken }: { accessToken: string | null }) {
+export function AccountActivityPanel({
+  accessToken,
+  onUnauthorized,
+}: {
+  accessToken: string | null;
+  onUnauthorized: () => void;
+}) {
   const [state, setState] = useState<ActivityState>(() =>
     accessToken === null ? { status: "failed" } : { status: "loading" }
   );
@@ -33,16 +40,23 @@ export function AccountActivityPanel({ accessToken }: { accessToken: string | nu
           setState({ status: "ready", activities: response.activities });
         }
       })
-      .catch(() => {
-        if (active) {
-          setState({ status: "failed" });
+      .catch((error: unknown) => {
+        if (!active) {
+          return;
         }
+
+        if (isApiClientError(error) && error.category === "unauthorized") {
+          onUnauthorized();
+          return;
+        }
+
+        setState({ status: "failed" });
       });
 
     return () => {
       active = false;
     };
-  }, [accessToken]);
+  }, [accessToken, onUnauthorized]);
 
   return (
     <section
