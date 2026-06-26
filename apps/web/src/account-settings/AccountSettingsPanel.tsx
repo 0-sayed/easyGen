@@ -13,15 +13,19 @@ import {
 } from "../auth/validation";
 import { authStyles } from "../pages/authStyles";
 
+const INVALID_CURRENT_PASSWORD_MESSAGE = "Invalid current password.";
+
 interface AccountSettingsPanelProps {
   accessToken: string | null;
   user: PublicUser | null;
+  onUnauthorized: () => void;
   onUserUpdated: (user: PublicUser) => void;
 }
 
 export function AccountSettingsPanel({
   accessToken,
   user,
+  onUnauthorized,
   onUserUpdated,
 }: AccountSettingsPanelProps) {
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
@@ -69,6 +73,11 @@ export function AccountSettingsPanel({
       resetProfile({ name: updatedUser.name });
       setProfileMessage("Profile updated.");
     } catch (error) {
+      if (shouldRouteSettingsErrorToReauth(error)) {
+        onUnauthorized();
+        return;
+      }
+
       setProfileFailed(true);
       setProfileMessage(isApiClientError(error) ? error.message : "Unable to update profile.");
     }
@@ -88,8 +97,15 @@ export function AccountSettingsPanel({
         newPassword: values.newPassword,
       });
       resetPassword();
-      setPasswordMessage("Password changed.");
+      setPasswordMessage(
+        "Password changed. You can keep using this tab; other sessions may need to sign in again."
+      );
     } catch (error) {
+      if (shouldRouteSettingsErrorToReauth(error)) {
+        onUnauthorized();
+        return;
+      }
+
       setPasswordFailed(true);
       setPasswordMessage(isApiClientError(error) ? error.message : "Unable to change password.");
     }
@@ -237,5 +253,13 @@ export function AccountSettingsPanel({
         </button>
       </form>
     </section>
+  );
+}
+
+function shouldRouteSettingsErrorToReauth(error: unknown): boolean {
+  return (
+    isApiClientError(error) &&
+    error.category === "unauthorized" &&
+    error.message !== INVALID_CURRENT_PASSWORD_MESSAGE
   );
 }

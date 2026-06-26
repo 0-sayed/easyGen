@@ -48,7 +48,12 @@ export function ApplicationPage() {
         </dl>
       </section>
 
-      <AccountSettingsPanel accessToken={accessToken} user={user} onUserUpdated={replaceUser} />
+      <AccountSettingsPanel
+        accessToken={accessToken}
+        user={user}
+        onUnauthorized={handleRevokedSession}
+        onUserUpdated={replaceUser}
+      />
 
       <ApplicationStatusPanel />
 

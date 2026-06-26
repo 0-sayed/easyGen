@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -12,6 +12,7 @@ export function SigninPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { clearReauthMessage, reauthMessage, signin } = useAuth();
+  const mountedRef = useRef(false);
   const [inputsLocked, setInputsLocked] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
@@ -24,8 +25,15 @@ export function SigninPage() {
   });
 
   useEffect(() => {
+    mountedRef.current = true;
+
     return () => {
-      clearReauthMessage();
+      mountedRef.current = false;
+      window.setTimeout(() => {
+        if (!mountedRef.current) {
+          clearReauthMessage();
+        }
+      }, 0);
     };
   }, [clearReauthMessage]);
 

@@ -976,6 +976,74 @@ describe("App routes", () => {
     ).toHaveValue("Updated Person");
   });
 
+  it("redirects settings profile stale-session responses to signin with a reauth message", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
+      activities: [],
+      limit: 20,
+    });
+    vi.spyOn(api, "updateProfile").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication session.", "unauthorized", 401)
+    );
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    setAccessToken("token-123");
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+  });
+
+  it("keeps the settings stale-session message visible under StrictMode", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValue(user);
+    vi.spyOn(api, "getAccountActivity").mockResolvedValue({
+      activities: [],
+      limit: 20,
+    });
+    vi.spyOn(api, "updateProfile").mockRejectedValueOnce(
+      new ApiClientError("Invalid authentication session.", "unauthorized", 401)
+    );
+    vi.spyOn(statusApi, "getBuildInfo").mockRejectedValue(new Error("status unavailable"));
+    setAccessToken("token-123");
+
+    render(
+      <StrictMode>
+        <MemoryRouter initialEntries={["/app"]}>
+          <App />
+        </MemoryRouter>
+      </StrictMode>
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome to the application." })
+    ).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in with confidence" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
+    expect(localStorage.getItem("easygen.accessToken")).toBeNull();
+  });
+
   it("keeps the application usable when the in-page status request fails", async () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
     vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
