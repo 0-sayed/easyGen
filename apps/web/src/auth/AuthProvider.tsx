@@ -29,6 +29,7 @@ interface AuthContextValue {
   signin: (input: SigninFormValues) => Promise<void>;
   signup: (input: SignupFormValues) => Promise<void>;
   logout: () => Promise<void>;
+  replaceUser: (user: PublicUser) => void;
 }
 
 const REAUTH_REQUIRED_MESSAGE = "Your session expired. Please sign in again.";
@@ -124,6 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } finally {
           clearAuthenticatedState(null);
         }
+      },
+      replaceUser: (user) => {
+        if (accessToken === null || getAccessToken() !== accessToken) {
+          return;
+        }
+
+        setUser(user);
       },
     }),
     [

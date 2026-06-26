@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/client";
-import { getAccountActivity, getCurrentUser, logout, signin, signup } from "./api";
+import {
+  changePassword,
+  getAccountActivity,
+  getCurrentUser,
+  logout,
+  signin,
+  signup,
+  updateProfile,
+} from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const expectedApiUrl =
@@ -57,6 +65,54 @@ describe("auth api", () => {
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${authResponse.accessToken}` },
     });
+  });
+
+  it("patches the current user profile with bearer auth", async () => {
+    const authResponse = buildAuthResponse();
+    const updatedUser = { ...authResponse.user, name: "Updated Person" };
+    const input = { name: updatedUser.name };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ user: updatedUser }));
+
+    await expect(updateProfile(authResponse.accessToken, input)).resolves.toEqual(updatedUser);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/me`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${authResponse.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("changes the password with bearer auth", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(null, {
+        status: 204,
+      })
+    );
+    const input = { currentPassword: "Password1!", newPassword: "NewPassword1!" };
+
+    await expect(changePassword("token-123", input)).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/auth/password`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer token-123",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+  });
+
+  it("rejects malformed profile update responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ user: { id: "user-1" } }));
+
+    await expect(updateProfile("token-123", { name: "Updated Person" })).rejects.toEqual(
+      new ApiClientError("Unexpected current user response.", "unexpected")
+    );
   });
 
   it("revokes the current token on logout", async () => {
