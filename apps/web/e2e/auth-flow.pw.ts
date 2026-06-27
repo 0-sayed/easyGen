@@ -210,6 +210,45 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
   });
 
+  test("updates account settings, shows activity, and deletes the account", async ({
+    page,
+  }, testInfo) => {
+    const account = buildAccount(testInfo, "lifecycle");
+    const updatedName = `${account.name} Lifecycle`;
+
+    await createAccount(page, account);
+
+    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    const accountSummary = page.getByRole("region", { name: "Account summary" });
+    await expect(accountSummary.getByText(account.name, { exact: true })).toBeVisible();
+    await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
+
+    await fillInput(page.getByLabel("Name"), updatedName);
+    await page.getByRole("button", { name: "Save profile" }).click();
+    await expect(page.getByText("Profile updated.")).toBeVisible();
+    await expect(page.getByText(`Signed in as ${updatedName}.`)).toBeVisible();
+    await expect(accountSummary.getByText(updatedName, { exact: true })).toBeVisible();
+
+    const recentActivity = page.getByRole("list", { name: "Recent account activity" });
+    await expect(recentActivity).toBeVisible();
+    await expect(recentActivity.getByText("Account created")).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete account..." }).click();
+    await fillInput(page.getByLabel("Current password for account deletion"), PASSWORD);
+    await page.getByLabel("I understand this permanently deletes my account.").check();
+    await page.getByRole("button", { name: "Delete account" }).click();
+
+    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page).toHaveURL(/\/signin$/);
+    await expect
+      .poll(async () => page.evaluate(() => window.localStorage.getItem("easygen.accessToken")))
+      .toBeNull();
+
+    await fillSignin(page, account.email, PASSWORD);
+    await expect(page.getByText("Invalid email or password.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+  });
+
   test("stale session redirects to signin and clears browser token", async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem("easygen.accessToken", "stale-browser-token");
