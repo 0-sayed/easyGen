@@ -35,7 +35,7 @@ export default defineConfig({
       cwd: repoRoot,
       env: {
         AUTH_TEST_SUPPORT: "1",
-        AUTH_THROTTLE_LIMIT: "6",
+        AUTH_THROTTLE_LIMIT: "7",
         JWT_SECRET: "playwright-test-secret",
         LOG_LEVEL: "silent",
         MONGODB_PORT: String(mongodbPort),

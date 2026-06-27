@@ -229,7 +229,7 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(page.getByText(`Signed in as ${updatedName}.`)).toBeVisible();
     await expect(accountSummary.getByText(updatedName, { exact: true })).toBeVisible();
 
-    const recentActivity = page.getByRole("list", { name: "Recent account activity" });
+    const recentActivity = page.getByLabel("Recent account activity");
     await expect(recentActivity).toBeVisible();
     await expect(recentActivity.getByText("Account created")).toBeVisible();
 
