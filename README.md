@@ -71,20 +71,41 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 
 ## API Endpoints
 
+Public service endpoints:
+
 - `GET /health` - liveness check returning `{ "status": "ok" }`; does not check MongoDB.
 - `GET /ready` - readiness check returning MongoDB status; returns `503` when the database is unavailable.
 - `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
-- `POST /auth/signup`
-- `POST /auth/signin`
-- `POST /auth/email-verification/request`
-- `POST /auth/email-verification/confirm`
-- `POST /auth/password-reset/request`
-- `POST /auth/password-reset/confirm`
-- `POST /auth/logout` - revokes the current bearer token; requires a bearer token.
-- `DELETE /auth/me` - deletes the current account after current-password confirmation; requires a bearer token.
-- `GET /auth/me` - requires a bearer token.
+
+Public auth endpoints:
+
+- `POST /auth/signup` - creates an account and returns an access token.
+- `POST /auth/signin` - returns an access token for valid credentials.
+- `POST /auth/email-verification/request` - prepares a single-use email verification token when the account exists.
+- `POST /auth/email-verification/confirm` - verifies an email address with a valid token.
+- `POST /auth/password-reset/request` - prepares a single-use password reset token when the account exists.
+- `POST /auth/password-reset/confirm` - resets the password with a valid token and revokes active sessions for that user.
+
+Protected auth endpoints requiring `Authorization: Bearer <token>`:
+
+- `GET /auth/me` - returns the current authenticated user.
+- `PATCH /auth/me` - updates the current user's profile.
+- `POST /auth/password` - changes the current user's password and revokes other active sessions.
+- `GET /auth/activity` - returns recent safe account activity for the current user.
+- `POST /auth/logout` - revokes the current access token.
+- `DELETE /auth/me` - deletes the current account after current-password confirmation.
+
+Documentation endpoints:
+
 - `GET /docs`
 - `GET /docs-json`
+
+Test-support endpoints:
+
+- `GET /__test/auth-tokens/verification`
+- `GET /__test/auth-tokens/password-reset`
+
+The test-support endpoints are excluded from Swagger and return 404 unless the API runs with `NODE_ENV=test` and `AUTH_TEST_SUPPORT=1`.
 
 Use `/health` for process liveness probes and `/ready` for traffic readiness probes that must confirm MongoDB is connected.
 
@@ -96,9 +117,12 @@ Use `/health` for process liveness probes and `/ready` for traffic readiness pro
 - `POST /auth/email-verification/confirm` consumes that token once for the matching email address.
 - `POST /auth/password-reset/request` prepares a password reset token and logs delivery metadata as `auth.password_reset.token`; the raw token is not logged.
 - `POST /auth/password-reset/confirm` consumes that token once for the matching email address, updates the password, and revokes active sessions for the user.
+- `GET /auth/me` verifies the stored token and powers the protected application page.
+- `PATCH /auth/me` updates the authenticated user's profile details.
+- `POST /auth/password` changes the authenticated user's password and revokes other active sessions.
+- `GET /auth/activity` returns recent account activity without exposing sensitive identifiers.
 - `POST /auth/logout` revokes the stored token on the backend; a revoked token is rejected by protected endpoints.
 - `DELETE /auth/me` verifies the current password, anonymizes the user row, clears pending account tokens, and revokes active sessions. Deleted accounts cannot sign in or use protected endpoints.
-- `GET /auth/me` verifies the stored token and powers the protected application page.
 - The React app provides `/signup`, `/signin`, and `/app`.
 
 ## Account Data Lifecycle
