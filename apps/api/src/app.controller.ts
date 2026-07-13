@@ -23,6 +23,13 @@ class HealthResponse {
   service!: "easygen-api";
 
   @ApiProperty({
+    description: "Declares that the health response reports API process liveness.",
+    example: "process",
+    enum: ["process"],
+  })
+  scope!: "process";
+
+  @ApiProperty({
     description: "Liveness status for the API process.",
     example: "ok",
     enum: ["ok"],
@@ -99,6 +106,7 @@ export class AppController {
   getHealth(): HealthResponse {
     return {
       service: "easygen-api",
+      scope: "process",
       status: "ok",
     };
   }
