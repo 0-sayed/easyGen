@@ -1251,7 +1251,7 @@ describe("App routes", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
-    expect(screen.getByText("404", { selector: "p" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "HTTP status 404" })).toBeVisible();
     expect(screen.getByText("This route does not exist.")).toBeInTheDocument();
 
     const requestedPath = screen.getByRole("region", { name: "Requested path" });

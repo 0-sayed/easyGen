@@ -11,6 +11,7 @@ export function NotFoundPage() {
         <p className={authStyles.kicker}>easyGen</p>
         <p
           className="mb-3 inline-flex rounded-control border border-brand/20 bg-brand/10 px-3 py-1 text-sm font-extrabold leading-5 text-brand"
+          role="img"
           aria-label="HTTP status 404"
         >
           404
