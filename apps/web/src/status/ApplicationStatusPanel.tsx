@@ -1,4 +1,5 @@
-import { useBuildInfo } from "./BuildInfoProvider";
+import { useBuildInfo, type LivenessState } from "./BuildInfoProvider";
+import { formatUptime } from "./uptime";
 
 export function ApplicationStatusPanel() {
   const state = useBuildInfo();
@@ -45,7 +46,7 @@ export function ApplicationStatusPanel() {
           aria-label="API connection"
         >
           <p className="m-0 font-semibold text-brand-strong">API connected</p>
-          <dl className="grid gap-2 sm:grid-cols-3">
+          <dl className="grid gap-2 sm:grid-cols-5">
             <div className="grid gap-0.5">
               <dt className="font-bold text-label">Service</dt>
               <dd className="m-0">{state.buildInfo.service}</dd>
@@ -58,9 +59,43 @@ export function ApplicationStatusPanel() {
               <dt className="font-bold text-label">Environment</dt>
               <dd className="m-0">{state.buildInfo.environment}</dd>
             </div>
+            <LivenessDetails liveness={state.liveness} />
           </dl>
         </div>
       ) : null}
     </section>
+  );
+}
+
+function LivenessDetails({ liveness }: { liveness: LivenessState }) {
+  if (liveness.status === "loading") {
+    return (
+      <div className="grid gap-0.5">
+        <dt className="font-bold text-label">Liveness</dt>
+        <dd className="m-0">checking</dd>
+      </div>
+    );
+  }
+
+  if (liveness.status === "failed") {
+    return (
+      <div className="grid gap-0.5">
+        <dt className="font-bold text-label">Liveness</dt>
+        <dd className="m-0">unavailable</dd>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid gap-0.5">
+        <dt className="font-bold text-label">Liveness</dt>
+        <dd className="m-0">{liveness.healthInfo.scope}</dd>
+      </div>
+      <div className="grid gap-0.5">
+        <dt className="font-bold text-label">Uptime</dt>
+        <dd className="m-0">{formatUptime(liveness.healthInfo.uptimeSeconds)}</dd>
+      </div>
+    </>
   );
 }
