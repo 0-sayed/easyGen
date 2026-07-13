@@ -117,6 +117,9 @@ export function SigninPage() {
               className={authStyles.passwordVisibilityButton}
               type="button"
               aria-label={passwordVisibilityLabel}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
               onClick={() => {
                 setIsPasswordVisible((current) => !current);
               }}

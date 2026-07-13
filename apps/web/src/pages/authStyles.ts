@@ -19,7 +19,7 @@ export const authStyles = {
   passwordFieldInput:
     "min-h-11 w-full min-w-0 appearance-none border-0 bg-transparent px-3.5 py-2.5 text-base font-normal leading-6 text-ink outline-hidden [font-size:16px]",
   passwordVisibilityButton:
-    "min-h-11 shrink-0 border-l border-input bg-white px-3 text-sm font-bold leading-5 text-brand transition hover:bg-field focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
+    "min-h-11 shrink-0 border-l border-input bg-transparent px-3 text-sm font-bold leading-5 text-brand transition hover:bg-field focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
   primaryLink:
     "min-h-11 rounded-control bg-brand px-4 py-2.5 text-center text-base font-bold text-white shadow-sm transition hover:bg-brand-strong focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand/25",
   secondaryButton:

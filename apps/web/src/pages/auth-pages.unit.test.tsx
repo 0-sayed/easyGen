@@ -156,12 +156,14 @@ describe("SigninPage", () => {
 
     expect(passwordInput).toHaveAttribute("type", "text");
     expect(passwordInput).toHaveValue("Password1!");
+    expect(passwordInput).toHaveFocus();
     expect(screen.getByRole("button", { name: "Hide password" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Hide password" }));
 
     expect(passwordInput).toHaveAttribute("type", "password");
     expect(passwordInput).toHaveValue("Password1!");
+    expect(passwordInput).toHaveFocus();
     expect(signinSpy).not.toHaveBeenCalled();
   });
 
