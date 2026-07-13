@@ -24,6 +24,19 @@ const user = {
   emailVerified: true,
 };
 
+const buildInfo = {
+  service: "easygen-api",
+  version: "0.1.0",
+  environment: "test",
+} as const;
+
+const healthInfo = {
+  status: "ok",
+  service: "easygen-api",
+  scope: "process",
+  uptimeSeconds: 125,
+} as const;
+
 describe("SignupPage", () => {
   afterEach(() => {
     localStorage.clear();
@@ -853,11 +866,8 @@ describe("App routes", () => {
   });
 
   it("redirects unauthenticated users from /app to /signin and shows the build badge", async () => {
-    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce({
-      service: "easygen-api",
-      version: "0.1.0",
-      environment: "test",
-    });
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
 
     render(
       <MemoryRouter initialEntries={["/app"]}>
@@ -871,10 +881,13 @@ describe("App routes", () => {
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("process")).toBeInTheDocument();
+    expect(screen.getByText("up 2 minutes")).toBeInTheDocument();
   });
 
   it("renders the forgot-password route as a public page", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
 
     render(
       <MemoryRouter initialEntries={["/forgot-password"]}>
@@ -888,6 +901,7 @@ describe("App routes", () => {
 
   it("renders the reset-password route as a public page", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
 
     render(
       <MemoryRouter
@@ -915,6 +929,7 @@ describe("App routes", () => {
       });
     vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "new-token", user });
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValue(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValue(new Error("status unavailable"));
     setAccessToken("revoked-token");
 
     render(
@@ -947,6 +962,7 @@ describe("App routes", () => {
       new ApiClientError("Invalid authentication token.", "unauthorized", 401)
     );
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("revoked-token");
 
     render(
@@ -985,6 +1001,7 @@ describe("App routes", () => {
       limit: 20,
     });
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1018,6 +1035,7 @@ describe("App routes", () => {
       new ApiClientError("Invalid authentication token.", "unauthorized", 401)
     );
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("stale-token");
 
     render(
@@ -1045,11 +1063,8 @@ describe("App routes", () => {
       ],
       limit: 20,
     });
-    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce({
-      service: "easygen-api",
-      version: "0.1.0",
-      environment: "test",
-    });
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
     setAccessToken("token-123");
 
     render(
@@ -1076,9 +1091,12 @@ describe("App routes", () => {
     expect(await screen.findByRole("status", { name: "API connection" })).toHaveTextContent(
       "API connected"
     );
+    expect(screen.getByText("process")).toBeInTheDocument();
+    expect(screen.getByText("2 minutes")).toBeInTheDocument();
     expect(api.getCurrentUser).toHaveBeenCalledWith("token-123");
     expect(api.getAccountActivity).toHaveBeenCalledWith("token-123");
     expect(statusApi.getBuildInfo).toHaveBeenCalledTimes(1);
+    expect(statusApi.getHealthInfo).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 
@@ -1090,6 +1108,7 @@ describe("App routes", () => {
     });
     vi.spyOn(api, "updateProfile").mockResolvedValueOnce({ ...user, name: "Updated Person" });
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1127,6 +1146,7 @@ describe("App routes", () => {
       new ApiClientError("Invalid authentication session.", "unauthorized", 401)
     );
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1160,6 +1180,7 @@ describe("App routes", () => {
       new ApiClientError("Invalid authentication session.", "unauthorized", 401)
     );
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValue(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValue(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1192,6 +1213,7 @@ describe("App routes", () => {
       limit: 20,
     });
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1221,6 +1243,7 @@ describe("App routes", () => {
     vi.spyOn(api, "getCurrentUser").mockResolvedValueOnce(user);
     vi.spyOn(api, "getAccountActivity").mockRejectedValueOnce(new Error("activity unavailable"));
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1246,6 +1269,7 @@ describe("App routes", () => {
 
   it("renders the email verification route as a public page", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     vi.spyOn(api, "confirmEmailVerification").mockResolvedValueOnce({
       user: { ...user, emailVerified: true },
     });
@@ -1271,6 +1295,7 @@ describe("App routes", () => {
     });
     const logout = vi.spyOn(api, "logout").mockResolvedValueOnce(undefined);
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     setAccessToken("token-123");
 
     render(
@@ -1295,6 +1320,7 @@ describe("App routes", () => {
 
   it("keeps signin usable when the status request fails", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     vi.spyOn(api, "signin").mockResolvedValueOnce({ accessToken: "token-123", user });
     vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
       activities: [],
@@ -1323,6 +1349,7 @@ describe("App routes", () => {
 
   it("keeps signup usable when the status request fails", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
     vi.spyOn(api, "signup").mockResolvedValueOnce({ accessToken: "token-123", user });
     vi.spyOn(api, "getAccountActivity").mockResolvedValueOnce({
       activities: [],
@@ -1352,6 +1379,7 @@ describe("App routes", () => {
 
   it("renders the requested pathname without query or fragment on unknown routes", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("status unavailable"));
 
     render(
       <MemoryRouter initialEntries={["/missing-route/deep-link?utm=1#details"]}>

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getBuildInfo } from "./api";
+import { getBuildInfo, getHealthInfo } from "./api";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const expectedApiUrl =
@@ -12,7 +12,14 @@ const buildInfo = {
   service: "easygen-api",
   version: "0.1.0",
   environment: "test",
-};
+} as const;
+
+const healthInfo = {
+  status: "ok",
+  service: "easygen-api",
+  scope: "process",
+  uptimeSeconds: 125,
+} as const;
 
 describe("status api", () => {
   afterEach(() => {
@@ -26,6 +33,14 @@ describe("status api", () => {
     await expect(getBuildInfo()).resolves.toEqual(buildInfo);
 
     expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/status`, {});
+  });
+
+  it("loads health information from /health", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(healthInfo));
+
+    await expect(getHealthInfo()).resolves.toEqual(healthInfo);
+
+    expect(fetchMock).toHaveBeenCalledWith(`${expectedApiUrl}/health`, {});
   });
 
   it("loads build information from the configured API URL", async () => {
@@ -50,7 +65,7 @@ describe("status api", () => {
     });
   });
 
-  it("rejects unexpected response shapes", async () => {
+  it("rejects unexpected build response shapes", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ service: "easygen-api", version: "0.1.0" })
     );
@@ -58,6 +73,54 @@ describe("status api", () => {
     await expect(getBuildInfo()).rejects.toMatchObject({
       category: "unexpected",
       message: "Unexpected API status response.",
+    });
+  });
+
+  it("rejects unexpected health response shapes", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        status: "ok",
+        service: "easygen-api",
+        scope: "database",
+        uptimeSeconds: 125,
+      })
+    );
+
+    await expect(getHealthInfo()).rejects.toMatchObject({
+      category: "unexpected",
+      message: "Unexpected API health response.",
+    });
+  });
+
+  it("rejects negative uptime values", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        status: "ok",
+        service: "easygen-api",
+        scope: "process",
+        uptimeSeconds: -1,
+      })
+    );
+
+    await expect(getHealthInfo()).rejects.toMatchObject({
+      category: "unexpected",
+      message: "Unexpected API health response.",
+    });
+  });
+
+  it("rejects fractional uptime values", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        status: "ok",
+        service: "easygen-api",
+        scope: "process",
+        uptimeSeconds: 1.5,
+      })
+    );
+
+    await expect(getHealthInfo()).rejects.toMatchObject({
+      category: "unexpected",
+      message: "Unexpected API health response.",
     });
   });
 

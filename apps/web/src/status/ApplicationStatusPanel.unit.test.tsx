@@ -6,6 +6,19 @@ import { ApplicationStatusPanel } from "./ApplicationStatusPanel";
 import * as statusApi from "./api";
 import { BuildInfoProvider, resetBuildInfoForTests } from "./BuildInfoProvider";
 
+const buildInfo = {
+  service: "easygen-api",
+  version: "0.1.0",
+  environment: "test",
+} as const;
+
+const healthInfo = {
+  status: "ok",
+  service: "easygen-api",
+  scope: "process",
+  uptimeSeconds: 125,
+} as const;
+
 function renderWithBuildInfoProvider(element: ReactElement) {
   return render(<BuildInfoProvider>{element}</BuildInfoProvider>);
 }
@@ -16,12 +29,9 @@ describe("ApplicationStatusPanel", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders ready API status with service, version, and environment", async () => {
-    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce({
-      service: "easygen-api",
-      version: "0.1.0",
-      environment: "test",
-    });
+  it("renders ready API status with build and liveness information", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
 
     renderWithBuildInfoProvider(<ApplicationStatusPanel />);
 
@@ -33,10 +43,29 @@ describe("ApplicationStatusPanel", () => {
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("Liveness")).toBeInTheDocument();
+    expect(screen.getByText("process")).toBeInTheDocument();
+    expect(screen.getByText("Uptime")).toBeInTheDocument();
+    expect(screen.getByText("2 minutes")).toBeInTheDocument();
+    expect(screen.queryByText("125")).not.toBeInTheDocument();
+  });
+
+  it("renders build information while liveness is unavailable", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("offline"));
+
+    renderWithBuildInfoProvider(<ApplicationStatusPanel />);
+
+    const status = await screen.findByRole("status", { name: "API connection" });
+    expect(status).toHaveTextContent("API connected");
+    expect(screen.getByText("easygen-api")).toBeInTheDocument();
+    expect(screen.getByText("Liveness")).toBeInTheDocument();
+    expect(screen.getByText("unavailable")).toBeInTheDocument();
   });
 
   it("renders loading API status while checking the API connection", () => {
     vi.spyOn(statusApi, "getBuildInfo").mockImplementationOnce(() => new Promise(() => undefined));
+    vi.spyOn(statusApi, "getHealthInfo").mockImplementationOnce(() => new Promise(() => undefined));
 
     renderWithBuildInfoProvider(<ApplicationStatusPanel />);
 
@@ -47,6 +76,7 @@ describe("ApplicationStatusPanel", () => {
 
   it("renders failed API status without blocking account details", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("offline"));
+    vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
 
     renderWithBuildInfoProvider(<ApplicationStatusPanel />);
 
