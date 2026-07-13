@@ -14,6 +14,7 @@ export function SigninPage() {
   const { clearReauthMessage, reauthMessage, signin } = useAuth();
   const mountedRef = useRef(false);
   const [inputsLocked, setInputsLocked] = useState(true);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
@@ -51,6 +52,8 @@ export function SigninPage() {
   function unlockInputs() {
     setInputsLocked(false);
   }
+
+  const passwordVisibilityLabel = isPasswordVisible ? "Hide password" : "Show password";
 
   return (
     <section className={authStyles.card} aria-labelledby="signin-title">
@@ -97,18 +100,33 @@ export function SigninPage() {
           <label className={authStyles.label} htmlFor="signin-password">
             Password
           </label>
-          <input
-            id="signin-password"
-            className={authStyles.input}
-            type="password"
-            autoComplete="off"
-            aria-describedby="signin-password-error"
-            aria-invalid={errors.password ? "true" : "false"}
-            onFocus={unlockInputs}
-            onPointerDown={unlockInputs}
-            readOnly={inputsLocked}
-            {...register("password")}
-          />
+          <div className={authStyles.passwordFieldControl}>
+            <input
+              id="signin-password"
+              className={authStyles.passwordFieldInput}
+              type={isPasswordVisible ? "text" : "password"}
+              autoComplete="off"
+              aria-describedby="signin-password-error"
+              aria-invalid={errors.password ? "true" : "false"}
+              onFocus={unlockInputs}
+              onPointerDown={unlockInputs}
+              readOnly={inputsLocked}
+              {...register("password")}
+            />
+            <button
+              className={authStyles.passwordVisibilityButton}
+              type="button"
+              aria-label={passwordVisibilityLabel}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                setIsPasswordVisible((current) => !current);
+              }}
+            >
+              {isPasswordVisible ? "Hide" : "Show"}
+            </button>
+          </div>
           <p
             id="signin-password-error"
             className={`${errors.password ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
