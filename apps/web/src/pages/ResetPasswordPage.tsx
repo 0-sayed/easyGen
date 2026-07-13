@@ -34,6 +34,7 @@ export function ResetPasswordPage() {
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const currentResetLinkIdentityRef = useRef<ResetLinkIdentity>({ email, token });
   const {
     register,
@@ -61,6 +62,7 @@ export function ResetPasswordPage() {
     setSubmitMessage(null);
     setIsError(false);
     setIsComplete(false);
+    setIsPasswordVisible(false);
   }, [email, reset, token]);
 
   if (!hasValidResetLink) {
@@ -132,6 +134,13 @@ export function ResetPasswordPage() {
     }
   }
 
+  const isPasswordVisibleForCurrentResetLink =
+    isPasswordVisible &&
+    isSameResetLinkIdentity(currentResetLinkIdentityRef.current, { email, token });
+  const passwordVisibilityLabel = isPasswordVisibleForCurrentResetLink
+    ? "Hide password"
+    : "Show password";
+
   return (
     <section className={authStyles.card} aria-labelledby="reset-password-title">
       <p className={authStyles.kicker}>easyGen</p>
@@ -152,15 +161,34 @@ export function ResetPasswordPage() {
           <label className={authStyles.label} htmlFor="reset-new-password">
             New password
           </label>
-          <input
-            id="reset-new-password"
-            className={authStyles.input}
-            type="password"
-            autoComplete="new-password"
-            aria-describedby="reset-new-password-error"
-            aria-invalid={errors.newPassword ? "true" : "false"}
-            {...register("newPassword")}
-          />
+          <div className={authStyles.passwordFieldControl}>
+            <input
+              id="reset-new-password"
+              className={authStyles.passwordFieldInput}
+              type={isPasswordVisibleForCurrentResetLink ? "text" : "password"}
+              autoComplete="new-password"
+              aria-describedby="reset-new-password-error"
+              aria-invalid={errors.newPassword ? "true" : "false"}
+              {...register("newPassword")}
+            />
+            <button
+              className={authStyles.passwordVisibilityButton}
+              type="button"
+              aria-label={passwordVisibilityLabel}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                setIsPasswordVisible((current) =>
+                  isSameResetLinkIdentity(currentResetLinkIdentityRef.current, { email, token })
+                    ? !current
+                    : true
+                );
+              }}
+            >
+              {isPasswordVisibleForCurrentResetLink ? "Hide" : "Show"}
+            </button>
+          </div>
           <p
             id="reset-new-password-error"
             className={`${errors.newPassword ? authStyles.error : authStyles.helper} ${authStyles.messageSlotTall}`}
@@ -174,15 +202,17 @@ export function ResetPasswordPage() {
           <label className={authStyles.label} htmlFor="reset-confirm-password">
             Confirm new password
           </label>
-          <input
-            id="reset-confirm-password"
-            className={authStyles.input}
-            type="password"
-            autoComplete="new-password"
-            aria-describedby="reset-confirm-password-error"
-            aria-invalid={errors.confirmPassword ? "true" : "false"}
-            {...register("confirmPassword")}
-          />
+          <div className={authStyles.passwordFieldControl}>
+            <input
+              id="reset-confirm-password"
+              className={authStyles.passwordFieldInput}
+              type={isPasswordVisibleForCurrentResetLink ? "text" : "password"}
+              autoComplete="new-password"
+              aria-describedby="reset-confirm-password-error"
+              aria-invalid={errors.confirmPassword ? "true" : "false"}
+              {...register("confirmPassword")}
+            />
+          </div>
           <p
             id="reset-confirm-password-error"
             className={`${errors.confirmPassword ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}

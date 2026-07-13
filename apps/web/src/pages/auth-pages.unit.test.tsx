@@ -355,6 +355,47 @@ describe("ResetPasswordPage", () => {
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
   });
 
+  it("reveals and hides both reset password fields without submitting", async () => {
+    const confirmResetSpy = vi.spyOn(api, "confirmPasswordReset").mockResolvedValueOnce({
+      message: "Password has been reset.",
+    });
+    renderAuthRoutes(
+      <Route path="/reset-password" element={<ResetPasswordPage />} />,
+      "/reset-password?email=person%40example.com&token=reset-token-123"
+    );
+
+    const newPasswordInput = screen.getByLabelText("New password");
+    const confirmPasswordInput = screen.getByLabelText("Confirm new password");
+
+    await userEvent.type(newPasswordInput, "NewPassword1!");
+    await userEvent.type(confirmPasswordInput, "NewPassword1!");
+
+    expect(newPasswordInput).toHaveAttribute("type", "password");
+    expect(confirmPasswordInput).toHaveAttribute("type", "password");
+
+    const showPasswordButton = screen.getByRole("button", { name: "Show password" });
+
+    expect(showPasswordButton).toHaveAttribute("type", "button");
+
+    await userEvent.click(showPasswordButton);
+
+    expect(newPasswordInput).toHaveAttribute("type", "text");
+    expect(confirmPasswordInput).toHaveAttribute("type", "text");
+    expect(newPasswordInput).toHaveValue("NewPassword1!");
+    expect(confirmPasswordInput).toHaveValue("NewPassword1!");
+    expect(confirmPasswordInput).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Hide password" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Hide password" }));
+
+    expect(newPasswordInput).toHaveAttribute("type", "password");
+    expect(confirmPasswordInput).toHaveAttribute("type", "password");
+    expect(newPasswordInput).toHaveValue("NewPassword1!");
+    expect(confirmPasswordInput).toHaveValue("NewPassword1!");
+    expect(confirmPasswordInput).toHaveFocus();
+    expect(confirmResetSpy).not.toHaveBeenCalled();
+  });
+
   it("submits the latest email and token after the reset link changes while mounted", async () => {
     vi.spyOn(api, "confirmPasswordReset").mockResolvedValueOnce({
       message: "Password has been reset.",
@@ -397,6 +438,42 @@ describe("ResetPasswordPage", () => {
       token: "reset-token-456",
       newPassword: "NewPassword1!",
     });
+  });
+
+  it("masks reset password fields after the reset link changes while mounted", async () => {
+    function ResetPasswordLinkSwitcher() {
+      const navigate = useNavigate();
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              void navigate("/reset-password?email=second%40example.com&token=reset-token-456");
+            }}
+          >
+            Load another reset link
+          </button>
+          <ResetPasswordPage />
+        </>
+      );
+    }
+
+    renderAuthRoutes(
+      <Route path="/reset-password" element={<ResetPasswordLinkSwitcher />} />,
+      "/reset-password?email=first%40example.com&token=reset-token-123"
+    );
+
+    await userEvent.type(screen.getByLabelText("New password"), "NewPassword1!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "NewPassword1!");
+    await userEvent.click(screen.getByRole("button", { name: "Show password" }));
+    await userEvent.click(screen.getByRole("button", { name: "Load another reset link" }));
+
+    expect(screen.getByLabelText("New password")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Confirm new password")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("New password")).toHaveValue("");
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Show password" })).toBeInTheDocument();
   });
 
   it("keeps the new reset-link state unchanged when an old confirm request settles", async () => {
