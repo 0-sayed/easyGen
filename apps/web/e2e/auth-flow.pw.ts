@@ -89,6 +89,7 @@ test.describe("full-stack auth browser matrix", () => {
     await page.goto(`${longPath}?utm=1#details`);
 
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    await expect(page.getByText("404", { exact: true })).toBeVisible();
     const requestedPath = page.getByRole("region", { name: "Requested path" });
     await expect(requestedPath).toContainText(longPath);
     await expect(requestedPath).not.toContainText("utm=1");
@@ -101,6 +102,7 @@ test.describe("full-stack auth browser matrix", () => {
     await page.goto(`${longPath}?utm=1#details`);
 
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    await expect(page.getByText("404", { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "Requested path" })).toContainText(longPath);
     await expectNoHorizontalOverflow(page);
   });
