@@ -16,6 +16,13 @@ import {
 
 class HealthResponse {
   @ApiProperty({
+    description: "Stable public service identifier for the API.",
+    example: "easygen-api",
+    enum: ["easygen-api"],
+  })
+  service!: "easygen-api";
+
+  @ApiProperty({
     description: "Liveness status for the API process.",
     example: "ok",
     enum: ["ok"],
@@ -90,7 +97,10 @@ export class AppController {
     type: HealthResponse,
   })
   getHealth(): HealthResponse {
-    return { status: "ok" };
+    return {
+      service: "easygen-api",
+      status: "ok",
+    };
   }
 
   @Get("status")

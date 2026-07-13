@@ -95,7 +95,10 @@ describe("App", () => {
 
     const response = await request(app.getHttpServer()).get("/health").expect(200);
 
-    expect(response.body).toEqual({ status: "ok" });
+    expect(response.body).toEqual({
+      service: "easygen-api",
+      status: "ok",
+    });
   });
 
   it("serves the readiness endpoint when MongoDB is connected", async () => {
@@ -160,6 +163,13 @@ describe("App", () => {
     });
     expect(response.body.components?.schemas?.HealthResponse?.properties?.status?.enum).toEqual([
       "ok",
+    ]);
+    expect(response.body.components?.schemas?.HealthResponse?.properties?.service).toMatchObject({
+      enum: ["easygen-api"],
+      type: "string",
+    });
+    expect(response.body.components?.schemas?.HealthResponse?.properties?.service?.enum).toEqual([
+      "easygen-api",
     ]);
 
     expect(readyOperation.tags).toEqual(["ready"]);
