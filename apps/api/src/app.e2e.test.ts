@@ -97,6 +97,7 @@ describe("App", () => {
 
     expect(response.body).toEqual({
       service: "easygen-api",
+      scope: "process",
       status: "ok",
       uptimeSeconds: expect.any(Number),
     });
@@ -180,6 +181,13 @@ describe("App", () => {
       minimum: 0,
       type: "integer",
     });
+    expect(response.body.components?.schemas?.HealthResponse?.properties?.scope).toMatchObject({
+      enum: ["process"],
+      type: "string",
+    });
+    expect(response.body.components?.schemas?.HealthResponse?.properties?.scope?.enum).toEqual([
+      "process",
+    ]);
 
     expect(readyOperation.tags).toEqual(["ready"]);
     expect(readyOperation.summary).toBe("Readiness check");
