@@ -315,13 +315,13 @@ async function createAccount(page: Page, account: BrowserAccount): Promise<void>
 async function fillSignupForm(page: Page, account: BrowserAccount): Promise<void> {
   await fillInput(page.getByLabel("Email"), account.email);
   await fillInput(page.getByLabel("Name"), account.name);
-  await fillInput(page.getByLabel("Password"), PASSWORD);
+  await fillInput(page.getByLabel("Password", { exact: true }), PASSWORD);
 }
 
 async function fillSignin(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/signin");
   await fillInput(page.getByLabel("Email"), email);
-  await fillInput(page.getByLabel("Password"), password);
+  await fillInput(page.getByLabel("Password", { exact: true }), password);
   await page.getByRole("button", { name: "Sign in" }).click();
 }
 
