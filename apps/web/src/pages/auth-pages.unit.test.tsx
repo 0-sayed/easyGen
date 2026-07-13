@@ -45,6 +45,38 @@ describe("SignupPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("reveals and hides the signup password without submitting", async () => {
+    const signupSpy = vi.spyOn(api, "signup").mockResolvedValueOnce({
+      accessToken: "token-123",
+      user,
+    });
+    renderAuthRoutes(<Route path="/signup" element={<SignupPage />} />, "/signup");
+
+    const passwordInput = screen.getByLabelText("Password");
+
+    await userEvent.type(passwordInput, "Password1!");
+
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    const showPasswordButton = screen.getByRole("button", { name: "Show password" });
+
+    expect(showPasswordButton).toHaveAttribute("type", "button");
+
+    await userEvent.click(showPasswordButton);
+
+    expect(passwordInput).toHaveAttribute("type", "text");
+    expect(passwordInput).toHaveValue("Password1!");
+    expect(passwordInput).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Hide password" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Hide password" }));
+
+    expect(passwordInput).toHaveAttribute("type", "password");
+    expect(passwordInput).toHaveValue("Password1!");
+    expect(passwordInput).toHaveFocus();
+    expect(signupSpy).not.toHaveBeenCalled();
+  });
+
   it("creates an account and navigates to the application", async () => {
     vi.spyOn(api, "signup").mockResolvedValueOnce({ accessToken: "token-123", user });
     renderAuthRoutes(
