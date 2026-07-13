@@ -73,7 +73,7 @@ For parallel git worktrees, use `worktree-compose` with the committed `.wtcrc.js
 
 Public service endpoints:
 
-- `GET /health` - liveness check returning `{ "status": "ok" }`; does not check MongoDB.
+- `GET /health` - liveness check returning `{ "status": "ok", "service": "easygen-api" }`; does not check MongoDB.
 - `GET /ready` - readiness check returning MongoDB status; returns `503` when the database is unavailable.
 - `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
 
