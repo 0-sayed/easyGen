@@ -98,7 +98,10 @@ describe("App", () => {
     expect(response.body).toEqual({
       service: "easygen-api",
       status: "ok",
+      uptimeSeconds: expect.any(Number),
     });
+    expect(Number.isInteger(response.body.uptimeSeconds)).toBe(true);
+    expect(response.body.uptimeSeconds).toBeGreaterThanOrEqual(0);
   });
 
   it("serves the readiness endpoint when MongoDB is connected", async () => {
@@ -171,6 +174,12 @@ describe("App", () => {
     expect(response.body.components?.schemas?.HealthResponse?.properties?.service?.enum).toEqual([
       "easygen-api",
     ]);
+    expect(
+      response.body.components?.schemas?.HealthResponse?.properties?.uptimeSeconds
+    ).toMatchObject({
+      minimum: 0,
+      type: "integer",
+    });
 
     expect(readyOperation.tags).toEqual(["ready"]);
     expect(readyOperation.summary).toBe("Readiness check");

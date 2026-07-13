@@ -28,6 +28,14 @@ class HealthResponse {
     enum: ["ok"],
   })
   status!: "ok";
+
+  @ApiProperty({
+    description: "Elapsed uptime for the current API process, in whole seconds.",
+    example: 0,
+    minimum: 0,
+    type: "integer",
+  })
+  uptimeSeconds!: number;
 }
 
 class ReadinessChecksResponse {
@@ -100,6 +108,7 @@ export class AppController {
     return {
       service: "easygen-api",
       status: "ok",
+      uptimeSeconds: Math.floor(process.uptime()),
     };
   }
 
