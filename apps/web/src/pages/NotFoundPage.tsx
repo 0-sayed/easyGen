@@ -1,8 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { authStyles } from "./authStyles";
 
 export function NotFoundPage() {
+  const { pathname } = useLocation();
+
   return (
     <section className={`${authStyles.card} grid gap-6`} aria-labelledby="not-found-title">
       <div>
@@ -11,6 +13,16 @@ export function NotFoundPage() {
           Page not found
         </h1>
         <p className={authStyles.statusText}>This route does not exist.</p>
+      </div>
+      <div
+        className="grid gap-1 rounded-control border border-line bg-field p-3"
+        role="region"
+        aria-label="Requested path"
+      >
+        <p className={authStyles.label}>Requested path</p>
+        <code className="block whitespace-normal break-all text-sm leading-6 text-ink">
+          {pathname}
+        </code>
       </div>
       <div className={authStyles.actions}>
         <Link className={authStyles.primaryLink} to="/signin">

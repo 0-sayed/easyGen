@@ -82,6 +82,29 @@ test.describe("full-stack auth browser matrix", () => {
     );
   });
 
+  test("shows route context on the not-found page", async ({ page }) => {
+    const longPath =
+      "/missing-route/with/a/very-long-segment-that-should-wrap-inside-the-card-without-horizontal-overflow";
+
+    await page.goto(`${longPath}?utm=1#details`);
+
+    await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    const requestedPath = page.getByRole("region", { name: "Requested path" });
+    await expect(requestedPath).toContainText(longPath);
+    await expect(requestedPath).not.toContainText("utm=1");
+    await expect(requestedPath).not.toContainText("details");
+    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
+    await expect(page.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/app");
+    await expectNoHorizontalOverflow(page);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${longPath}?utm=1#details`);
+
+    await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Requested path" })).toContainText(longPath);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("unauthenticated /app redirects to signin", async ({ page }) => {
     await page.goto("/app");
 
@@ -300,6 +323,14 @@ async function fillSignin(page: Page, email: string, password: string): Promise<
   await fillInput(page.getByLabel("Email"), email);
   await fillInput(page.getByLabel("Password"), password);
   await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const hasOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth
+  );
+
+  expect(hasOverflow).toBe(false);
 }
 
 async function fillInput(locator: Locator, value: string): Promise<void> {
