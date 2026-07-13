@@ -11,6 +11,7 @@ import { authStyles } from "./authStyles";
 export function SignupPage() {
   const navigate = useNavigate();
   const { signup } = useAuth();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     register,
@@ -30,6 +31,8 @@ export function SignupPage() {
       setSubmitError(isApiClientError(error) ? error.message : "Unable to create account.");
     }
   }
+
+  const passwordVisibilityLabel = isPasswordVisible ? "Hide password" : "Show password";
 
   return (
     <section className={authStyles.card} aria-labelledby="signup-title">
@@ -95,15 +98,30 @@ export function SignupPage() {
           <label className={authStyles.label} htmlFor="signup-password">
             Password
           </label>
-          <input
-            id="signup-password"
-            className={authStyles.input}
-            type="password"
-            autoComplete="new-password"
-            aria-describedby="signup-password-error"
-            aria-invalid={errors.password ? "true" : "false"}
-            {...register("password")}
-          />
+          <div className={authStyles.passwordFieldControl}>
+            <input
+              id="signup-password"
+              className={authStyles.passwordFieldInput}
+              type={isPasswordVisible ? "text" : "password"}
+              autoComplete="new-password"
+              aria-describedby="signup-password-error"
+              aria-invalid={errors.password ? "true" : "false"}
+              {...register("password")}
+            />
+            <button
+              className={authStyles.passwordVisibilityButton}
+              type="button"
+              aria-label={passwordVisibilityLabel}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                setIsPasswordVisible((current) => !current);
+              }}
+            >
+              {isPasswordVisible ? "Hide" : "Show"}
+            </button>
+          </div>
           <p
             id="signup-password-error"
             className={`${errors.password ? authStyles.error : authStyles.helper} ${authStyles.messageSlotTall}`}
