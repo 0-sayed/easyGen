@@ -1241,17 +1241,23 @@ describe("App routes", () => {
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 
-  it("renders a public not-found page for unknown routes", async () => {
+  it("renders the requested pathname without query or fragment on unknown routes", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockRejectedValueOnce(new Error("status unavailable"));
 
     render(
-      <MemoryRouter initialEntries={["/missing-route"]}>
+      <MemoryRouter initialEntries={["/missing-route/deep-link?utm=1#details"]}>
         <App />
       </MemoryRouter>
     );
 
     expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
     expect(screen.getByText("This route does not exist.")).toBeInTheDocument();
+
+    const requestedPath = screen.getByRole("region", { name: "Requested path" });
+    expect(requestedPath).toHaveTextContent("/missing-route/deep-link");
+    expect(requestedPath).not.toHaveTextContent("utm=1");
+    expect(requestedPath).not.toHaveTextContent("details");
+
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
     expect(screen.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/app");
   });
