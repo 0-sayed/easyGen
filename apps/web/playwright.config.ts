@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+const moduleUrl = import.meta.url.startsWith("file:")
+  ? import.meta.url
+  : pathToFileURL(import.meta.url).href;
+const repoRoot = fileURLToPath(new URL("../..", moduleUrl));
 
 const DEFAULT_API_PORT = 3000;
 const DEFAULT_MONGODB_PORT = 27018;
@@ -10,8 +13,43 @@ const DEFAULT_WEB_PORT = 5173;
 const apiPort = resolvePort(process.env.PORT, DEFAULT_API_PORT);
 const mongodbPort = resolvePort(process.env.MONGODB_PORT, DEFAULT_MONGODB_PORT);
 const webPort = resolvePort(process.env.WEB_PORT, DEFAULT_WEB_PORT);
+const externalAppUrl = process.env.PLAYWRIGHT_APP_URL?.trim();
 const apiUrl = `http://127.0.0.1:${String(apiPort)}`;
-const webUrl = `http://127.0.0.1:${String(webPort)}`;
+const webUrl =
+  externalAppUrl === undefined || externalAppUrl.length === 0
+    ? `http://127.0.0.1:${String(webPort)}`
+    : externalAppUrl;
+const apiWebServer = {
+  command: "pnpm infra:up && pnpm --filter @easygen/api dev",
+  cwd: repoRoot,
+  env: {
+    AUTH_TEST_SUPPORT: "1",
+    AUTH_THROTTLE_LIMIT: "7",
+    JWT_SECRET: "playwright-test-secret",
+    LOG_LEVEL: "silent",
+    MONGODB_PORT: String(mongodbPort),
+    MONGODB_URI: `mongodb://127.0.0.1:${String(mongodbPort)}/easygen_browser?directConnection=true`,
+    NODE_ENV: "test",
+    PORT: String(apiPort),
+    WEB_PORT: String(webPort),
+  },
+  name: "api",
+  reuseExistingServer: false,
+  timeout: 120_000,
+  url: `${apiUrl}/health`,
+};
+const webAppServer = {
+  command: "pnpm --filter @easygen/web dev",
+  cwd: repoRoot,
+  env: {
+    VITE_API_URL: apiUrl,
+    WEB_PORT: String(webPort),
+  },
+  name: "web",
+  reuseExistingServer: !process.env.CI,
+  timeout: 120_000,
+  url: webUrl,
+};
 
 export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
@@ -29,39 +67,10 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: [
-    {
-      command: "pnpm infra:up && pnpm --filter @easygen/api dev",
-      cwd: repoRoot,
-      env: {
-        AUTH_TEST_SUPPORT: "1",
-        AUTH_THROTTLE_LIMIT: "7",
-        JWT_SECRET: "playwright-test-secret",
-        LOG_LEVEL: "silent",
-        MONGODB_PORT: String(mongodbPort),
-        MONGODB_URI: `mongodb://127.0.0.1:${String(mongodbPort)}/easygen_browser?directConnection=true`,
-        NODE_ENV: "test",
-        PORT: String(apiPort),
-        WEB_PORT: String(webPort),
-      },
-      name: "api",
-      reuseExistingServer: false,
-      timeout: 120_000,
-      url: `${apiUrl}/health`,
-    },
-    {
-      command: "pnpm --filter @easygen/web dev",
-      cwd: repoRoot,
-      env: {
-        VITE_API_URL: apiUrl,
-        WEB_PORT: String(webPort),
-      },
-      name: "web",
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-      url: webUrl,
-    },
-  ],
+  webServer:
+    externalAppUrl === undefined || externalAppUrl.length === 0
+      ? [apiWebServer, webAppServer]
+      : [apiWebServer],
 });
 
 function resolvePort(value: string | undefined, fallback: number): number {
