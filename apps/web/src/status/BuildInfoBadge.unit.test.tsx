@@ -114,6 +114,21 @@ describe("BuildInfoBadge", () => {
     expect(getHealthInfo).toHaveBeenCalledOnce();
   });
 
+  it("preserves the public diagnostics landmark after loading", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
+
+    renderWithBuildInfoProvider(<BuildInfoBadge />);
+
+    const liveRegion = await screen.findByRole("status", {
+      name: "API build and liveness information",
+    });
+    expect(liveRegion).toHaveTextContent("easygen-api");
+    expect(
+      screen.getByRole("complementary", { name: "API build and liveness information" })
+    ).toBeVisible();
+  });
+
   it("preserves build information when liveness is unavailable", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
     vi.spyOn(statusApi, "getHealthInfo").mockRejectedValueOnce(new Error("offline"));

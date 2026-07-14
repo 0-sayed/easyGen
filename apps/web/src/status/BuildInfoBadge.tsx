@@ -5,15 +5,17 @@ export function BuildInfoBadge() {
   const state = useBuildInfo();
 
   return (
-    <div
-      className={getBuildInfoBadgeClassName(state)}
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      aria-label="API build and liveness information"
-    >
-      <BuildInfoBadgeContent state={state} />
-    </div>
+    <aside aria-label="API build and liveness information">
+      <div
+        className={getBuildInfoBadgeClassName(state)}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label="API build and liveness information"
+      >
+        <BuildInfoBadgeContent state={state} />
+      </div>
+    </aside>
   );
 }
 
