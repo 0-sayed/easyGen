@@ -1333,9 +1333,9 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole("status", { name: "API status unavailable" })).toHaveTextContent(
-      "API status unavailable"
-    );
+    expect(
+      await screen.findByRole("status", { name: "API build and liveness information" })
+    ).toHaveTextContent("API status unavailable");
 
     await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "Password1!");
@@ -1362,9 +1362,9 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole("status", { name: "API status unavailable" })).toHaveTextContent(
-      "API status unavailable"
-    );
+    expect(
+      await screen.findByRole("status", { name: "API build and liveness information" })
+    ).toHaveTextContent("API status unavailable");
 
     await userEvent.type(screen.getByLabelText("Email"), "person@example.com");
     await userEvent.type(screen.getByLabelText("Name"), "Person Name");

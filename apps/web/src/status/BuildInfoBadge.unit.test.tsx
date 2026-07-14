@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { StrictMode, type ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,15 @@ const healthInfo = {
   uptimeSeconds: 125,
 } as const;
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 function renderWithBuildInfoProvider(element: ReactElement) {
   return render(<BuildInfoProvider>{element}</BuildInfoProvider>);
 }
@@ -29,15 +38,19 @@ describe("BuildInfoBadge", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a public loading state before build information resolves", () => {
+  it("renders a persistent polite live region before build information resolves", () => {
     vi.spyOn(statusApi, "getBuildInfo").mockImplementationOnce(() => new Promise(() => undefined));
     vi.spyOn(statusApi, "getHealthInfo").mockImplementationOnce(() => new Promise(() => undefined));
 
     renderWithBuildInfoProvider(<BuildInfoBadge />);
 
-    expect(screen.getByRole("status", { name: "Checking API status" })).toHaveTextContent(
-      "Checking API status..."
-    );
+    const liveRegion = screen.getByRole("status", {
+      name: "API build and liveness information",
+    });
+
+    expect(liveRegion).toHaveTextContent("Checking API status...");
+    expect(liveRegion).toHaveAttribute("aria-live", "polite");
+    expect(liveRegion).toHaveAttribute("aria-atomic", "true");
   });
 
   it("renders build information while liveness is still loading", async () => {
@@ -50,6 +63,39 @@ describe("BuildInfoBadge", () => {
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
     expect(screen.getByText("checking liveness")).toBeInTheDocument();
+  });
+
+  it("keeps the same live region mounted as diagnostics resolve", async () => {
+    const buildInfoRequest = createDeferred<typeof buildInfo>();
+    const healthInfoRequest = createDeferred<typeof healthInfo>();
+    vi.spyOn(statusApi, "getBuildInfo").mockReturnValueOnce(buildInfoRequest.promise);
+    vi.spyOn(statusApi, "getHealthInfo").mockReturnValueOnce(healthInfoRequest.promise);
+
+    renderWithBuildInfoProvider(<BuildInfoBadge />);
+
+    const liveRegion = screen.getByRole("status", {
+      name: "API build and liveness information",
+    });
+    expect(liveRegion).toHaveTextContent("Checking API status...");
+
+    act(() => {
+      buildInfoRequest.resolve(buildInfo);
+    });
+
+    expect(await screen.findByText("easygen-api")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "API build and liveness information" })).toBe(
+      liveRegion
+    );
+    expect(liveRegion).toHaveTextContent("checking liveness");
+
+    act(() => {
+      healthInfoRequest.resolve(healthInfo);
+    });
+
+    expect(await screen.findByText("up 2 minutes")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "API build and liveness information" })).toBe(
+      liveRegion
+    );
   });
 
   it("renders API build and liveness information after loading", async () => {
@@ -103,7 +149,9 @@ describe("BuildInfoBadge", () => {
 
     renderWithBuildInfoProvider(<BuildInfoBadge />);
 
-    const status = await screen.findByRole("status", { name: "API status unavailable" });
+    const status = await screen.findByRole("status", {
+      name: "API build and liveness information",
+    });
     expect(status).toHaveTextContent("API status unavailable");
     expect(status.tagName).toBe("DIV");
   });
@@ -121,7 +169,7 @@ describe("BuildInfoBadge", () => {
     const { unmount } = renderWithBuildInfoProvider(<BuildInfoBadge />);
 
     expect(
-      await screen.findByRole("status", { name: "API status unavailable" })
+      await screen.findByRole("status", { name: "API build and liveness information" })
     ).toBeInTheDocument();
 
     unmount();

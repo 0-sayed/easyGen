@@ -49,8 +49,12 @@ async function assertPublicDiagnostics(
 
   await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
 
-  const diagnostics = page.getByLabel("API build and liveness information");
+  const diagnostics = page.getByRole("status", {
+    name: "API build and liveness information",
+  });
   await expect(diagnostics).toBeVisible();
+  await expect(diagnostics).toHaveAttribute("aria-live", "polite");
+  await expect(diagnostics).toHaveAttribute("aria-atomic", "true");
   await expect(diagnostics).toContainText(buildInfo.service);
   await expect(diagnostics).toContainText(`v${buildInfo.version}`);
   await expect(diagnostics).toContainText(buildInfo.environment);
