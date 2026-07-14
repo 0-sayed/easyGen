@@ -1091,7 +1091,9 @@ describe("App routes", () => {
     expect(await screen.findByRole("status", { name: "API connection" })).toHaveTextContent(
       "API connected"
     );
-    expect(screen.getByText("process")).toBeInTheDocument();
+    const status = screen.getByRole("status", { name: "API connection" });
+    expect(within(status).getByText("Process")).toBeInTheDocument();
+    expect(within(status).queryByText("process")).not.toBeInTheDocument();
     expect(screen.getByText("2 minutes")).toBeInTheDocument();
     expect(api.getCurrentUser).toHaveBeenCalledWith("token-123");
     expect(api.getAccountActivity).toHaveBeenCalledWith("token-123");

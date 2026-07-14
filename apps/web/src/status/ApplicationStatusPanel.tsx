@@ -1,5 +1,14 @@
 import { useBuildInfo, type LivenessState } from "./BuildInfoProvider";
 import { formatUptime } from "./uptime";
+import type { HealthInfo } from "./api";
+
+const livenessScopeLabels = {
+  process: "Process",
+} satisfies Record<HealthInfo["scope"], string>;
+
+function formatLivenessScope(scope: HealthInfo["scope"]): string {
+  return livenessScopeLabels[scope];
+}
 
 export function ApplicationStatusPanel() {
   const state = useBuildInfo();
@@ -90,7 +99,7 @@ function LivenessDetails({ liveness }: { liveness: LivenessState }) {
     <>
       <div className="grid gap-0.5">
         <dt className="font-bold text-label">Liveness</dt>
-        <dd className="m-0">{liveness.healthInfo.scope}</dd>
+        <dd className="m-0">{formatLivenessScope(liveness.healthInfo.scope)}</dd>
       </div>
       <div className="grid gap-0.5">
         <dt className="font-bold text-label">Uptime</dt>
