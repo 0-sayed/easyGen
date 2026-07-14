@@ -21,7 +21,9 @@ async function assertPublicShell(
   await page.goto(`/signin?public-shell-smoke=${label}`);
 
   await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
-  await expect(page.getByLabel("API build and liveness information")).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "API build and liveness information" })
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 }
 

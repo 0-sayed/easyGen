@@ -34,7 +34,7 @@ function BuildInfoBadgeContent({ state }: { state: BuildInfoState }) {
       <span aria-hidden="true">/</span>
       <span>v{state.buildInfo.version}</span>
       <span aria-hidden="true">/</span>
-      <span>{state.buildInfo.environment}</span>
+      <span>env {state.buildInfo.environment}</span>
       <span aria-hidden="true">/</span>
       <LivenessBadgeText liveness={state.liveness} />
     </>

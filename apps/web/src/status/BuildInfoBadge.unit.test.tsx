@@ -61,8 +61,18 @@ describe("BuildInfoBadge", () => {
 
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("env test")).toBeInTheDocument();
     expect(screen.getByText("checking liveness")).toBeInTheDocument();
+  });
+
+  it("prefixes the ready build environment value with env", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
+
+    renderWithBuildInfoProvider(<BuildInfoBadge />);
+
+    expect(await screen.findByText("env test")).toBeInTheDocument();
+    expect(screen.queryByText("test")).not.toBeInTheDocument();
   });
 
   it("keeps the same live region mounted as diagnostics resolve", async () => {
@@ -106,7 +116,7 @@ describe("BuildInfoBadge", () => {
 
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("env test")).toBeInTheDocument();
     expect(screen.getByText("process")).toBeInTheDocument();
     expect(screen.getByText("up 2 minutes")).toBeInTheDocument();
     expect(screen.queryByText("125")).not.toBeInTheDocument();
@@ -137,7 +147,7 @@ describe("BuildInfoBadge", () => {
 
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("env test")).toBeInTheDocument();
     expect(screen.getByText("liveness unavailable")).toBeInTheDocument();
   });
 
