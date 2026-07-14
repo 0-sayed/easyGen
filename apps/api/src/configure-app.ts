@@ -31,6 +31,7 @@ export function configureApp(app: INestApplication): void {
     .setVersion("0.1.0")
     .addBearerAuth()
     .addTag("health", "Public liveness endpoint.")
+    .addTag("ping", "Public ping endpoint.")
     .addTag("ready", "Public backing-service readiness endpoint.")
     .addTag("status", "Public build and environment metadata endpoint.")
     .addTag("auth", "Authentication and current-user endpoints.")
