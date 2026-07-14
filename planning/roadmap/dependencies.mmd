@@ -37,6 +37,9 @@ flowchart TD
   T043["T043 API port boundary contract coverage"]
   T044["T044 Live diagnostics announcement semantics"]
   T045["T045 Public shell browser smoke contract"]
+  T046["T046 Public API ping contract"]
+  T047["T047 Liveness scope label polish"]
+  T048["T048 Build environment label clarity"]
 
   T001 --> T002
   T001 --> T003
@@ -103,6 +106,9 @@ flowchart TD
   T042 --> T043
   T042 --> T044
   T042 --> T045
+  T045 --> T046
+  T045 --> T047
+  T045 --> T048
 
   classDef done fill:#163d2e,stroke:#22c55e,color:#dcfce7;
   classDef pending fill:#1f2937,stroke:#64748b,color:#cbd5e1;
@@ -116,3 +122,5 @@ flowchart TD
   class T044 done;
 
   class T045 done;
+
+  class T046,T047,T048 pending;
