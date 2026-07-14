@@ -880,7 +880,7 @@ describe("App routes", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("env test")).toBeInTheDocument();
     expect(screen.getByText("process")).toBeInTheDocument();
     expect(screen.getByText("up 2 minutes")).toBeInTheDocument();
   });

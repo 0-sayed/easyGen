@@ -134,7 +134,19 @@ describe("App", () => {
     });
   });
 
-  it("documents public health, readiness, and status endpoints in OpenAPI output", async () => {
+  it("serves the public ping endpoint without authentication", async () => {
+    if (app === undefined) {
+      throw new Error("Nest app was not initialized.");
+    }
+
+    const response = await request(app.getHttpServer()).get("/ping").expect(200);
+
+    expect(response.body).toEqual({
+      status: "ok",
+    });
+  });
+
+  it("documents public health, readiness, status, and ping endpoints in OpenAPI output", async () => {
     if (app === undefined) {
       throw new Error("Nest app was not initialized.");
     }
@@ -144,6 +156,7 @@ describe("App", () => {
     expect(expectDocumentTag(response.body, "health").description).toBe(
       "Public liveness endpoint."
     );
+    expect(expectDocumentTag(response.body, "ping").description).toBe("Public ping endpoint.");
     expect(expectDocumentTag(response.body, "ready").description).toBe(
       "Public backing-service readiness endpoint."
     );
@@ -154,6 +167,7 @@ describe("App", () => {
     const healthOperation = expectGetOperation(response.body, "/health");
     const readyOperation = expectGetOperation(response.body, "/ready");
     const statusOperation = expectGetOperation(response.body, "/status");
+    const pingOperation = expectGetOperation(response.body, "/ping");
 
     expect(healthOperation.tags).toEqual(["health"]);
     expect(healthOperation.summary).toBe("Health check");
@@ -209,6 +223,19 @@ describe("App", () => {
       enum: ["error"],
       type: "string",
     });
+
+    expect(pingOperation.tags).toEqual(["ping"]);
+    expect(pingOperation.summary).toBe("API ping");
+    expect(pingOperation.description).toContain("lightweight API reachability");
+    expect(pingOperation.responses?.["200"]?.description).toBe("API is reachable.");
+    expectJsonSchemaReference(pingOperation, "200", "PingResponse");
+    expect(response.body.components?.schemas?.PingResponse?.properties?.status).toMatchObject({
+      enum: ["ok"],
+      type: "string",
+    });
+    expect(response.body.components?.schemas?.PingResponse?.properties?.status?.enum).toEqual([
+      "ok",
+    ]);
 
     expect(statusOperation.tags).toEqual(["status"]);
     expect(statusOperation.summary).toBe("Public build status");

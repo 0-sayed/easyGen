@@ -57,7 +57,7 @@ async function assertPublicDiagnostics(
   await expect(diagnostics).toHaveAttribute("aria-atomic", "true");
   await expect(diagnostics).toContainText(buildInfo.service);
   await expect(diagnostics).toContainText(`v${buildInfo.version}`);
-  await expect(diagnostics).toContainText(buildInfo.environment);
+  await expect(diagnostics).toContainText(`env ${buildInfo.environment}`);
   await expect(diagnostics).toContainText(healthInfo.scope);
   await expect(diagnostics).toContainText(`up ${formatUptime(healthInfo.uptimeSeconds)}`);
 
