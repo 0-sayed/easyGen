@@ -45,6 +45,15 @@ class HealthResponse {
   uptimeSeconds!: number;
 }
 
+class PingResponse {
+  @ApiProperty({
+    description: "Minimal API reachability status.",
+    example: "ok",
+    enum: ["ok"],
+  })
+  status!: "ok";
+}
+
 class ReadinessChecksResponse {
   @ApiProperty({
     description: "MongoDB connection readiness.",
@@ -117,6 +126,22 @@ export class AppController {
       scope: "process",
       status: "ok",
       uptimeSeconds: Math.floor(process.uptime()),
+    };
+  }
+
+  @Get("ping")
+  @ApiTags("ping")
+  @ApiOperation({
+    summary: "API ping",
+    description: "Returns a minimal public response for lightweight API reachability checks.",
+  })
+  @ApiOkResponse({
+    description: "API is reachable.",
+    type: PingResponse,
+  })
+  getPing(): PingResponse {
+    return {
+      status: "ok",
     };
   }
 
