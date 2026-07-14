@@ -46,9 +46,14 @@ test.describe("full-stack auth browser matrix", () => {
     const accountSummary = page.getByRole("region", { name: "Account summary" });
     await expect(accountSummary.getByText(account.name, { exact: true })).toBeVisible();
     await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
-    await expect(page.getByRole("status", { name: "API connection" })).toContainText(
-      "API connected"
-    );
+    await expectApplicationStatusPanel(page);
+    await expectNoHorizontalOverflow(page);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectApplicationStatusPanel(page);
+    await expectNoHorizontalOverflow(page);
+
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     const updatedName = `${account.name} Updated`;
     const newPassword = "NewPassword1!";
@@ -325,6 +330,14 @@ async function fillSignin(page: Page, email: string, password: string): Promise<
   await fillInput(page.getByLabel("Email"), email);
   await fillInput(page.getByLabel("Password", { exact: true }), password);
   await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+async function expectApplicationStatusPanel(page: Page): Promise<void> {
+  const statusPanel = page.getByRole("status", { name: "API connection" });
+
+  await expect(statusPanel).toContainText("API connected");
+  await expect(statusPanel).toContainText("Process");
+  await expect(statusPanel).not.toContainText("process");
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

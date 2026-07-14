@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -44,7 +44,8 @@ describe("ApplicationStatusPanel", () => {
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
     expect(screen.getByText("Liveness")).toBeInTheDocument();
-    expect(screen.getByText("process")).toBeInTheDocument();
+    expect(within(status).getByText("Process")).toBeInTheDocument();
+    expect(within(status).queryByText("process")).not.toBeInTheDocument();
     expect(screen.getByText("Uptime")).toBeInTheDocument();
     expect(screen.getByText("2 minutes")).toBeInTheDocument();
     expect(screen.queryByText("125")).not.toBeInTheDocument();
