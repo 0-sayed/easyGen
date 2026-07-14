@@ -29,6 +29,14 @@ flowchart TD
   T028["T028 Settings session invalidation polish"]
   T029["T029 Account deletion frontend confirmation"]
   T030["T030 Account lifecycle browser QA slice"]
+  T036["T036 Health uptime contract"]
+  T037["T037 Health scope contract"]
+  T040["T040 Public liveness status"]
+  T041["T041 Public diagnostics documentation"]
+  T042["T042 Public diagnostics contract matrix"]
+  T043["T043 API port boundary contract coverage"]
+  T044["T044 Live diagnostics announcement semantics"]
+  T045["T045 Public shell browser smoke contract"]
 
   T001 --> T002
   T001 --> T003
@@ -86,9 +94,25 @@ flowchart TD
   T029 --> T030
   T027 --> T006
   T030 --> T006
+  T036 --> T040
+  T037 --> T040
+  T036 --> T041
+  T037 --> T041
+  T040 --> T042
+  T041 --> T042
+  T042 --> T043
+  T042 --> T044
+  T042 --> T045
 
   classDef done fill:#163d2e,stroke:#22c55e,color:#dcfce7;
   classDef pending fill:#1f2937,stroke:#64748b,color:#cbd5e1;
 
   class T001,T002,T003,T004,T005,T007,T008,T009,T010,T011,T012,T013,T014,T015,T016,T017,T018,T019,T020,T022,T023 done;
   class T006,T021,T024,T025,T026,T027,T028,T029,T030 pending;
+  class T036,T037,T040,T041,T042 done;
+
+  class T043 pending;
+
+  class T044 pending;
+
+  class T045 pending;
