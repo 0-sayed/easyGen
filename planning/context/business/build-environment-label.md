@@ -6,7 +6,7 @@ Make the environment value in the compact build badge self-explanatory.
 
 ## Scope
 
-- Prefix the resolved environment value in `BuildInfoBadge` with `env `.
+- Prefix the resolved environment value in `BuildInfoBadge` with `env`, followed by one space.
 - Preserve the existing live-region semantics, loading and failure states, separators, layout, and styling.
 - Add focused component coverage for the visible label.
 - Perform browser QA on the public build badge at desktop and mobile widths.
