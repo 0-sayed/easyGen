@@ -19,6 +19,37 @@ const webUrl =
   externalAppUrl === undefined || externalAppUrl.length === 0
     ? `http://127.0.0.1:${String(webPort)}`
     : externalAppUrl;
+const apiWebServer = {
+  command: "pnpm infra:up && pnpm --filter @easygen/api dev",
+  cwd: repoRoot,
+  env: {
+    AUTH_TEST_SUPPORT: "1",
+    AUTH_THROTTLE_LIMIT: "7",
+    JWT_SECRET: "playwright-test-secret",
+    LOG_LEVEL: "silent",
+    MONGODB_PORT: String(mongodbPort),
+    MONGODB_URI: `mongodb://127.0.0.1:${String(mongodbPort)}/easygen_browser?directConnection=true`,
+    NODE_ENV: "test",
+    PORT: String(apiPort),
+    WEB_PORT: String(webPort),
+  },
+  name: "api",
+  reuseExistingServer: false,
+  timeout: 120_000,
+  url: `${apiUrl}/health`,
+};
+const webAppServer = {
+  command: "pnpm --filter @easygen/web dev",
+  cwd: repoRoot,
+  env: {
+    VITE_API_URL: apiUrl,
+    WEB_PORT: String(webPort),
+  },
+  name: "web",
+  reuseExistingServer: !process.env.CI,
+  timeout: 120_000,
+  url: webUrl,
+};
 
 export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
@@ -38,40 +69,8 @@ export default defineConfig({
   ],
   webServer:
     externalAppUrl === undefined || externalAppUrl.length === 0
-      ? [
-          {
-            command: "pnpm infra:up && pnpm --filter @easygen/api dev",
-            cwd: repoRoot,
-            env: {
-              AUTH_TEST_SUPPORT: "1",
-              AUTH_THROTTLE_LIMIT: "7",
-              JWT_SECRET: "playwright-test-secret",
-              LOG_LEVEL: "silent",
-              MONGODB_PORT: String(mongodbPort),
-              MONGODB_URI: `mongodb://127.0.0.1:${String(mongodbPort)}/easygen_browser?directConnection=true`,
-              NODE_ENV: "test",
-              PORT: String(apiPort),
-              WEB_PORT: String(webPort),
-            },
-            name: "api",
-            reuseExistingServer: false,
-            timeout: 120_000,
-            url: `${apiUrl}/health`,
-          },
-          {
-            command: "pnpm --filter @easygen/web dev",
-            cwd: repoRoot,
-            env: {
-              VITE_API_URL: apiUrl,
-              WEB_PORT: String(webPort),
-            },
-            name: "web",
-            reuseExistingServer: !process.env.CI,
-            timeout: 120_000,
-            url: webUrl,
-          },
-        ]
-      : undefined,
+      ? [apiWebServer, webAppServer]
+      : [apiWebServer],
 });
 
 function resolvePort(value: string | undefined, fallback: number): number {
