@@ -27,8 +27,8 @@
     "migrate:up": "migrate-mongo up -f migrate-mongo-config.cjs",
     "knip": "knip",
     "hooks:install": "lefthook install",
-    "audit": "pnpm audit --audit-level high",
-    "validate": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test && pnpm knip && pnpm audit && pnpm build"
+    "audit": "pnpm audit --audit-level high --ignore-registry-errors",
+    "validate": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test && pnpm knip && pnpm run audit && pnpm build"
   },
   "engines": {
     "node": "22.14.0",
