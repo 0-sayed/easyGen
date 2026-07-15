@@ -43,7 +43,8 @@ describe("ApplicationStatusPanel", () => {
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
-    expect(screen.getByText("Liveness")).toBeInTheDocument();
+    expect(screen.getByText("Liveness scope")).toBeInTheDocument();
+    expect(screen.queryByText("Liveness", { exact: true })).not.toBeInTheDocument();
     expect(within(status).getByText("Process")).toBeInTheDocument();
     expect(within(status).queryByText("process")).not.toBeInTheDocument();
     expect(screen.getByText("Uptime")).toBeInTheDocument();
@@ -60,8 +61,22 @@ describe("ApplicationStatusPanel", () => {
     const status = await screen.findByRole("status", { name: "API connection" });
     expect(status).toHaveTextContent("API connected");
     expect(screen.getByText("easygen-api")).toBeInTheDocument();
-    expect(screen.getByText("Liveness")).toBeInTheDocument();
+    expect(screen.getByText("Liveness scope")).toBeInTheDocument();
+    expect(screen.queryByText("Liveness", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText("unavailable")).toBeInTheDocument();
+  });
+
+  it("renders the liveness scope label while liveness is loading", async () => {
+    vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
+    vi.spyOn(statusApi, "getHealthInfo").mockImplementationOnce(() => new Promise(() => undefined));
+
+    renderWithBuildInfoProvider(<ApplicationStatusPanel />);
+
+    const status = await screen.findByRole("status", { name: "API connection" });
+    expect(status).toHaveTextContent("API connected");
+    expect(screen.getByText("Liveness scope")).toBeInTheDocument();
+    expect(screen.queryByText("Liveness", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText("checking")).toBeInTheDocument();
   });
 
   it("renders loading API status while checking the API connection", () => {

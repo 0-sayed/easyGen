@@ -80,7 +80,7 @@ function LivenessDetails({ liveness }: { liveness: LivenessState }) {
   if (liveness.status === "loading") {
     return (
       <div className="grid gap-0.5">
-        <dt className="font-bold text-label">Liveness</dt>
+        <dt className="font-bold text-label">Liveness scope</dt>
         <dd className="m-0">checking</dd>
       </div>
     );
@@ -89,7 +89,7 @@ function LivenessDetails({ liveness }: { liveness: LivenessState }) {
   if (liveness.status === "failed") {
     return (
       <div className="grid gap-0.5">
-        <dt className="font-bold text-label">Liveness</dt>
+        <dt className="font-bold text-label">Liveness scope</dt>
         <dd className="m-0">unavailable</dd>
       </div>
     );
@@ -98,7 +98,7 @@ function LivenessDetails({ liveness }: { liveness: LivenessState }) {
   return (
     <>
       <div className="grid gap-0.5">
-        <dt className="font-bold text-label">Liveness</dt>
+        <dt className="font-bold text-label">Liveness scope</dt>
         <dd className="m-0">{formatLivenessScope(liveness.healthInfo.scope)}</dd>
       </div>
       <div className="grid gap-0.5">
