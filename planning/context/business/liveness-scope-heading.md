@@ -2,11 +2,11 @@
 
 ## Goal
 
-Make the ready application status panel state explicitly name the liveness scope field.
+Make the application status panel explicitly name the liveness scope field in every state.
 
 ## Scope
 
-- Change the ready-state definition label from `Liveness` to `Liveness scope`.
+- Change the definition label from `Liveness` to `Liveness scope` in loading, failure, and ready states.
 - Preserve the displayed `Process` value, loading and failure states, layout, and styling.
 - Add focused component coverage for the visible heading.
 - Perform browser QA on the public status panel at desktop and mobile widths.
@@ -15,7 +15,8 @@ Make the ready application status panel state explicitly name the liveness scope
 
 ## Acceptance Criteria
 
-- The ready status panel displays `Liveness scope` with the value `Process`.
+- Loading, failure, and ready states display the `Liveness scope` label.
+- The ready state displays the value `Process`.
 - Existing diagnostics content and states remain unchanged.
 - Focused frontend tests and the repository validation command pass.
 - Browser QA confirms the panel has no overlap or horizontal overflow.

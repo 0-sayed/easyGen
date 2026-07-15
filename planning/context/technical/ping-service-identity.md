@@ -14,7 +14,7 @@ Identify the API service in the existing public ping response while preserving i
 
 ## Acceptance Criteria
 
-- An unauthenticated `GET /ping` request returns HTTP 200 with exactly `{ "status": "ok", "service": "easygen-api" }`.
-- OpenAPI documents both response properties as stable string values.
+- An unauthenticated `GET /ping` request returns HTTP 200 with only `status: "ok"` and `service: "easygen-api"`; JSON key order is not significant.
+- OpenAPI constrains `status` to `"ok"` and `service` to `"easygen-api"` using enum or equivalent literal metadata.
 - Focused backend tests and the repository validation command pass.
 - Browser QA is not required because the task changes no browser-facing behavior.
