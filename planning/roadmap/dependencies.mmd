@@ -40,6 +40,9 @@ flowchart TD
   T046["T046 Public API ping contract"]
   T047["T047 Liveness scope label polish"]
   T048["T048 Build environment label clarity"]
+  T049["T049 Ping service identity"]
+  T050["T050 Liveness scope heading clarity"]
+  T051["T051 Validation alias README clarity"]
 
   T001 --> T002
   T001 --> T003
@@ -109,6 +112,9 @@ flowchart TD
   T043 --> T046
   T045 --> T047
   T045 --> T048
+  T046 --> T049
+  T047 --> T050
+  T041 --> T051
 
   classDef done fill:#163d2e,stroke:#22c55e,color:#dcfce7;
   classDef pending fill:#1f2937,stroke:#64748b,color:#cbd5e1;
@@ -128,3 +134,5 @@ flowchart TD
   class T047 done;
 
   class T048 pending;
+
+  class T049,T050,T051 pending;
