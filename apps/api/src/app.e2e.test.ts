@@ -143,6 +143,7 @@ describe("App", () => {
 
     expect(response.body).toEqual({
       status: "ok",
+      service: "easygen-api",
     });
   });
 
@@ -235,6 +236,13 @@ describe("App", () => {
     });
     expect(response.body.components?.schemas?.PingResponse?.properties?.status?.enum).toEqual([
       "ok",
+    ]);
+    expect(response.body.components?.schemas?.PingResponse?.properties?.service).toMatchObject({
+      enum: ["easygen-api"],
+      type: "string",
+    });
+    expect(response.body.components?.schemas?.PingResponse?.properties?.service?.enum).toEqual([
+      "easygen-api",
     ]);
 
     expect(statusOperation.tags).toEqual(["status"]);
