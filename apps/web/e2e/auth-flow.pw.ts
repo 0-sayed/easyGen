@@ -47,10 +47,12 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(accountSummary.getByText(account.name, { exact: true })).toBeVisible();
     await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
     await expectApplicationStatusPanel(page);
+    await expectApplicationStatusPanelHasNoOverlap(page);
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expectApplicationStatusPanel(page);
+    await expectApplicationStatusPanelHasNoOverlap(page);
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -336,8 +338,51 @@ async function expectApplicationStatusPanel(page: Page): Promise<void> {
   const statusPanel = page.getByRole("status", { name: "API connection" });
 
   await expect(statusPanel).toContainText("API connected");
+  await expect(statusPanel).toContainText("Liveness scope");
   await expect(statusPanel).toContainText("Process");
   await expect(statusPanel).not.toContainText("process");
+}
+
+async function expectApplicationStatusPanelHasNoOverlap(page: Page): Promise<void> {
+  const statusPanel = page.getByRole("status", { name: "API connection" });
+  const overlaps = await statusPanel.evaluate((panel) => {
+    const elements = [
+      ...Array.from(panel.querySelectorAll(":scope > *")),
+      ...Array.from(panel.querySelectorAll("dl > div")),
+    ].filter((element, index, collection) => collection.indexOf(element) === index);
+
+    const visibleElements = elements.filter((element) => {
+      const styles = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+
+      return (
+        styles.display !== "none" &&
+        styles.visibility !== "hidden" &&
+        box.width > 0 &&
+        box.height > 0
+      );
+    });
+
+    return visibleElements.flatMap((element, index) =>
+      visibleElements.slice(index + 1).flatMap((otherElement) => {
+        if (element.contains(otherElement) || otherElement.contains(element)) {
+          return [];
+        }
+
+        const box = element.getBoundingClientRect();
+        const otherBox = otherElement.getBoundingClientRect();
+        const overlaps =
+          box.left < otherBox.right &&
+          box.right > otherBox.left &&
+          box.top < otherBox.bottom &&
+          box.bottom > otherBox.top;
+
+        return overlaps ? [`${element.tagName} overlaps ${otherElement.tagName}`] : [];
+      })
+    );
+  });
+
+  expect(overlaps).toEqual([]);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
