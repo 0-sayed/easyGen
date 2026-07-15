@@ -47,6 +47,13 @@ class HealthResponse {
 
 class PingResponse {
   @ApiProperty({
+    description: "Stable public service identifier for the API.",
+    example: "easygen-api",
+    enum: ["easygen-api"],
+  })
+  service!: "easygen-api";
+
+  @ApiProperty({
     description: "Minimal API reachability status.",
     example: "ok",
     enum: ["ok"],
@@ -142,6 +149,7 @@ export class AppController {
   getPing(): PingResponse {
     return {
       status: "ok",
+      service: "easygen-api",
     };
   }
 
