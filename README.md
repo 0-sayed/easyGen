@@ -134,6 +134,7 @@ Deleted users are excluded from signin, current-user lookup, profile update, pas
 ## Validation
 
 `pnpm validate` runs format check, lint, type-check, tests, Knip, dependency audit, and build.
+`make validate` delegates to `pnpm validate` as the Makefile shortcut for the same repository validation command.
 
 Run the browser QA matrix when you want full-stack auth confidence:
 
