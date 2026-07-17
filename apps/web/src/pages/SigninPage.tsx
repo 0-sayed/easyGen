@@ -140,7 +140,7 @@ export function SigninPage() {
           className={`${(submitError ?? reauthMessage) ? authStyles.error : authStyles.helper} ${authStyles.messageSlot}`}
           aria-live="polite"
         >
-          {submitError ?? reauthMessage ?? "Your session stays on this device."}
+          {submitError ?? reauthMessage ?? "Your session stays private on this device."}
         </p>
 
         <button className={authStyles.button} type="submit" disabled={isSubmitting}>

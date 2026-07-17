@@ -171,6 +171,13 @@ describe("SigninPage", () => {
     vi.restoreAllMocks();
   });
 
+  it("shows the private-device session helper by default", () => {
+    renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
+
+    expect(screen.getByText("Your session stays private on this device.")).toBeInTheDocument();
+    expect(screen.queryByText("Your session stays on this device.")).not.toBeInTheDocument();
+  });
+
   it("shows required signin validation", async () => {
     renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
 
