@@ -61,17 +61,17 @@ describe("BuildInfoBadge", () => {
 
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("env test")).toBeInTheDocument();
+    expect(screen.getByText("environment test")).toBeInTheDocument();
     expect(screen.getByText("checking liveness")).toBeInTheDocument();
   });
 
-  it("prefixes the ready build environment value with env", async () => {
+  it("prefixes the ready build environment value with environment", async () => {
     vi.spyOn(statusApi, "getBuildInfo").mockResolvedValueOnce(buildInfo);
     vi.spyOn(statusApi, "getHealthInfo").mockResolvedValueOnce(healthInfo);
 
     renderWithBuildInfoProvider(<BuildInfoBadge />);
 
-    expect(await screen.findByText("env test")).toBeInTheDocument();
+    expect(await screen.findByText("environment test")).toBeInTheDocument();
     expect(screen.queryByText("test")).not.toBeInTheDocument();
   });
 
@@ -116,7 +116,7 @@ describe("BuildInfoBadge", () => {
 
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("env test")).toBeInTheDocument();
+    expect(screen.getByText("environment test")).toBeInTheDocument();
     expect(screen.getByText("process")).toBeInTheDocument();
     expect(screen.getByText("up 2 minutes")).toBeInTheDocument();
     expect(screen.queryByText("125")).not.toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("BuildInfoBadge", () => {
 
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("env test")).toBeInTheDocument();
+    expect(screen.getByText("environment test")).toBeInTheDocument();
     expect(screen.getByText("liveness unavailable")).toBeInTheDocument();
   });
 
