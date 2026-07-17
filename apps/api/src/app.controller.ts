@@ -54,6 +54,13 @@ class PingResponse {
   service!: "easygen-api";
 
   @ApiProperty({
+    description: "Declares that the ping response represents API reachability.",
+    example: "reachability",
+    enum: ["reachability"],
+  })
+  purpose!: "reachability";
+
+  @ApiProperty({
     description: "Minimal API reachability status.",
     example: "ok",
     enum: ["ok"],
@@ -150,6 +157,7 @@ export class AppController {
     return {
       status: "ok",
       service: "easygen-api",
+      purpose: "reachability",
     };
   }
 
