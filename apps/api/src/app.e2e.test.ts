@@ -144,6 +144,7 @@ describe("App", () => {
     expect(response.body).toEqual({
       status: "ok",
       service: "easygen-api",
+      purpose: "reachability",
     });
   });
 
@@ -243,6 +244,13 @@ describe("App", () => {
     });
     expect(response.body.components?.schemas?.PingResponse?.properties?.service?.enum).toEqual([
       "easygen-api",
+    ]);
+    expect(response.body.components?.schemas?.PingResponse?.properties?.purpose).toMatchObject({
+      enum: ["reachability"],
+      type: "string",
+    });
+    expect(response.body.components?.schemas?.PingResponse?.properties?.purpose?.enum).toEqual([
+      "reachability",
     ]);
 
     expect(statusOperation.tags).toEqual(["status"]);
