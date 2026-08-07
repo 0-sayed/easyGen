@@ -21,6 +21,7 @@ export class BuildInfoService {
       service: "easygen-api",
       version: this.version,
       environment: this.configService.get<string>("NODE_ENV", "development"),
+      source: "runtime",
     };
   }
 }

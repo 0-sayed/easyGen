@@ -28,6 +28,7 @@ const buildInfo = {
   service: "easygen-api",
   version: "0.1.0",
   environment: "test",
+  source: "runtime",
 } as const;
 
 const healthInfo = {
@@ -1099,6 +1100,8 @@ describe("App routes", () => {
       "API connected"
     );
     const status = screen.getByRole("status", { name: "API connection" });
+    expect(within(status).getByText("Source")).toBeInTheDocument();
+    expect(within(status).getByText("Runtime")).toBeInTheDocument();
     expect(within(status).getByText("Process")).toBeInTheDocument();
     expect(within(status).queryByText("process")).not.toBeInTheDocument();
     expect(screen.getByText("2 minutes")).toBeInTheDocument();

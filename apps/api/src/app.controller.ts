@@ -174,7 +174,7 @@ export class AppController {
   @ApiOperation({
     summary: "Public build status",
     description:
-      "Returns public service, version, and environment metadata for unauthenticated diagnostics.",
+      "Returns public service, version, environment, and source metadata for unauthenticated diagnostics.",
   })
   @ApiOkResponse({
     description: "Current public service build metadata.",

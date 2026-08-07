@@ -7,6 +7,7 @@ interface BuildInfo {
   service: "easygen-api";
   version: string;
   environment: string;
+  source: "runtime";
 }
 
 interface HealthInfo {
@@ -77,7 +78,8 @@ async function parseBuildInfo(response: Response): Promise<BuildInfo> {
     typeof body.version !== "string" ||
     body.version.trim() === "" ||
     typeof body.environment !== "string" ||
-    body.environment.trim() === ""
+    body.environment.trim() === "" ||
+    body.source !== "runtime"
   ) {
     throw new Error("Unexpected public status response.");
   }
@@ -86,6 +88,7 @@ async function parseBuildInfo(response: Response): Promise<BuildInfo> {
     service: body.service,
     version: body.version,
     environment: body.environment,
+    source: body.source,
   };
 }
 

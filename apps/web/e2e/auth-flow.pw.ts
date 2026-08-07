@@ -343,6 +343,9 @@ async function expectApplicationStatusPanel(page: Page): Promise<void> {
   await expect(statusPanel).toContainText("Liveness scope");
   await expect(statusPanel).toContainText("Process");
   await expect(statusPanel).not.toContainText("process");
+  await expect(statusPanel).toContainText("Source");
+  await expect(statusPanel).toContainText("Runtime");
+  await expect(statusPanel).not.toContainText("runtime");
 }
 
 async function expectApplicationStatusPanelHasNoOverlap(page: Page): Promise<void> {

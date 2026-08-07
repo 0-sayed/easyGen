@@ -19,4 +19,11 @@ export class BuildInfoResponse {
     example: "development",
   })
   environment!: string;
+
+  @ApiProperty({
+    description: "Origin marker showing this metadata was read from the running API process.",
+    example: "runtime",
+    enum: ["runtime"],
+  })
+  source!: "runtime";
 }

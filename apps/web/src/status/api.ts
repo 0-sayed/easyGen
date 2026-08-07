@@ -4,6 +4,7 @@ export interface BuildInfo {
   service: "easygen-api";
   version: string;
   environment: string;
+  source: "runtime";
 }
 
 export interface HealthInfo {
@@ -26,7 +27,8 @@ function readBuildInfo(body: unknown): BuildInfo {
     !isObject(body) ||
     body.service !== "easygen-api" ||
     typeof body.version !== "string" ||
-    typeof body.environment !== "string"
+    typeof body.environment !== "string" ||
+    body.source !== "runtime"
   ) {
     throw new ApiClientError("Unexpected API status response.", "unexpected");
   }
@@ -35,6 +37,7 @@ function readBuildInfo(body: unknown): BuildInfo {
     service: body.service,
     version: body.version,
     environment: body.environment,
+    source: body.source,
   };
 }
 
