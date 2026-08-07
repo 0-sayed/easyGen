@@ -61,6 +61,13 @@ class PingResponse {
   purpose!: "reachability";
 
   @ApiProperty({
+    description: "Declares that the ping response is served over HTTP.",
+    example: "http",
+    enum: ["http"],
+  })
+  transport!: "http";
+
+  @ApiProperty({
     description: "Minimal API reachability status.",
     example: "ok",
     enum: ["ok"],
@@ -158,6 +165,7 @@ export class AppController {
       status: "ok",
       service: "easygen-api",
       purpose: "reachability",
+      transport: "http",
     };
   }
 
