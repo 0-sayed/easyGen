@@ -145,6 +145,7 @@ describe("App", () => {
       status: "ok",
       service: "easygen-api",
       purpose: "reachability",
+      transport: "http",
     });
   });
 
@@ -251,6 +252,13 @@ describe("App", () => {
     });
     expect(response.body.components?.schemas?.PingResponse?.properties?.purpose?.enum).toEqual([
       "reachability",
+    ]);
+    expect(response.body.components?.schemas?.PingResponse?.properties?.transport).toMatchObject({
+      enum: ["http"],
+      type: "string",
+    });
+    expect(response.body.components?.schemas?.PingResponse?.properties?.transport?.enum).toEqual([
+      "http",
     ]);
 
     expect(statusOperation.tags).toEqual(["status"]);
