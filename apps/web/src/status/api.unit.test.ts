@@ -12,6 +12,7 @@ const buildInfo = {
   service: "easygen-api",
   version: "0.1.0",
   environment: "test",
+  source: "runtime",
 } as const;
 
 const healthInfo = {
@@ -68,6 +69,22 @@ describe("status api", () => {
   it("rejects unexpected build response shapes", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({ service: "easygen-api", version: "0.1.0" })
+    );
+
+    await expect(getBuildInfo()).rejects.toMatchObject({
+      category: "unexpected",
+      message: "Unexpected API status response.",
+    });
+  });
+
+  it("rejects unexpected build source values", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        service: "easygen-api",
+        version: "0.1.0",
+        environment: "test",
+        source: "static",
+      })
     );
 
     await expect(getBuildInfo()).rejects.toMatchObject({

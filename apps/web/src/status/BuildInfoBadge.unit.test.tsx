@@ -10,6 +10,7 @@ const buildInfo = {
   service: "easygen-api",
   version: "0.1.0",
   environment: "test",
+  source: "runtime",
 } as const;
 
 const healthInfo = {

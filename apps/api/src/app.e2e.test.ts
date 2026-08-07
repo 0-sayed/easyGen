@@ -131,6 +131,7 @@ describe("App", () => {
       service: "easygen-api",
       version: expectedApiVersion,
       environment: "test",
+      source: "runtime",
     });
   });
 
@@ -266,6 +267,7 @@ describe("App", () => {
     expect(statusOperation.description).toContain("service");
     expect(statusOperation.description).toContain("version");
     expect(statusOperation.description).toContain("environment");
+    expect(statusOperation.description).toContain("source");
     expect(statusOperation.responses?.["200"]?.description).toBe(
       "Current public service build metadata."
     );
@@ -286,9 +288,16 @@ describe("App", () => {
     ).toMatchObject({
       type: "string",
     });
+    expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.source).toMatchObject({
+      enum: ["runtime"],
+      type: "string",
+    });
     expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.service?.enum).toEqual(
       ["easygen-api"]
     );
+    expect(response.body.components?.schemas?.BuildInfoResponse?.properties?.source?.enum).toEqual([
+      "runtime",
+    ]);
   });
 
   it("allows frontend auth preflight requests from the configured web origin", async () => {

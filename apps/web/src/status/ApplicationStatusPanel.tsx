@@ -1,13 +1,21 @@
 import { useBuildInfo, type LivenessState } from "./BuildInfoProvider";
 import { formatUptime } from "./uptime";
-import type { HealthInfo } from "./api";
+import type { BuildInfo, HealthInfo } from "./api";
 
 const livenessScopeLabels = {
   process: "Process",
 } satisfies Record<HealthInfo["scope"], string>;
 
+const buildSourceLabels = {
+  runtime: "Runtime",
+} satisfies Record<BuildInfo["source"], string>;
+
 function formatLivenessScope(scope: HealthInfo["scope"]): string {
   return livenessScopeLabels[scope];
+}
+
+function formatBuildSource(source: BuildInfo["source"]): string {
+  return buildSourceLabels[source];
 }
 
 export function ApplicationStatusPanel() {
@@ -55,7 +63,7 @@ export function ApplicationStatusPanel() {
           aria-label="API connection"
         >
           <p className="m-0 font-semibold text-brand-strong">API connected</p>
-          <dl className="grid gap-2 sm:grid-cols-5">
+          <dl className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <div className="grid gap-0.5">
               <dt className="font-bold text-label">Service</dt>
               <dd className="m-0">{state.buildInfo.service}</dd>
@@ -67,6 +75,10 @@ export function ApplicationStatusPanel() {
             <div className="grid gap-0.5">
               <dt className="font-bold text-label">Environment</dt>
               <dd className="m-0">{state.buildInfo.environment}</dd>
+            </div>
+            <div className="grid gap-0.5">
+              <dt className="font-bold text-label">Source</dt>
+              <dd className="m-0">{formatBuildSource(state.buildInfo.source)}</dd>
             </div>
             <LivenessDetails liveness={state.liveness} />
           </dl>

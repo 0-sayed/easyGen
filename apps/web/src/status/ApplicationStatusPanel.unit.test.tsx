@@ -10,6 +10,7 @@ const buildInfo = {
   service: "easygen-api",
   version: "0.1.0",
   environment: "test",
+  source: "runtime",
 } as const;
 
 const healthInfo = {
@@ -43,6 +44,9 @@ describe("ApplicationStatusPanel", () => {
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.getByText("Source")).toBeInTheDocument();
+    expect(within(status).getByText("Runtime")).toBeInTheDocument();
+    expect(within(status).queryByText("runtime")).not.toBeInTheDocument();
     expect(screen.getByText("Liveness scope")).toBeInTheDocument();
     expect(screen.queryByText("Liveness", { exact: true })).not.toBeInTheDocument();
     expect(within(status).getByText("Process")).toBeInTheDocument();

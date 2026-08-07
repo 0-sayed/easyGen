@@ -75,7 +75,7 @@ Public service endpoints:
 
 - `GET /health` - liveness check returning `{ "status": "ok", "service": "easygen-api", "scope": "process", "uptimeSeconds": 0 }`; `uptimeSeconds` is process-local and resets when the API process restarts; does not check MongoDB.
 - `GET /ready` - readiness check returning MongoDB status; returns `503` when the database is unavailable.
-- `GET /status` - public build/status metadata returning `service`, `version`, and `environment`.
+- `GET /status` - public build/status metadata returning `service`, `version`, `environment`, and `source`.
 
 Public auth endpoints:
 
