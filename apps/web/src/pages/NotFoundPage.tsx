@@ -19,7 +19,7 @@ export function NotFoundPage() {
         <h1 id="not-found-title" className={authStyles.title}>
           Page not found
         </h1>
-        <p className={authStyles.statusText}>This route does not exist.</p>
+        <p className={authStyles.statusText}>Check the address or choose where to go next.</p>
       </div>
       <div
         className="grid gap-1 rounded-control border border-line bg-field p-3"

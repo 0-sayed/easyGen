@@ -1398,7 +1398,7 @@ describe("App routes", () => {
 
     expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "HTTP status 404" })).toBeVisible();
-    expect(screen.getByText("This route does not exist.")).toBeInTheDocument();
+    expect(screen.getByText("Check the address or choose where to go next.")).toBeInTheDocument();
 
     const requestedPath = screen.getByRole("region", { name: "Requested path" });
     expect(requestedPath).toHaveTextContent("/missing-route/deep-link");
