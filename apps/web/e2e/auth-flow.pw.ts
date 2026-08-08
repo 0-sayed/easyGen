@@ -37,7 +37,10 @@ test.describe("full-stack auth browser matrix", () => {
     await page.goto("/missing-route");
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
-    await expect(page.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/app");
+    await expect(page.getByRole("link", { name: "Open application" })).toHaveAttribute(
+      "href",
+      "/app"
+    );
 
     await createAccount(page, account);
 
@@ -103,7 +106,11 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(requestedPath).not.toContainText("utm=1");
     await expect(requestedPath).not.toContainText("details");
     await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
-    await expect(page.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/app");
+    await expect(page.getByRole("link", { name: "Open application" })).toHaveAttribute(
+      "href",
+      "/app"
+    );
+    await expectNotFoundActionLinksHaveNoOverlap(page);
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -113,6 +120,7 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(page.getByRole("img", { name: "HTTP status 404" })).toBeVisible();
     await expect(page.getByText("Check the address or choose where to go next.")).toBeVisible();
     await expect(page.getByRole("region", { name: "Requested path" })).toContainText(longPath);
+    await expectNotFoundActionLinksHaveNoOverlap(page);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -388,6 +396,32 @@ async function expectApplicationStatusPanelHasNoOverlap(page: Page): Promise<voi
   });
 
   expect(overlaps).toEqual([]);
+}
+
+async function expectNotFoundActionLinksHaveNoOverlap(page: Page): Promise<void> {
+  const signInLink = page.getByRole("link", { name: "Sign in", exact: true });
+  const openApplicationLink = page.getByRole("link", { name: "Open application", exact: true });
+  const actionLinks = [signInLink, openApplicationLink];
+
+  await Promise.all(actionLinks.map((link) => expect(link).toBeVisible()));
+
+  const getBoundingBox = async (link: Locator) => {
+    const box = await link.boundingBox();
+    if (box === null) {
+      throw new Error("Not-found action links must have measurable bounding boxes");
+    }
+
+    return box;
+  };
+  const signInBox = await getBoundingBox(signInLink);
+  const openApplicationBox = await getBoundingBox(openApplicationLink);
+  const overlaps =
+    signInBox.x < openApplicationBox.x + openApplicationBox.width &&
+    signInBox.x + signInBox.width > openApplicationBox.x &&
+    signInBox.y < openApplicationBox.y + openApplicationBox.height &&
+    signInBox.y + signInBox.height > openApplicationBox.y;
+
+  expect(overlaps).toBe(false);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
