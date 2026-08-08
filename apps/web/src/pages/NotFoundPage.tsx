@@ -36,7 +36,7 @@ export function NotFoundPage() {
           Sign in
         </Link>
         <Link className={authStyles.secondaryLink} to="/app">
-          Open app
+          Open application
         </Link>
       </div>
     </section>

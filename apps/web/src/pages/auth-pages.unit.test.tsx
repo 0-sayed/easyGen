@@ -1400,7 +1400,7 @@ describe("App routes", () => {
     expect(requestedPath).not.toHaveTextContent("details");
 
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
-    expect(screen.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/app");
+    expect(screen.getByRole("link", { name: "Open application" })).toHaveAttribute("href", "/app");
   });
 });
 
