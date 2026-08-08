@@ -76,7 +76,7 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(page.getByText("Password changed.")).toBeVisible();
 
     await page.getByRole("button", { name: "Log out" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
     await fillSignin(page, account.email, PASSWORD);
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
@@ -127,7 +127,7 @@ test.describe("full-stack auth browser matrix", () => {
   test("unauthenticated /app redirects to signin", async ({ page }) => {
     await page.goto("/app");
 
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
     await expect(page).toHaveURL(/\/signin$/);
   });
 
@@ -137,7 +137,7 @@ test.describe("full-stack auth browser matrix", () => {
     await createAccount(page, account);
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
     await page.goto("/signup");
     await fillSignupForm(page, account);
@@ -155,12 +155,12 @@ test.describe("full-stack auth browser matrix", () => {
     await createAccount(page, account);
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
     await fillSignin(page, account.email, "WrongPassword1!");
 
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Welcome to the application." })
     ).not.toBeVisible();
@@ -175,7 +175,7 @@ test.describe("full-stack auth browser matrix", () => {
     await createAccount(page, account);
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
     await page.goto(buildRecoveryUrl("/verify-email", account.email, "invalid-verification-token"));
 
@@ -217,7 +217,7 @@ test.describe("full-stack auth browser matrix", () => {
     await createAccount(page, account);
     await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
     await page.goto("/forgot-password");
     await fillInput(page.getByLabel("Email"), account.email);
@@ -280,7 +280,7 @@ test.describe("full-stack auth browser matrix", () => {
     await page.getByLabel("I understand this permanently deletes my account.").check();
     await page.getByRole("button", { name: "Delete account" }).click();
 
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
     await expect(page).toHaveURL(/\/signin$/);
     await expect
       .poll(async () => page.evaluate(() => window.localStorage.getItem("easygen.accessToken")))
@@ -288,7 +288,7 @@ test.describe("full-stack auth browser matrix", () => {
 
     await fillSignin(page, account.email, PASSWORD);
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
   });
 
   test("stale session redirects to signin and clears browser token", async ({ page }) => {
@@ -298,7 +298,7 @@ test.describe("full-stack auth browser matrix", () => {
 
     await page.goto("/app");
 
-    await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
     await expect(page).toHaveURL(/\/signin$/);
     await expect
       .poll(async () => page.evaluate(() => window.localStorage.getItem("easygen.accessToken")))

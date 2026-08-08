@@ -48,7 +48,7 @@ async function assertPublicDiagnostics(
   const buildInfo = await parseBuildInfo(statusResponse);
   const healthInfo = await parseHealthInfo(healthResponse);
 
-  await expect(page.getByRole("heading", { name: "Sign in with confidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
   const diagnostics = page.getByRole("status", {
     name: "API build and liveness information",

@@ -68,6 +68,13 @@ class PingResponse {
   transport!: "http";
 
   @ApiProperty({
+    description: "Declares that the ping response is publicly accessible.",
+    example: "public",
+    enum: ["public"],
+  })
+  access!: "public";
+
+  @ApiProperty({
     description: "Minimal API reachability status.",
     example: "ok",
     enum: ["ok"],
@@ -166,6 +173,7 @@ export class AppController {
       service: "easygen-api",
       purpose: "reachability",
       transport: "http",
+      access: "public",
     };
   }
 
