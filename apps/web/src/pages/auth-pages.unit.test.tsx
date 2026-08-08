@@ -172,6 +172,15 @@ describe("SigninPage", () => {
     vi.restoreAllMocks();
   });
 
+  it("uses the direct account access heading", () => {
+    renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
+
+    expect(screen.getByRole("heading", { name: "Access your account" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Sign in with confidence" })
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the private-device session helper by default", () => {
     renderAuthRoutes(<Route path="/signin" element={<SigninPage />} />, "/signin");
 
@@ -883,9 +892,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(await screen.findByText("easygen-api")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("environment test")).toBeInTheDocument();
@@ -946,9 +953,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
 
@@ -979,18 +984,14 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("link", { name: "Create one" }));
     expect(await screen.findByRole("heading", { name: "Create account" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("link", { name: "Sign in" }));
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(
       screen.queryByText("Your session expired. Please sign in again.")
     ).not.toBeInTheDocument();
@@ -1021,9 +1022,7 @@ describe("App routes", () => {
     expect(screen.getByRole("status", { name: "Checking your session" })).toHaveTextContent(
       "We are confirming your saved sign-in before opening the app."
     );
-    expect(
-      screen.queryByRole("heading", { name: "Sign in with confidence" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Access your account" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Welcome to the application." })
     ).not.toBeInTheDocument();
@@ -1052,9 +1051,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
 
@@ -1175,9 +1172,7 @@ describe("App routes", () => {
     await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
     await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
@@ -1211,9 +1206,7 @@ describe("App routes", () => {
     await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
     await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
@@ -1323,9 +1316,7 @@ describe("App routes", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Log out" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in with confidence" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();
     expect(logout).toHaveBeenCalledWith("token-123");
     expect(localStorage.getItem("easygen.accessToken")).toBeNull();
   });
