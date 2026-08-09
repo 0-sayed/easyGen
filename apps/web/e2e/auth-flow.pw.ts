@@ -146,7 +146,7 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(
       page.getByText("Unable to create account with the provided details.")
     ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Create account" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   });
 
   test("failed signin shows error and stays on signin", async ({ page }, testInfo) => {

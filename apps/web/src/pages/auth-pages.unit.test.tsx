@@ -48,6 +48,7 @@ describe("SignupPage", () => {
   it("shows client-side validation messages", async () => {
     renderAuthRoutes(<Route path="/signup" element={<SignupPage />} />, "/signup");
 
+    expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText("Enter a valid email address.")).toBeInTheDocument();
@@ -988,7 +989,7 @@ describe("App routes", () => {
     expect(screen.getByText("Your session expired. Please sign in again.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("link", { name: "Create one" }));
-    expect(await screen.findByRole("heading", { name: "Create account" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Create your account" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("link", { name: "Sign in" }));
     expect(await screen.findByRole("heading", { name: "Access your account" })).toBeInTheDocument();

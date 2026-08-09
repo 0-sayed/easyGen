@@ -38,7 +38,7 @@ export function SignupPage() {
     <section className={authStyles.card} aria-labelledby="signup-title">
       <p className={authStyles.kicker}>easyGen</p>
       <h1 id="signup-title" className={authStyles.title}>
-        Create account
+        Create your account
       </h1>
       <form
         className={authStyles.form}
