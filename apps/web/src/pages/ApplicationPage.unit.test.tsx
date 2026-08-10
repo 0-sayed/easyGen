@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useNavigationType } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -53,6 +53,9 @@ describe("ApplicationPage", () => {
     expect(
       screen.queryByRole("heading", { name: "Welcome to the application." })
     ).not.toBeInTheDocument();
+    const accountSummary = screen.getByRole("region", { name: "Account summary" });
+    expect(within(accountSummary).getByText("Account email")).toBeInTheDocument();
+    expect(within(accountSummary).getByText("person@example.com")).toBeInTheDocument();
   });
 
   it("navigates to signin with route replacement after account deletion succeeds", async () => {

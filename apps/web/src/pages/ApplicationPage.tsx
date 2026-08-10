@@ -43,7 +43,7 @@ export function ApplicationPage() {
             <dd className="m-0">{user?.name}</dd>
           </div>
           <div className="grid gap-1">
-            <dt className="font-bold text-label">Email</dt>
+            <dt className="font-bold text-label">Account email</dt>
             <dd className="m-0">{user?.email}</dd>
           </div>
           <div className="grid gap-1">
