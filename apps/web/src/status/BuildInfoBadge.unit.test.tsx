@@ -49,7 +49,7 @@ describe("BuildInfoBadge", () => {
       name: "API build and liveness information",
     });
 
-    expect(liveRegion).toHaveTextContent("Checking API status...");
+    expect(liveRegion).toHaveTextContent("Checking service status...");
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(liveRegion).toHaveAttribute("aria-atomic", "true");
   });
@@ -87,7 +87,7 @@ describe("BuildInfoBadge", () => {
     const liveRegion = screen.getByRole("status", {
       name: "API build and liveness information",
     });
-    expect(liveRegion).toHaveTextContent("Checking API status...");
+    expect(liveRegion).toHaveTextContent("Checking service status...");
 
     act(() => {
       buildInfoRequest.resolve(buildInfo);

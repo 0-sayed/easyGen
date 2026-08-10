@@ -21,7 +21,7 @@ export function BuildInfoBadge() {
 
 function BuildInfoBadgeContent({ state }: { state: BuildInfoState }) {
   if (state.status === "loading") {
-    return <>Checking API status...</>;
+    return <>Checking service status...</>;
   }
 
   if (state.status === "failed") {
