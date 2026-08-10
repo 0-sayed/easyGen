@@ -43,7 +43,8 @@ describe("ApplicationStatusPanel", () => {
     expect(status).toHaveTextContent("API connected");
     expect(screen.getByText("Service")).toBeInTheDocument();
     expect(screen.getByText("easygen-api")).toBeInTheDocument();
-    expect(screen.getByText("Version")).toBeInTheDocument();
+    expect(screen.getByText("Build version")).toBeInTheDocument();
+    expect(screen.queryByText("Version", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("test")).toBeInTheDocument();

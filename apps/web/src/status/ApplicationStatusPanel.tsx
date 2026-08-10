@@ -69,7 +69,7 @@ export function ApplicationStatusPanel() {
               <dd className="m-0">{state.buildInfo.service}</dd>
             </div>
             <div className="grid gap-0.5">
-              <dt className="font-bold text-label">Version</dt>
+              <dt className="font-bold text-label">Build version</dt>
               <dd className="m-0">v{state.buildInfo.version}</dd>
             </div>
             <div className="grid gap-0.5">
