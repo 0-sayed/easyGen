@@ -409,7 +409,7 @@ async function expectApplicationHeadingHasNoOverlap(page: Page): Promise<void> {
     const appSection = headingElement.closest("section");
     const adjacentElements = Array.from(
       appSection?.querySelectorAll<HTMLElement>(
-        "p, #account-summary-title, [aria-label='Application status'], [aria-label='Account activity'], button"
+        "p, #account-summary-title, [aria-label='API connection'], [aria-label='Recent account activity'], button"
       ) ?? []
     ).filter((element) => {
       const box = element.getBoundingClientRect();
