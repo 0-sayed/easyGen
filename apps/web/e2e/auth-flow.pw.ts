@@ -346,6 +346,10 @@ async function fillSignin(page: Page, email: string, password: string): Promise<
 }
 
 async function expectApplicationStatusPanel(page: Page): Promise<void> {
+  await expect(page.getByRole("heading", { name: "API status" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "API connection" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "API status" })).toBeVisible();
+
   const statusPanel = page.getByRole("status", { name: "API connection" });
 
   await expect(statusPanel).toContainText("API connected");
