@@ -36,6 +36,9 @@ describe("ApplicationStatusPanel", () => {
 
     renderWithBuildInfoProvider(<ApplicationStatusPanel />);
 
+    expect(screen.getByRole("heading", { name: "API status" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "API connection" })).not.toBeInTheDocument();
+
     const status = await screen.findByRole("status", { name: "API connection" });
     expect(status).toHaveTextContent("API connected");
     expect(screen.getByText("Service")).toBeInTheDocument();

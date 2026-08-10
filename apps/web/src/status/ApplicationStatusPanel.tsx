@@ -31,7 +31,7 @@ export function ApplicationStatusPanel() {
           System status
         </p>
         <h2 id="api-status-title" className="m-0 text-xl font-semibold leading-tight text-ink">
-          API connection
+          API status
         </h2>
       </div>
 
