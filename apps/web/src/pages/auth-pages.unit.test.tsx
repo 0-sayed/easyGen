@@ -97,7 +97,7 @@ describe("SignupPage", () => {
     renderAuthRoutes(
       <>
         <Route path="/signup" element={<SignupPage />} />
-        <Route path="/app" element={<p>Welcome to the application.</p>} />
+        <Route path="/app" element={<p>Welcome to easyGen</p>} />
       </>,
       "/signup"
     );
@@ -108,7 +108,7 @@ describe("SignupPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Welcome to the application.")).toBeInTheDocument();
+      expect(screen.getByText("Welcome to easyGen")).toBeInTheDocument();
     });
     expect(api.signup).toHaveBeenCalledWith({
       email: "person@example.com",
@@ -235,7 +235,7 @@ describe("SigninPage", () => {
     renderAuthRoutes(
       <>
         <Route path="/signin" element={<SigninPage />} />
-        <Route path="/app" element={<p>Welcome to the application.</p>} />
+        <Route path="/app" element={<p>Welcome to easyGen</p>} />
       </>,
       "/signin"
     );
@@ -245,7 +245,7 @@ describe("SigninPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Welcome to the application.")).toBeInTheDocument();
+      expect(screen.getByText("Welcome to easyGen")).toBeInTheDocument();
     });
   });
 
@@ -258,7 +258,7 @@ describe("SigninPage", () => {
         <AuthProvider>
           <Routes>
             <Route path="/signin" element={<SigninPage />} />
-            <Route path="/app" element={<p>Welcome to the application.</p>} />
+            <Route path="/app" element={<p>Welcome to easyGen</p>} />
           </Routes>
         </AuthProvider>
       </MemoryRouter>
@@ -269,7 +269,7 @@ describe("SigninPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Welcome to the application.")).toBeInTheDocument();
+      expect(screen.getByText("Welcome to easyGen")).toBeInTheDocument();
     });
   });
 
@@ -962,9 +962,7 @@ describe("App routes", () => {
     await userEvent.type(screen.getByLabelText("Password"), "Password1!");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     expect(
       screen.queryByText("Your session expired. Please sign in again.")
     ).not.toBeInTheDocument();
@@ -1024,18 +1022,14 @@ describe("App routes", () => {
       "We are confirming your saved sign-in before opening the app."
     );
     expect(screen.queryByRole("heading", { name: "Access your account" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Welcome to the application." })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Welcome to easyGen" })).not.toBeInTheDocument();
 
     if (resolveCurrentUser === undefined) {
       throw new Error("Expected getCurrentUser resolver to be initialized.");
     }
     resolveCurrentUser(user);
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
   });
 
   it("clears a stale stored token and returns the protected app route to signin", async () => {
@@ -1079,9 +1073,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     const accountSummary = screen.getByRole("region", { name: "Account summary" });
     expect(accountSummary).toBeInTheDocument();
     expect(within(accountSummary).getByText("Person Name")).toBeInTheDocument();
@@ -1127,9 +1119,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
 
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
@@ -1165,9 +1155,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
 
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
@@ -1199,9 +1187,7 @@ describe("App routes", () => {
       </StrictMode>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
 
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Updated Person");
@@ -1228,9 +1214,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     const accountSummary = screen.getByRole("region", { name: "Account summary" });
     expect(accountSummary).toBeInTheDocument();
     expect(within(accountSummary).getByText("Person Name")).toBeInTheDocument();
@@ -1258,9 +1242,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Account summary" })).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: "Account summary" })).getByText(
@@ -1310,9 +1292,7 @@ describe("App routes", () => {
       </MemoryRouter>
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     expect(screen.getByText("Person Name")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Log out" }));
@@ -1345,9 +1325,7 @@ describe("App routes", () => {
     await userEvent.type(screen.getByLabelText("Password"), "Password1!");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 
@@ -1375,9 +1353,7 @@ describe("App routes", () => {
     await userEvent.type(screen.getByLabelText("Password"), "Password1!");
     await userEvent.click(screen.getByRole("button", { name: "Create account" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome to the application." })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
     expect(localStorage.getItem("easygen.accessToken")).toBe("token-123");
   });
 

@@ -28,6 +28,33 @@ function SigninRoute() {
 }
 
 describe("ApplicationPage", () => {
+  it("renders the signed-in application heading with the product name", () => {
+    vi.spyOn(authProvider, "useAuth").mockReturnValue({
+      accessToken: "token-123",
+      isLoading: false,
+      reauthMessage: null,
+      user,
+      clearReauthMessage: vi.fn(),
+      deleteAccount: vi.fn(),
+      handleRevokedSession: vi.fn(),
+      signin: vi.fn(),
+      signup: vi.fn(),
+      logout: vi.fn(),
+      replaceUser: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <ApplicationPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { name: "Welcome to easyGen" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Welcome to the application." })
+    ).not.toBeInTheDocument();
+  });
+
   it("navigates to signin with route replacement after account deletion succeeds", async () => {
     const deleteAccount = vi.fn().mockResolvedValueOnce(undefined);
 

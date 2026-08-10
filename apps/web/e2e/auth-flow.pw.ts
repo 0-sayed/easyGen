@@ -44,7 +44,8 @@ test.describe("full-stack auth browser matrix", () => {
 
     await createAccount(page, account);
 
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
+    await expectApplicationHeadingHasNoOverlap(page);
     await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
     const accountSummary = page.getByRole("region", { name: "Account summary" });
     await expect(accountSummary.getByText(account.name, { exact: true })).toBeVisible();
@@ -54,6 +55,8 @@ test.describe("full-stack auth browser matrix", () => {
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
+    await expectApplicationHeadingHasNoOverlap(page);
     await expectApplicationStatusPanel(page);
     await expectApplicationStatusPanelHasNoOverlap(page);
     await expectNoHorizontalOverflow(page);
@@ -83,7 +86,7 @@ test.describe("full-stack auth browser matrix", () => {
 
     await fillSignin(page, account.email, newPassword);
 
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
     await expect(accountSummary.getByText(updatedName, { exact: true })).toBeVisible();
     await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
@@ -135,7 +138,7 @@ test.describe("full-stack auth browser matrix", () => {
     const account = buildAccount(testInfo, "duplicate");
 
     await createAccount(page, account);
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
@@ -153,7 +156,7 @@ test.describe("full-stack auth browser matrix", () => {
     const account = buildAccount(testInfo, "failed-signin");
 
     await createAccount(page, account);
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
@@ -161,9 +164,7 @@ test.describe("full-stack auth browser matrix", () => {
 
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Welcome to the application." })
-    ).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).not.toBeVisible();
   });
 
   test("verifies email recovery links and explains invalid verification tokens", async ({
@@ -173,7 +174,7 @@ test.describe("full-stack auth browser matrix", () => {
     const account = buildAccount(testInfo, "email-recovery");
 
     await createAccount(page, account);
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
@@ -215,7 +216,7 @@ test.describe("full-stack auth browser matrix", () => {
     const account = buildAccount(testInfo, "password-recovery");
 
     await createAccount(page, account);
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Access your account" })).toBeVisible();
 
@@ -248,7 +249,7 @@ test.describe("full-stack auth browser matrix", () => {
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
 
     await fillSignin(page, account.email, NEW_PASSWORD);
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Account summary" })).toBeVisible();
   });
 
@@ -260,7 +261,7 @@ test.describe("full-stack auth browser matrix", () => {
 
     await createAccount(page, account);
 
-    await expect(page.getByRole("heading", { name: "Welcome to the application." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to easyGen" })).toBeVisible();
     const accountSummary = page.getByRole("region", { name: "Account summary" });
     await expect(accountSummary.getByText(account.name, { exact: true })).toBeVisible();
     await expect(accountSummary.getByText(account.email, { exact: true })).toBeVisible();
@@ -400,6 +401,59 @@ async function expectApplicationStatusPanelHasNoOverlap(page: Page): Promise<voi
   });
 
   expect(overlaps).toEqual([]);
+}
+
+async function expectApplicationHeadingHasNoOverlap(page: Page): Promise<void> {
+  const heading = page.locator("#application-title");
+
+  await expect(heading).toBeVisible();
+
+  const report = await heading.evaluate((headingElement) => {
+    const headingBox = headingElement.getBoundingClientRect();
+    const appSection = headingElement.closest("section");
+    const adjacentElements = Array.from(
+      appSection?.querySelectorAll<HTMLElement>(
+        "p, #account-summary-title, [aria-label='API connection'], [aria-label='Recent account activity'], button"
+      ) ?? []
+    ).filter((element) => {
+      const box = element.getBoundingClientRect();
+      const styles = window.getComputedStyle(element);
+
+      return (
+        element !== headingElement &&
+        !element.contains(headingElement) &&
+        !headingElement.contains(element) &&
+        styles.display !== "none" &&
+        styles.visibility !== "hidden" &&
+        box.width > 0 &&
+        box.height > 0
+      );
+    });
+
+    const overlaps = adjacentElements.flatMap((element) => {
+      const box = element.getBoundingClientRect();
+      const overlapsHeading =
+        headingBox.left < box.right &&
+        headingBox.right > box.left &&
+        headingBox.top < box.bottom &&
+        headingBox.bottom > box.top;
+
+      return overlapsHeading ? [`${headingElement.tagName} overlaps ${element.tagName}`] : [];
+    });
+
+    return {
+      headingOverflowsContent: headingElement.scrollWidth > headingElement.clientWidth,
+      headingOverflowsViewport:
+        headingBox.left < 0 || headingBox.right > document.documentElement.clientWidth,
+      overlaps,
+    };
+  });
+
+  expect(report).toEqual({
+    headingOverflowsContent: false,
+    headingOverflowsViewport: false,
+    overlaps: [],
+  });
 }
 
 async function expectNotFoundActionLinksHaveNoOverlap(page: Page): Promise<void> {
