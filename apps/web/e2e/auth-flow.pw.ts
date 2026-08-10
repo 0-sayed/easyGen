@@ -361,7 +361,7 @@ async function expectApplicationStatusPanel(page: Page): Promise<void> {
 }
 
 async function expectApplicationStatusPanelHasNoOverlap(page: Page): Promise<void> {
-  const statusPanel = page.getByRole("region", { name: "API status" });
+  const statusPanel = page.getByRole("status", { name: "API connection" });
   const overlaps = await statusPanel.evaluate((panel) => {
     const elements = [
       ...Array.from(panel.querySelectorAll(":scope > *")),
